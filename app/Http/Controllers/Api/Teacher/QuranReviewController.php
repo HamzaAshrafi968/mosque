@@ -112,8 +112,7 @@ class QuranReviewController extends BaseTeacherController
         DB::transaction(function () use (
             $sessionId, $data, $teacher, $tenantId, $stats, $totalWords, $masteryPercentage, $wordRows
         ) {
-            QuranReviewSession::create([
-                'id' => $sessionId,
+            $session = new QuranReviewSession([
                 'tenant_id' => $tenantId,
                 'teacher_id' => $teacher->id,
                 'student_id' => $data['student_id'],
@@ -131,6 +130,8 @@ class QuranReviewController extends BaseTeacherController
                 'date' => $data['date'],
                 'notes' => $data['notes'] ?? null,
             ]);
+            $session->id = $sessionId;
+            $session->save();
 
             foreach (array_chunk($wordRows, 500) as $chunk) {
                 QuranReviewWord::insert($chunk);

@@ -50,10 +50,11 @@ class QuranReviewController extends BaseTeacherController
         $ayahs = collect();
         if ($surahId && $toAyah >= $fromAyah) {
             $ayahs = QuranAyah::query()
+                ->with('surah:id,name_arabic')
                 ->where('surah_id', $surahId)
                 ->whereBetween('ayah_number', [$fromAyah, $toAyah])
                 ->orderBy('ayah_number')
-                ->get(['id', 'ayah_number', 'text', 'text_simple']);
+                ->get(['id', 'surah_id', 'ayah_number', 'text', 'text_simple']);
         }
 
         $surah = $surahId ? QuranSurah::find($surahId) : null;
@@ -152,8 +153,7 @@ class QuranReviewController extends BaseTeacherController
         DB::transaction(function () use (
             $sessionId, $data, $teacher, $tenantId, $stats, $totalWords, $masteryPercentage, $wordRows
         ) {
-            QuranReviewSession::create([
-                'id' => $sessionId,
+            $session = new QuranReviewSession([
                 'tenant_id' => $tenantId,
                 'teacher_id' => $teacher->id,
                 'student_id' => $data['student_id'],
@@ -171,6 +171,8 @@ class QuranReviewController extends BaseTeacherController
                 'date' => $data['date'],
                 'notes' => $data['notes'] ?? null,
             ]);
+            $session->id = $sessionId;
+            $session->save();
 
             foreach (array_chunk($wordRows, 500) as $chunk) {
                 QuranReviewWord::insert($chunk);
