@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "laravel-best-practices": {
+      "source": "asyrafhussin/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/laravel-best-practices/SKILL.md",
+      "computedHash": "3f2351dc1821d430b6b58ce24175e0af11f5c11b234198bfc76a6702c05fe3ef"
+    },
+    "laravel-expert": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/laravel-expert/SKILL.md",
+      "computedHash": "1e46c5ce32de83da7022ef04cbc6ddf5f67f9ec410ee1ae7b437204fee834e6a"
+    },
+    "laravel-patterns": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/laravel-patterns/SKILL.md",
+      "computedHash": "38faa9bb9ca64ef885a1d9df801296e738a1456ea1418e9f381b154b96bb29b2"
+    },
+    "laravel-security": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/laravel-security/SKILL.md",
+      "computedHash": "8cd3d3c6e88019414e31d5ef26188074859607ea6b41c1bd10fd81b7782fcd83"
+    }
+  }
+}
