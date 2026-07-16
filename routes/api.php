@@ -40,6 +40,11 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
 
         Route::get('reports', [Api\Admin\ReportController::class, 'index']);
 
+        Route::get('quran-review', [Api\Admin\QuranReviewController::class, 'index']);
+        Route::get('quran-review/statistics', [Api\Admin\QuranReviewController::class, 'statistics']);
+        Route::get('quran-review/student/{student}', [Api\Admin\QuranReviewController::class, 'studentReport']);
+        Route::get('quran-review/{id}', [Api\Admin\QuranReviewController::class, 'show']);
+
         Route::get('announcements', [Api\Admin\AnnouncementController::class, 'index']);
         Route::post('announcements', [Api\Admin\AnnouncementController::class, 'store']);
         Route::delete('announcements/{announcement}', [Api\Admin\AnnouncementController::class, 'destroy']);
@@ -71,5 +76,11 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
 
         Route::get('profile', [Api\Teacher\ProfileController::class, 'show']);
         Route::patch('profile', [Api\Teacher\ProfileController::class, 'update']);
+
+        Route::get('quran-review', [Api\Teacher\QuranReviewController::class, 'index']);
+        Route::post('quran-review', [Api\Teacher\QuranReviewController::class, 'store']);
+        Route::get('quran-review/ayahs', [Api\Teacher\QuranReviewController::class, 'getAyahs']);
+        Route::get('quran-review/student/{student}', [Api\Teacher\QuranReviewController::class, 'studentReport']);
+        Route::get('quran-review/{id}', [Api\Teacher\QuranReviewController::class, 'show']);
     });
 });

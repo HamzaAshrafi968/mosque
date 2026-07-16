@@ -80,5 +80,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'التجويد',
             'weekly_lessons' => 3,
         ]);
+
+        $this->call(QuranDataSeeder::class);
     }
 }

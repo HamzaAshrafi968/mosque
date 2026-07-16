@@ -52,6 +52,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('announcements', [Admin\AnnouncementController::class, 'store'])->name('announcements.store');
     Route::delete('announcements/{announcement}', [Admin\AnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
+    Route::get('quran-review', [Admin\QuranReviewController::class, 'index'])->name('quran-review.index');
+    Route::get('quran-review/statistics', [Admin\QuranReviewController::class, 'statistics'])->name('quran-review.statistics');
+    Route::get('quran-review/{id}', [Admin\QuranReviewController::class, 'show'])->name('quran-review.show');
+    Route::get('quran-review/student/{student}', [Admin\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report');
+
     Route::resource('users', Admin\UserController::class)->only(['index', 'store', 'update', 'destroy']);
 });
 
@@ -79,4 +84,11 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
 
     Route::get('profile', [Teacher\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('profile', [Teacher\ProfileController::class, 'update'])->name('profile.update');
+
+    Route::get('quran-review', [Teacher\QuranReviewController::class, 'index'])->name('quran-review.index');
+    Route::get('quran-review/create', [Teacher\QuranReviewController::class, 'create'])->name('quran-review.create');
+    Route::post('quran-review', [Teacher\QuranReviewController::class, 'store'])->name('quran-review.store');
+    Route::get('quran-review/{id}', [Teacher\QuranReviewController::class, 'show'])->name('quran-review.show');
+    Route::get('quran-review/student/{student}', [Teacher\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report');
+    Route::get('quran-review/ayahs/json', [Teacher\QuranReviewController::class, 'getAyahs'])->name('quran-review.ayahs');
 });
