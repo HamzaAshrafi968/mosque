@@ -9,7 +9,7 @@ class AuthTest extends TestCase
 {
     public function test_register_creates_tenant_and_admin_with_token(): void
     {
-        $response = $this->postJson('/api/register', [
+        $response = $this->postJson('/api/v1/register', [
             'mosque_name' => 'جامع النور',
             'name' => 'مدير الجامع',
             'email' => 'admin@example.com',
@@ -19,8 +19,8 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonStructure(['user' => ['id', 'name', 'email', 'role', 'gender', 'tenant_id'], 'token'])
-            ->assertJsonPath('user.role', 'admin');
+            ->assertJsonStructure(['success', 'data' => ['user' => ['id', 'name', 'email', 'role', 'gender'], 'token']])
+            ->assertJsonPath('data.user.role', 'admin');
 
         $this->assertDatabaseHas('tenants', ['name' => 'جامع النور']);
         $this->assertDatabaseHas('users', ['email' => 'admin@example.com', 'role' => 'admin']);
@@ -30,19 +30,20 @@ class AuthTest extends TestCase
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
 
-        $response = $this->postJson('/api/login', [
+        $response = $this->postJson('/api/v1/login', [
             'email' => 'user@example.com',
             'password' => 'password',
         ]);
 
-        $response->assertOk()->assertJsonStructure(['user', 'token']);
+        $response->assertOk()
+            ->assertJsonStructure(['success', 'data' => ['user', 'token']]);
     }
 
     public function test_login_fails_with_wrong_password(): void
     {
         User::factory()->create(['email' => 'user@example.com']);
 
-        $response = $this->postJson('/api/login', [
+        $response = $this->postJson('/api/v1/login', [
             'email' => 'user@example.com',
             'password' => 'wrong-password',
         ]);
@@ -52,7 +53,7 @@ class AuthTest extends TestCase
 
     public function test_guest_cannot_access_protected_routes(): void
     {
-        $this->getJson('/api/admin/dashboard')->assertUnauthorized();
-        $this->getJson('/api/me')->assertUnauthorized();
+        $this->getJson('/api/v1/admin/dashboard')->assertUnauthorized();
+        $this->getJson('/api/v1/me')->assertUnauthorized();
     }
 }

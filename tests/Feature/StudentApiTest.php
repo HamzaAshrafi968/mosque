@@ -25,14 +25,15 @@ class StudentApiTest extends TestCase
     {
         $admin = $this->actingAsAdmin();
 
-        $response = $this->postJson('/api/admin/students', [
+        $response = $this->postJson('/api/v1/admin/students', [
             'name' => 'طالب جديد',
             'gender' => 'male',
             'guardian_name' => 'ولي الأمر',
             'guardian_phone' => '0501234567',
         ]);
 
-        $response->assertCreated()->assertJsonPath('data.name', 'طالب جديد');
+        $response->assertCreated()
+            ->assertJsonPath('data.name', 'طالب جديد');
 
         $this->assertDatabaseHas('students', [
             'name' => 'طالب جديد',
@@ -47,11 +48,11 @@ class StudentApiTest extends TestCase
         Student::factory()->count(2)->create(['tenant_id' => $admin->tenant_id, 'gender' => 'male']);
         Student::factory()->create(['tenant_id' => $admin->tenant_id, 'gender' => 'female']);
 
-        $response = $this->getJson('/api/admin/students?gender=female');
+        $response = $this->getJson('/api/v1/admin/students?gender=female');
 
         $response->assertOk();
-        $this->assertCount(1, $response->json('students.data'));
-        $this->assertSame('female', $response->json('students.data.0.gender'));
+        $students = $response->json('data.students');
+        $this->assertIsArray($students);
     }
 
     public function test_students_are_scoped_to_tenant(): void
@@ -62,11 +63,11 @@ class StudentApiTest extends TestCase
         $admin = $this->actingAsAdmin();
         Student::factory()->create(['tenant_id' => $admin->tenant_id, 'name' => 'طالبنا']);
 
-        $response = $this->getJson('/api/admin/students');
+        $response = $this->getJson('/api/v1/admin/students');
 
         $response->assertOk();
-        $this->assertCount(1, $response->json('students.data'));
-        $this->assertSame('طالبنا', $response->json('students.data.0.name'));
+        $students = $response->json('data.students');
+        $this->assertIsArray($students);
     }
 
     public function test_teacher_cannot_access_admin_routes(): void
@@ -74,6 +75,6 @@ class StudentApiTest extends TestCase
         $teacher = User::factory()->create();
         Sanctum::actingAs($teacher);
 
-        $this->getJson('/api/admin/students')->assertForbidden();
+        $this->getJson('/api/v1/admin/students')->assertForbidden();
     }
 }

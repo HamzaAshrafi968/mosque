@@ -4,18 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 
 abstract class BaseApiController extends Controller
 {
-    protected function success(mixed $data = null, string $message = null, int $code = 200, array $meta = []): JsonResponse
+    protected function success(mixed $data = null, ?string $message = null, int $code = 200, array $meta = []): JsonResponse
     {
         return ApiResponse::success($data, $message, $code, $meta);
     }
 
-    protected function created(mixed $data = null, string $message = null): JsonResponse
+    protected function created(mixed $data = null, ?string $message = null): JsonResponse
     {
         return ApiResponse::created($data, $message);
     }

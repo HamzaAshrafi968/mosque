@@ -13,33 +13,34 @@ class QuranDataSeeder extends Seeder
     {
         $path = database_path('data/quran.json');
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             $this->command?->warn('quran.json not found. Run: php database/fetch-quran.php');
+
             return;
         }
 
         $surahs = json_decode(file_get_contents($path), true);
 
-        $this->command?->info('Seeding ' . count($surahs) . ' surahs...');
+        $this->command?->info('Seeding '.count($surahs).' surahs...');
 
         foreach ($surahs as $surahData) {
             $surah = QuranSurah::create([
-                'id'              => (string) Str::uuid(),
-                'name_arabic'     => $surahData['name_arabic'],
-                'name_english'    => $surahData['name_english'],
+                'id' => (string) Str::uuid(),
+                'name_arabic' => $surahData['name_arabic'],
+                'name_english' => $surahData['name_english'],
                 'revelation_type' => $surahData['revelation_type'],
-                'num_ayahs'       => $surahData['num_ayahs'],
-                'sort_order'      => $surahData['sort_order'],
+                'num_ayahs' => $surahData['num_ayahs'],
+                'sort_order' => $surahData['sort_order'],
             ]);
 
             $ayahs = [];
             foreach ($surahData['ayahs'] as $ayah) {
                 $ayahs[] = [
-                    'id'           => (string) Str::uuid(),
-                    'surah_id'     => $surah->id,
-                    'ayah_number'  => $ayah['n'],
-                    'text'         => $ayah['t'],
-                    'text_simple'  => $ayah['ts'],
+                    'id' => (string) Str::uuid(),
+                    'surah_id' => $surah->id,
+                    'ayah_number' => $ayah['n'],
+                    'text' => $ayah['t'],
+                    'text_simple' => $ayah['ts'],
                 ];
             }
 

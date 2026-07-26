@@ -2,6 +2,7 @@
 
 namespace App\Contracts\Repositories;
 
+use App\Models\Teacher;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -11,5 +12,5 @@ interface TeacherRepositoryInterface extends BaseRepositoryInterface
 
     public function activeTeachers(): Collection;
 
-    public function findByUserId(string $userId): ?\App\Models\Teacher;
+    public function findByUserId(string $userId): ?Teacher;
 }

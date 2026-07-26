@@ -2,12 +2,15 @@
 
 namespace App\Http\Responses;
 
+use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\ResourceCollection;
 use Symfony\Component\HttpFoundation\Response;
 
 class ApiResponse
 {
-    public static function success(mixed $data = null, string $message = null, int $code = Response::HTTP_OK, array $meta = []): JsonResponse
+    public static function success(mixed $data = null, ?string $message = null, int $code = Response::HTTP_OK, array $meta = []): JsonResponse
     {
         $response = ['success' => true];
 
@@ -26,7 +29,7 @@ class ApiResponse
         return response()->json($response, $code);
     }
 
-    public static function created(mixed $data = null, string $message = null): JsonResponse
+    public static function created(mixed $data = null, ?string $message = null): JsonResponse
     {
         return self::success($data, $message, Response::HTTP_CREATED);
     }
@@ -71,14 +74,61 @@ class ApiResponse
     }
 
     /**
-     * @param  \Illuminate\Contracts\Pagination\LengthAwarePaginator|\Illuminate\Contracts\Pagination\CursorPaginator  $paginator
+     * @param  LengthAwarePaginator|CursorPaginator  $paginator
      */
     public static function paginated(mixed $paginator, string $key = 'items'): JsonResponse
     {
         $meta = [];
         $data = [];
+        $items = $paginator;
 
-        if ($paginator instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator) {
+        if ($paginator instanceof ResourceCollection) {
+            $resource = $paginator->resource;
+            if ($resource instanceof LengthAwarePaginator) {
+                $items = json_decode($paginator->toJson());
+                $items = $items->data ?? $items;
+                $meta = [
+                    'current_page' => $resource->currentPage(),
+                    'last_page' => $resource->lastPage(),
+                    'per_page' => $resource->perPage(),
+                    'total' => $resource->total(),
+                    'from' => $resource->firstItem(),
+                    'to' => $resource->lastItem(),
+                ];
+                $data[$key] = $items;
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $data,
+                    'meta' => $meta,
+                ]);
+            }
+            if ($resource instanceof CursorPaginator) {
+                $items = json_decode($paginator->toJson());
+                $items = $items->data ?? $items;
+                $meta = [
+                    'per_page' => $resource->perPage(),
+                    'next_cursor' => $resource->nextCursor()?->encode(),
+                    'previous_cursor' => $resource->previousCursor()?->encode(),
+                    'has_more' => $resource->hasMorePages(),
+                ];
+                $data[$key] = $items;
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $data,
+                    'meta' => $meta,
+                ]);
+            }
+            $data[$key] = $paginator;
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+            ]);
+        }
+
+        if ($paginator instanceof LengthAwarePaginator) {
             $data[$key] = $paginator->items();
             $meta = [
                 'current_page' => $paginator->currentPage(),
@@ -88,7 +138,7 @@ class ApiResponse
                 'from' => $paginator->firstItem(),
                 'to' => $paginator->lastItem(),
             ];
-        } elseif ($paginator instanceof \Illuminate\Contracts\Pagination\CursorPaginator) {
+        } elseif ($paginator instanceof CursorPaginator) {
             $data[$key] = $paginator->items();
             $meta = [
                 'per_page' => $paginator->perPage(),

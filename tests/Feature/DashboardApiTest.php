@@ -23,13 +23,13 @@ class DashboardApiTest extends TestCase
         Student::factory()->count(2)->create(['tenant_id' => $tenant->id, 'gender' => 'female']);
         Teacher::factory()->create(['tenant_id' => $tenant->id]);
 
-        $response = $this->getJson('/api/admin/dashboard');
+        $response = $this->getJson('/api/v1/admin/dashboard');
 
         $response->assertOk()
-            ->assertJsonPath('stats.students_count', 5)
-            ->assertJsonPath('stats.male_students_count', 3)
-            ->assertJsonPath('stats.female_students_count', 2)
-            ->assertJsonPath('stats.teachers_count', 1);
+            ->assertJsonPath('data.stats.students_count', 5)
+            ->assertJsonPath('data.stats.male_students_count', 3)
+            ->assertJsonPath('data.stats.female_students_count', 2)
+            ->assertJsonPath('data.stats.teachers_count', 1);
 
         $this->assertTrue(Cache::has(DashboardService::key($tenant->id, 'dashboard_stats')));
     }
@@ -40,13 +40,15 @@ class DashboardApiTest extends TestCase
         $admin = User::factory()->admin()->for($tenant)->create();
         Sanctum::actingAs($admin);
 
-        $this->getJson('/api/admin/dashboard')->assertJsonPath('stats.students_count', 0);
+        $this->getJson('/api/v1/admin/dashboard')
+            ->assertJsonPath('data.stats.students_count', 0);
 
-        $this->postJson('/api/admin/students', [
+        $this->postJson('/api/v1/admin/students', [
             'name' => 'طالب',
             'gender' => 'male',
         ])->assertCreated();
 
-        $this->getJson('/api/admin/dashboard')->assertJsonPath('stats.students_count', 1);
+        $this->getJson('/api/v1/admin/dashboard')
+            ->assertJsonPath('data.stats.students_count', 1);
     }
 }
