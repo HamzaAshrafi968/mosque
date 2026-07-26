@@ -60,6 +60,11 @@ class Student extends Model
         return $this->hasMany(RewardPoint::class);
     }
 
+    public function quranReviewSessions(): HasMany
+    {
+        return $this->hasMany(QuranReviewSession::class);
+    }
+
     public function totalPoints(): int
     {
         return $this->rewardPoints()->sum('points');

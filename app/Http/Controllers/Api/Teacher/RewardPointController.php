@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\Teacher;
 
 use App\Models\RewardPoint;
-use App\Models\Student;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

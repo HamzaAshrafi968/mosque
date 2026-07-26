@@ -247,7 +247,7 @@ class QuranReviewController extends BaseTeacherController
             'points' => $points,
             'reason' => 'نقاط تلقائية من التسميع',
             'type' => 'earned',
-            'notes' => 'تم احتساب النقاط تلقائياً بناءً على نسبة الإتقان: ' . $masteryPercentage . '%',
+            'notes' => 'تم احتساب النقاط تلقائياً بناءً على نسبة الإتقان: '.$masteryPercentage.'%',
         ]);
     }
 }
