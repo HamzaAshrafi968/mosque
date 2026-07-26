@@ -57,6 +57,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('quran-review/{id}', [Admin\QuranReviewController::class, 'show'])->name('quran-review.show');
     Route::get('quran-review/student/{student}', [Admin\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report');
 
+    Route::get('reward-points', [Admin\RewardPointController::class, 'index'])->name('reward-points.index');
+
     Route::resource('users', Admin\UserController::class)->only(['index', 'store', 'update', 'destroy']);
 });
 
@@ -91,4 +93,9 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('quran-review/{id}', [Teacher\QuranReviewController::class, 'show'])->name('quran-review.show');
     Route::get('quran-review/student/{student}', [Teacher\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report');
     Route::get('quran-review/ayahs/json', [Teacher\QuranReviewController::class, 'getAyahs'])->name('quran-review.ayahs');
+
+    Route::get('reward-points', [Teacher\RewardPointController::class, 'index'])->name('reward-points.index');
+    Route::get('reward-points/create', [Teacher\RewardPointController::class, 'create'])->name('reward-points.create');
+    Route::post('reward-points', [Teacher\RewardPointController::class, 'store'])->name('reward-points.store');
+    Route::delete('reward-points/{id}', [Teacher\RewardPointController::class, 'destroy'])->name('reward-points.destroy');
 });

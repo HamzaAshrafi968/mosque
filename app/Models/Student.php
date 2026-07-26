@@ -55,6 +55,16 @@ class Student extends Model
         return $this->hasMany(Grade::class);
     }
 
+    public function rewardPoints(): HasMany
+    {
+        return $this->hasMany(RewardPoint::class);
+    }
+
+    public function totalPoints(): int
+    {
+        return $this->rewardPoints()->sum('points');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');

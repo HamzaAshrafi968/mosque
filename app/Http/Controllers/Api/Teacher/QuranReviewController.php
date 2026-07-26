@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Teacher;
 use App\Models\QuranAyah;
 use App\Models\QuranReviewSession;
 use App\Models\QuranReviewWord;
+use App\Models\RewardPoint;
 use App\Models\Student;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -138,6 +139,8 @@ class QuranReviewController extends BaseTeacherController
             }
         });
 
+        $this->awardPointsForSession($sessionId, $data['student_id'], $masteryPercentage, $request);
+
         return response()->json([
             'session_id' => $sessionId,
             'mastery_percentage' => $masteryPercentage,
@@ -225,5 +228,26 @@ class QuranReviewController extends BaseTeacherController
         });
 
         return response()->json($result);
+    }
+
+    private function awardPointsForSession(string $sessionId, string $studentId, float $masteryPercentage, Request $request): void
+    {
+        $points = match (true) {
+            $masteryPercentage >= 90 => 10,
+            $masteryPercentage >= 80 => 7,
+            $masteryPercentage >= 70 => 5,
+            $masteryPercentage >= 60 => 3,
+            $masteryPercentage < 60 => 1,
+        };
+
+        RewardPoint::create([
+            'student_id' => $studentId,
+            'awarded_by' => $request->user()->id,
+            'quran_review_session_id' => $sessionId,
+            'points' => $points,
+            'reason' => 'نقاط تلقائية من التسميع',
+            'type' => 'earned',
+            'notes' => 'تم احتساب النقاط تلقائياً بناءً على نسبة الإتقان: ' . $masteryPercentage . '%',
+        ]);
     }
 }

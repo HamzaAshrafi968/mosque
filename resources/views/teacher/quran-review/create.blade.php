@@ -238,7 +238,7 @@
         {{-- Legend --}}
         <div class="status-legend mb-4 animate-fade-in-up">
             <span class="text-sm font-bold text-gray-700">⌨️ دليل الألوان والمفاتيح:</span>
-            <span class="legend-item"><span class="legend-dot status-unreviewed"></span> لم تُراجع</span>
+            <span class="legend-item"><span class="legend-dot status-correct"></span> ✅ صحيحة (افتراضي)</span>
             <span class="legend-item"><span class="legend-dot status-correct"></span> <span class="shortcut-key">1</span> صحيحة</span>
             <span class="legend-item"><span class="legend-dot status-incorrect"></span> <span class="shortcut-key">2</span> خطأ نطق</span>
             <span class="legend-item"><span class="legend-dot status-hesitation"></span> <span class="shortcut-key">3</span> تردد</span>
@@ -259,10 +259,11 @@
                         @php $words = explode(' ', $ayah->text_simple); @endphp
                         @foreach($words as $pos => $word)
                             @if($word !== '')
-                                <span class="quran-word status-unreviewed"
+                                <span class="quran-word status-correct"
                                       data-ayah-id="{{ $ayah->id }}"
                                       data-word-index="{{ $loop->index }}"
                                       data-word="{{ $word }}"
+                                      data-status="correct"
                                       onclick="toggleWordError(this, event)"
                                       oncontextmenu="toggleWordError(this, event); return false;">
                                     {{ $word }}
@@ -425,8 +426,8 @@
         let total = 0, correct = 0, incorrect = 0, hesitation = 0, tajweed = 0, added = 0, forgotten = 0;
 
         words.forEach(w => {
-            const status = w.dataset.status || w.className.match(/status-(\w+)/)?.[1] || 'unreviewed';
-            if (status !== 'unreviewed') total++;
+            total++;
+            const status = w.dataset.status || w.className.match(/status-(\w+)/)?.[1] || 'correct';
             if (status === 'correct') correct++;
             if (status === 'incorrect') incorrect++;
             if (status === 'hesitation') hesitation++;
@@ -475,7 +476,7 @@
     document.getElementById('review-form')?.addEventListener('submit', function(e) {
         const allWords = document.querySelectorAll('.quran-word');
         allWords.forEach(w => {
-            const status = w.dataset.status || w.className.match(/status-(\w+)/)?.[1] || 'unreviewed';
+            const status = w.dataset.status || w.className.match(/status-(\w+)/)?.[1] || 'correct';
             const idx = parseInt(w.dataset.globalIndex);
 
             const existing = document.querySelector(`input[name="word_statuses[]"][data-word-index="${idx}"]`);
@@ -493,5 +494,7 @@
         inputs.sort((a, b) => parseInt(a.dataset.wordIndex) - parseInt(b.dataset.wordIndex));
         inputs.forEach(inp => this.appendChild(inp));
     });
+
+    updateStats();
 </script>
 @endpush

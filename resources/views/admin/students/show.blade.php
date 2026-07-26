@@ -4,6 +4,52 @@
 
 @section('content')
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
+    <div class="px-4 py-3 bg-amber-600 text-white font-bold flex items-center gap-2">
+        <span>🏆</span> نقاط المكافآت
+    </div>
+    <div class="p-4 text-center">
+        <div class="text-4xl font-bold text-amber-600">{{ $student->totalPoints() }}</div>
+        <div class="text-sm text-gray-500 mt-1">إجمالي النقاط</div>
+    </div>
+    @if($student->rewardPoints()->exists())
+        <table class="w-full border-t">
+            <thead>
+                <tr class="bg-gray-50 text-gray-600 text-xs">
+                    <th class="px-4 py-2 text-right">النقاط</th>
+                    <th class="px-4 py-2 text-right">النوع</th>
+                    <th class="px-4 py-2 text-right">السبب</th>
+                    <th class="px-4 py-2 text-right">التاريخ</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($student->rewardPoints()->with('awardedBy:id,name', 'quranReviewSession.surah:id,name_arabic')->latest()->limit(10)->get() as $rp)
+                    <tr>
+                        <td class="px-4 py-2 border-t font-bold {{ $rp->type === 'earned' ? 'text-emerald-600' : 'text-red-600' }}">
+                            {{ $rp->type === 'earned' ? '+' : '-' }}{{ $rp->points }}
+                        </td>
+                        <td class="px-4 py-2 border-t">
+                            <span @class([
+                                'px-2 py-0.5 rounded-full text-xs font-bold',
+                                'bg-emerald-100 text-emerald-800' => $rp->type === 'earned',
+                                'bg-red-100 text-red-800' => $rp->type === 'deducted',
+                            ])>{{ $rp->type === 'earned' ? 'ربح' : 'خصم' }}</span>
+                        </td>
+                        <td class="px-4 py-2 border-t text-sm text-gray-600">
+                            @if($rp->quranReviewSession)
+                                📖 تسميع {{ $rp->quranReviewSession->surah?->name_arabic }}
+                            @else
+                                {{ $rp->reason ?? '—' }}
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 border-t text-xs text-gray-500">{{ $rp->created_at->format('Y-m-d') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+</div>
+
+<div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="px-4 py-3 bg-emerald-700 text-white font-bold">معلومات الطالب</div>
     <div class="p-4 grid grid-cols-2 gap-4">
         <div>

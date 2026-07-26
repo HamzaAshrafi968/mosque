@@ -50,6 +50,8 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::delete('announcements/{announcement}', [Api\Admin\AnnouncementController::class, 'destroy']);
 
         Route::apiResource('users', Api\Admin\UserController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        Route::get('reward-points', [Api\Admin\RewardPointController::class, 'index']);
     });
 
     Route::middleware('role:teacher')->prefix('teacher')->group(function () {
@@ -82,5 +84,9 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
         Route::get('quran-review/ayahs', [Api\Teacher\QuranReviewController::class, 'getAyahs']);
         Route::get('quran-review/student/{student}', [Api\Teacher\QuranReviewController::class, 'studentReport']);
         Route::get('quran-review/{id}', [Api\Teacher\QuranReviewController::class, 'show']);
+
+        Route::get('reward-points', [Api\Teacher\RewardPointController::class, 'index']);
+        Route::post('reward-points', [Api\Teacher\RewardPointController::class, 'store']);
+        Route::delete('reward-points/{id}', [Api\Teacher\RewardPointController::class, 'destroy']);
     });
 });

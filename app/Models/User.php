@@ -7,6 +7,7 @@ use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -58,6 +59,11 @@ class User extends Authenticatable
     public function teacher(): HasOne
     {
         return $this->hasOne(Teacher::class);
+    }
+
+    public function awardedPoints(): HasMany
+    {
+        return $this->hasMany(RewardPoint::class, 'awarded_by');
     }
 
     public function isAdmin(): bool

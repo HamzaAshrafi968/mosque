@@ -46,6 +46,9 @@
                 <x-nav-link :href="route('admin.quran-review.index')" :active="request()->routeIs('admin.quran-review.*')">
                     📖 مراجعة القرآن
                 </x-nav-link>
+                <x-nav-link :href="route('admin.reward-points.index')" :active="request()->routeIs('admin.reward-points.*')">
+                    🏆 نقاط المكافآت
+                </x-nav-link>
                 <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">الحسابات والصلاحيات</x-nav-link>
             @else
                 <x-nav-link :href="route('teacher.dashboard')" :active="request()->routeIs('teacher.dashboard')">
@@ -60,6 +63,9 @@
                 <x-nav-link :href="route('teacher.messages.index')" :active="request()->routeIs('teacher.messages.*')">الرسائل</x-nav-link>
                 <x-nav-link :href="route('teacher.quran-review.index')" :active="request()->routeIs('teacher.quran-review.*')">
                     📖 مراجعة القرآن
+                </x-nav-link>
+                <x-nav-link :href="route('teacher.reward-points.index')" :active="request()->routeIs('teacher.reward-points.*')">
+                    🏆 نقاط المكافآت
                 </x-nav-link>
                 <x-nav-link :href="route('teacher.profile.edit')" :active="request()->routeIs('teacher.profile.*')">الملف الشخصي</x-nav-link>
             @endif

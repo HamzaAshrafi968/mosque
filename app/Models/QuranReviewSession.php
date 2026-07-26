@@ -68,4 +68,9 @@ class QuranReviewSession extends Model
     {
         return $this->hasMany(QuranReviewWord::class, 'review_session_id');
     }
+
+    public function rewardPoints(): HasMany
+    {
+        return $this->hasMany(RewardPoint::class);
+    }
 }
