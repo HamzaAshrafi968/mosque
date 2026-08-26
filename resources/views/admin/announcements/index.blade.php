@@ -51,7 +51,7 @@
 
 @forelse($announcements as $announcement)
     <div class="bg-white rounded-xl shadow overflow-hidden mb-4 p-4">
-        <div class="flex justify-between items-start mb-2">
+        <div class="flex flex-wrap justify-between items-start gap-2 mb-2">
             <h3 class="font-bold text-lg">{{ $announcement->title }}</h3>
             <div class="flex items-center gap-2 shrink-0 mr-2">
                 <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ $audienceLabels[$announcement->audience] ?? $announcement->audience }}</span>

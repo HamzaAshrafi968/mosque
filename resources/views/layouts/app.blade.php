@@ -11,11 +11,29 @@
     @stack('styles')
 </head>
 <body class="bg-gradient-to-br from-gray-50 via-emerald-50/30 to-teal-50/20 min-h-screen font-sans antialiased">
-<div class="flex min-h-screen">
-    <aside class="w-72 gradient-sidebar text-white flex flex-col shrink-0 shadow-2xl relative overflow-hidden">
+<div class="min-h-screen lg:flex">
+    <header class="lg:hidden sticky top-0 z-30 gradient-sidebar text-white flex items-center justify-between px-4 py-3 shadow-lg">
+        <button type="button" id="sidebar-toggle" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition" aria-label="القائمة">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="flex items-center gap-2 font-bold">
+            <span class="text-xl">🕌</span>
+            <span class="text-sm">إدارة الجوامع</span>
+        </div>
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition text-xs" aria-label="تسجيل الخروج">
+                🚪
+            </button>
+        </form>
+    </header>
+
+    <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black/50 z-40 lg:hidden"></div>
+
+    <aside id="sidebar" class="fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] gradient-sidebar text-white flex flex-col shrink-0 shadow-2xl overflow-hidden transition-transform duration-300 ease-in-out translate-x-full lg:translate-x-0 lg:static">
         <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.15) 20px, rgba(255,255,255,0.15) 21px);"></div>
 
-        <div class="relative p-5 border-b border-white/10">
+        <div class="relative p-5 border-b border-white/10 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-11 h-11 bg-white/15 rounded-xl flex items-center justify-center text-2xl shadow-inner backdrop-blur-sm">
                     🕌
@@ -25,12 +43,15 @@
                     <div class="text-xs text-emerald-300/80 mt-0.5">نظام إدارة المساجد</div>
                 </div>
             </div>
+            <button type="button" id="sidebar-close" class="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 transition" aria-label="إغلاق القائمة">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
         </div>
 
         <nav class="relative flex-1 p-3 space-y-0.5 overflow-y-auto">
             @if(auth()->user()->isAdmin())
                 <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
                     الرئيسية
                 </x-nav-link>
                 <x-nav-link :href="route('admin.students.index')" :active="request()->routeIs('admin.students.*')">الطلاب</x-nav-link>
@@ -52,7 +73,7 @@
                 <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">الحسابات والصلاحيات</x-nav-link>
             @else
                 <x-nav-link :href="route('teacher.dashboard')" :active="request()->routeIs('teacher.dashboard')">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
                     الرئيسية
                 </x-nav-link>
                 <x-nav-link :href="route('teacher.schedule')" :active="request()->routeIs('teacher.schedule')">جدولي الدراسي</x-nav-link>
@@ -73,7 +94,7 @@
 
         <div class="relative p-4 border-t border-white/10 bg-black/10">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-emerald-400/20 flex items-center justify-center text-emerald-200 font-bold text-sm">
+                <div class="w-9 h-9 rounded-full bg-emerald-400/20 flex items-center justify-center text-emerald-200 font-bold text-sm shrink-0">
                     {{ mb_substr(auth()->user()->name, 0, 1) }}
                 </div>
                 <div class="flex-1 min-w-0">
@@ -90,7 +111,7 @@
         </div>
     </aside>
 
-    <main class="flex-1 p-6 lg:p-8 overflow-x-auto min-w-0">
+    <main class="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden min-w-0">
         @if(session('success'))
             <div class="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-5 py-4 flex items-center gap-3 animate-scale-in shadow-sm">
                 <span class="text-xl">✅</span>

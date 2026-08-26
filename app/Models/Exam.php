@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Exam extends Model
 {
-    use MultiTenantTrait, UuidTrait;
+    use FlushesTenantCache, MultiTenantTrait, UuidTrait;
 
     protected $fillable = [
         'tenant_id',
@@ -21,6 +22,7 @@ class Exam extends Model
         'title',
         'exam_date',
         'total_marks',
+        'pass_marks',
     ];
 
     protected function casts(): array
@@ -28,6 +30,7 @@ class Exam extends Model
         return [
             'exam_date' => 'date',
             'total_marks' => 'integer',
+            'pass_marks' => 'integer',
         ];
     }
 

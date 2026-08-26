@@ -19,48 +19,50 @@
 <div class="bg-white rounded-xl shadow overflow-hidden">
     <form method="POST" action="{{ route('teacher.grades.store', $exam) }}">
         @csrf
-        <table class="w-full">
-            <thead>
-                <tr class="bg-gray-50 text-gray-600 text-sm">
-                    <th class="px-4 py-3 text-right">الطالب</th>
-                    <th class="px-4 py-3 text-right">الدرجة</th>
-                    <th class="px-4 py-3 text-right">الحالة الحالية</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($students as $student)
-                    @php
-                        $existingGrade = $grades->get($student->id);
-                    @endphp
-                    <tr>
-                        <td class="px-4 py-3 border-t">{{ $student->name }}</td>
-                        <td class="px-4 py-3 border-t">
-                            <input type="number" name="scores[{{ $student->id }}]"
-                                   min="0" max="{{ $exam->total_marks }}" step="0.5"
-                                   value="{{ old('scores.'.$student->id, $existingGrade?->score) }}"
-                                   class="w-28 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                        </td>
-                        <td class="px-4 py-3 border-t text-sm">
-                            @if($existingGrade)
-                                @if($existingGrade->status === 'draft')
-                                    <span class="text-gray-600">مسودة</span>
-                                @elseif($existingGrade->status === 'submitted')
-                                    <span class="text-blue-600">مرسلة</span>
-                                @elseif($existingGrade->status === 'approved')
-                                    <span class="text-green-600">معتمدة</span>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-600 text-sm">
+                        <th class="px-4 py-3 text-right whitespace-nowrap">الطالب</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">الدرجة</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">الحالة الحالية</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($students as $student)
+                        @php
+                            $existingGrade = $grades->get($student->id);
+                        @endphp
+                        <tr>
+                            <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->name }}</td>
+                            <td class="px-4 py-3 border-t">
+                                <input type="number" name="scores[{{ $student->id }}]"
+                                       min="0" max="{{ $exam->total_marks }}" step="0.5"
+                                       value="{{ old('scores.'.$student->id, $existingGrade?->score) }}"
+                                       class="w-28 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            </td>
+                            <td class="px-4 py-3 border-t text-sm whitespace-nowrap">
+                                @if($existingGrade)
+                                    @if($existingGrade->status === 'draft')
+                                        <span class="text-gray-600">مسودة</span>
+                                    @elseif($existingGrade->status === 'submitted')
+                                        <span class="text-blue-600">مرسلة</span>
+                                    @elseif($existingGrade->status === 'approved')
+                                        <span class="text-green-600">معتمدة</span>
+                                    @endif
+                                @else
+                                    <span class="text-gray-400">—</span>
                                 @endif
-                            @else
-                                <span class="text-gray-400">—</span>
-                            @endif
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="3" class="px-4 py-6 text-center text-gray-500">لا يوجد طلاب في هذا الصف</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="3" class="px-4 py-6 text-center text-gray-500">لا يوجد طلاب في هذا الصف</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
         <div class="p-4 border-t flex gap-3">
             <button type="submit" name="action" value="save" class="bg-gray-500 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded-lg">حفظ كمسودة</button>
             <button type="submit" name="action" value="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إرسال للاعتماد</button>

@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
-    <form method="POST" action="{{ route('admin.classrooms.store') }}" class="flex gap-3 items-end">
+    <form method="POST" action="{{ route('admin.classrooms.store') }}" class="flex flex-col sm:flex-row gap-3 sm:items-end">
         @csrf
         <div class="flex-1">
             <label class="block text-sm font-medium text-gray-700 mb-1">اسم الصف</label>
@@ -45,7 +45,7 @@
             @else
                 <div class="text-sm text-gray-500 mb-4">لا توجد شعب</div>
             @endif
-            <form method="POST" action="{{ route('admin.sections.store', $classroom) }}" class="flex gap-3 items-end">
+            <form method="POST" action="{{ route('admin.sections.store', $classroom) }}" class="flex flex-col sm:flex-row gap-3 sm:items-end">
                 @csrf
                 <div class="flex-1">
                     <input type="text" name="name" required placeholder="اسم الشعبة"

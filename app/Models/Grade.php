@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Grade extends Model
 {
-    use HasFactory, MultiTenantTrait, UuidTrait;
+    use FlushesTenantCache, HasFactory, MultiTenantTrait, UuidTrait;
 
     protected $fillable = [
         'tenant_id',

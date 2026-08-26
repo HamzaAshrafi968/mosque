@@ -47,59 +47,61 @@
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
-    <table class="w-full">
-        <thead>
-            <tr class="bg-gray-50 text-gray-600 text-sm">
-                <th class="px-4 py-3 text-right">الاسم</th>
-                <th class="px-4 py-3 text-right">البريد الإلكتروني</th>
-                <th class="px-4 py-3 text-right">الصلاحية</th>
-                <th class="px-4 py-3 text-right">إجراءات</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($users as $user)
-                <tr>
-                    <td class="px-4 py-3 border-t">
-                        <form method="POST" action="{{ route('admin.users.update', $user) }}" class="flex gap-2 items-center">
-                            @csrf
-                            @method('PUT')
-                            <input type="text" name="name" value="{{ $user->name }}" required
-                                   class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
-                    </td>
-                    <td class="px-4 py-3 border-t">
-                            <input type="email" name="email" value="{{ $user->email }}" required
-                                   class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
-                    </td>
-                    <td class="px-4 py-3 border-t">
-                        <div class="flex gap-2 items-center">
-                            <select name="role" required class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
-                                <option value="admin" @selected($user->role === 'admin')>مدير</option>
-                                <option value="teacher" @selected($user->role === 'teacher')>معلم</option>
-                            </select>
-                            <input type="password" name="password" placeholder="كلمة مرور جديدة (اختياري)"
-                                   class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
-                    </td>
-                    <td class="px-4 py-3 border-t">
-                        <div class="flex gap-2 items-center">
-                            <button type="submit" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
-                        </form>
-                            @if(auth()->id() !== $user->id)
-                                <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
-                                </form>
-                            @endif
-                        </div>
-                    </td>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 text-gray-600 text-sm">
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الاسم</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">البريد الإلكتروني</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الصلاحية</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">إجراءات</th>
                 </tr>
-            @empty
-                <tr>
-                    <td colspan="4" class="px-4 py-6 text-center text-gray-500">لا يوجد مستخدمين</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @forelse($users as $user)
+                    <tr>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <form method="POST" action="{{ route('admin.users.update', $user) }}" class="flex gap-2 items-center">
+                                @csrf
+                                @method('PUT')
+                                <input type="text" name="name" value="{{ $user->name }}" required
+                                       class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
+                        </td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                                <input type="email" name="email" value="{{ $user->email }}" required
+                                       class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
+                        </td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <div class="flex gap-2 items-center">
+                                <select name="role" required class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
+                                    <option value="admin" @selected($user->role === 'admin')>مدير</option>
+                                    <option value="teacher" @selected($user->role === 'teacher')>معلم</option>
+                                </select>
+                                <input type="password" name="password" placeholder="كلمة مرور جديدة (اختياري)"
+                                       class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
+                        </td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <div class="flex gap-2 items-center">
+                                <button type="submit" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
+                            </form>
+                                @if(auth()->id() !== $user->id)
+                                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
+                                    </form>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" class="px-4 py-6 text-center text-gray-500">لا يوجد مستخدمين</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <div class="mt-4">

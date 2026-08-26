@@ -33,47 +33,49 @@
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
-    <table class="w-full">
-        <thead>
-            <tr class="bg-gray-50 text-gray-600 text-sm">
-                <th class="px-4 py-3 text-right">الاسم</th>
-                <th class="px-4 py-3 text-right">التاريخ</th>
-                <th class="px-4 py-3 text-right">الحالة</th>
-                <th class="px-4 py-3 text-right">ملاحظات</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($attendances as $attendance)
-                <tr>
-                    <td class="px-4 py-3 border-t">
-                        @if($type === 'students')
-                            {{ $attendance->student?->name }}
-                            @if($attendance->student?->classroom?->name)
-                                <span class="text-sm text-gray-500 mr-1">- {{ $attendance->student->classroom->name }}</span>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 text-gray-600 text-sm">
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الاسم</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">التاريخ</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الحالة</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">ملاحظات</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($attendances as $attendance)
+                    <tr>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            @if($type === 'students')
+                                {{ $attendance->student?->name }}
+                                @if($attendance->student?->classroom?->name)
+                                    <span class="text-sm text-gray-500 mr-1">- {{ $attendance->student->classroom->name }}</span>
+                                @endif
+                            @else
+                                {{ $attendance->teacher?->name }}
                             @endif
-                        @else
-                            {{ $attendance->teacher?->name }}
-                        @endif
-                    </td>
-                    <td class="px-4 py-3 border-t">{{ $attendance->date->format('Y-m-d') }}</td>
-                    <td class="px-4 py-3 border-t">
-                        @if($attendance->status === 'present')
-                            <span class="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">حاضر</span>
-                        @elseif($attendance->status === 'absent')
-                            <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">غائب</span>
-                        @elseif($attendance->status === 'late')
-                            <span class="px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">متأخر</span>
-                        @endif
-                    </td>
-                    <td class="px-4 py-3 border-t text-sm text-gray-500">{{ $attendance->notes }}</td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="4" class="px-4 py-6 text-center text-gray-500">لا توجد سجلات حضور</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+                        </td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $attendance->date->format('Y-m-d') }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            @if($attendance->status === 'present')
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">حاضر</span>
+                            @elseif($attendance->status === 'absent')
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">غائب</span>
+                            @elseif($attendance->status === 'late')
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">متأخر</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 border-t text-sm text-gray-500">{{ $attendance->notes }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" class="px-4 py-6 text-center text-gray-500">لا توجد سجلات حضور</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <div class="mt-4">

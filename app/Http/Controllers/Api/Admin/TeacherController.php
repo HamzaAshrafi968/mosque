@@ -7,7 +7,9 @@ use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class TeacherController extends Controller
 {
@@ -36,13 +38,15 @@ class TeacherController extends Controller
                     'tenant_id' => $request->user()->tenant_id,
                     'name' => $data['name'],
                     'email' => $data['email'],
-                    'password' => $request->input('password'),
+                    'password' => $data['password'],
                     'role' => 'teacher',
                     'gender' => $data['gender'],
                     'phone' => $data['phone'] ?? null,
                 ]);
                 $userId = $user->id;
             }
+
+            unset($data['password']);
 
             return Teacher::create([...$data, 'user_id' => $userId]);
         });
@@ -55,7 +59,7 @@ class TeacherController extends Controller
 
     public function update(Request $request, Teacher $teacher): JsonResponse
     {
-        $teacher->update($this->validated($request));
+        $teacher->update(Arr::except($this->validated($request, $teacher), 'password'));
 
         return response()->json([
             'message' => 'تم تحديث بيانات المعلم',
@@ -70,16 +74,23 @@ class TeacherController extends Controller
         return response()->json(['message' => 'تم حذف المعلم']);
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, ?Teacher $teacher = null): array
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                Rule::requiredIf(fn () => $teacher === null && $request->filled('password')),
+                Rule::unique('users', 'email')->ignore($teacher?->user_id),
+            ],
             'phone' => ['nullable', 'string', 'max:30'],
             'specialty' => ['nullable', 'string', 'max:255'],
             'hired_at' => ['nullable', 'date'],
             'is_active' => ['boolean'],
+            'password' => ['nullable', 'string', 'min:8'],
         ]);
     }
 }

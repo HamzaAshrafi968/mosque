@@ -12,46 +12,48 @@
         <div class="text-sm text-gray-500 mt-1">إجمالي النقاط</div>
     </div>
     @if($student->rewardPoints()->exists())
-        <table class="w-full border-t">
-            <thead>
-                <tr class="bg-gray-50 text-gray-600 text-xs">
-                    <th class="px-4 py-2 text-right">النقاط</th>
-                    <th class="px-4 py-2 text-right">النوع</th>
-                    <th class="px-4 py-2 text-right">السبب</th>
-                    <th class="px-4 py-2 text-right">التاريخ</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($student->rewardPoints()->with('awardedBy:id,name', 'quranReviewSession.surah:id,name_arabic')->latest()->limit(10)->get() as $rp)
-                    <tr>
-                        <td class="px-4 py-2 border-t font-bold {{ $rp->type === 'earned' ? 'text-emerald-600' : 'text-red-600' }}">
-                            {{ $rp->type === 'earned' ? '+' : '-' }}{{ $rp->points }}
-                        </td>
-                        <td class="px-4 py-2 border-t">
-                            <span @class([
-                                'px-2 py-0.5 rounded-full text-xs font-bold',
-                                'bg-emerald-100 text-emerald-800' => $rp->type === 'earned',
-                                'bg-red-100 text-red-800' => $rp->type === 'deducted',
-                            ])>{{ $rp->type === 'earned' ? 'ربح' : 'خصم' }}</span>
-                        </td>
-                        <td class="px-4 py-2 border-t text-sm text-gray-600">
-                            @if($rp->quranReviewSession)
-                                📖 تسميع {{ $rp->quranReviewSession->surah?->name_arabic }}
-                            @else
-                                {{ $rp->reason ?? '—' }}
-                            @endif
-                        </td>
-                        <td class="px-4 py-2 border-t text-xs text-gray-500">{{ $rp->created_at->format('Y-m-d') }}</td>
+        <div class="overflow-x-auto">
+            <table class="w-full border-t">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-600 text-xs">
+                        <th class="px-4 py-2 text-right whitespace-nowrap">النقاط</th>
+                        <th class="px-4 py-2 text-right whitespace-nowrap">النوع</th>
+                        <th class="px-4 py-2 text-right whitespace-nowrap">السبب</th>
+                        <th class="px-4 py-2 text-right whitespace-nowrap">التاريخ</th>
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach($student->rewardPoints()->with('awardedBy:id,name', 'quranReviewSession.surah:id,name_arabic')->latest()->limit(10)->get() as $rp)
+                        <tr>
+                            <td class="px-4 py-2 border-t font-bold whitespace-nowrap {{ $rp->type === 'earned' ? 'text-emerald-600' : 'text-red-600' }}">
+                                {{ $rp->type === 'earned' ? '+' : '-' }}{{ $rp->points }}
+                            </td>
+                            <td class="px-4 py-2 border-t whitespace-nowrap">
+                                <span @class([
+                                    'px-2 py-0.5 rounded-full text-xs font-bold',
+                                    'bg-emerald-100 text-emerald-800' => $rp->type === 'earned',
+                                    'bg-red-100 text-red-800' => $rp->type === 'deducted',
+                                ])>{{ $rp->type === 'earned' ? 'ربح' : 'خصم' }}</span>
+                            </td>
+                            <td class="px-4 py-2 border-t text-sm text-gray-600">
+                                @if($rp->quranReviewSession)
+                                    📖 تسميع {{ $rp->quranReviewSession->surah?->name_arabic }}
+                                @else
+                                    {{ $rp->reason ?? '—' }}
+                                @endif
+                            </td>
+                            <td class="px-4 py-2 border-t text-xs text-gray-500 whitespace-nowrap">{{ $rp->created_at->format('Y-m-d') }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
     @endif
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="px-4 py-3 bg-emerald-700 text-white font-bold">معلومات الطالب</div>
-    <div class="p-4 grid grid-cols-2 gap-4">
+    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
             <span class="text-sm text-gray-500">الاسم:</span>
             <span class="font-bold mr-2">{{ $student->name }}</span>
@@ -118,36 +120,38 @@
     @if($student->grades->isEmpty())
         <div class="px-4 py-6 text-center text-gray-500">لا توجد درجات</div>
     @else
-        <table class="w-full">
-            <thead>
-                <tr class="bg-gray-50 text-gray-600 text-sm">
-                    <th class="px-4 py-3 text-right">المادة</th>
-                    <th class="px-4 py-3 text-right">الاختبار</th>
-                    <th class="px-4 py-3 text-right">التاريخ</th>
-                    <th class="px-4 py-3 text-right">الدرجة</th>
-                    <th class="px-4 py-3 text-right">الحالة</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($student->grades as $grade)
-                    <tr>
-                        <td class="px-4 py-3 border-t">{{ $grade->exam->subject?->name }}</td>
-                        <td class="px-4 py-3 border-t">{{ $grade->exam->title }}</td>
-                        <td class="px-4 py-3 border-t">{{ $grade->exam->exam_date->format('Y-m-d') }}</td>
-                        <td class="px-4 py-3 border-t">{{ $grade->score }} / {{ $grade->exam->total_marks }}</td>
-                        <td class="px-4 py-3 border-t">
-                            @if($grade->status === 'draft')
-                                <span class="text-gray-600">مسودة</span>
-                            @elseif($grade->status === 'submitted')
-                                <span class="text-yellow-600">بانتظار الاعتماد</span>
-                            @elseif($grade->status === 'approved')
-                                <span class="text-green-600">معتمدة</span>
-                            @endif
-                        </td>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-600 text-sm">
+                        <th class="px-4 py-3 text-right whitespace-nowrap">المادة</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">الاختبار</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">التاريخ</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">الدرجة</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">الحالة</th>
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach($student->grades as $grade)
+                        <tr>
+                            <td class="px-4 py-3 border-t whitespace-nowrap">{{ $grade->exam->subject?->name }}</td>
+                            <td class="px-4 py-3 border-t whitespace-nowrap">{{ $grade->exam->title }}</td>
+                            <td class="px-4 py-3 border-t whitespace-nowrap">{{ $grade->exam->exam_date->format('Y-m-d') }}</td>
+                            <td class="px-4 py-3 border-t whitespace-nowrap">{{ $grade->score }} / {{ $grade->exam->total_marks }}</td>
+                            <td class="px-4 py-3 border-t whitespace-nowrap">
+                                @if($grade->status === 'draft')
+                                    <span class="text-gray-600">مسودة</span>
+                                @elseif($grade->status === 'submitted')
+                                    <span class="text-yellow-600">بانتظار الاعتماد</span>
+                                @elseif($grade->status === 'approved')
+                                    <span class="text-green-600">معتمدة</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
     @endif
 </div>
 @endsection

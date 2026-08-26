@@ -44,6 +44,30 @@
         <div class="text-3xl font-bold text-emerald-700">{{ isset($stats['attendance_rate_today']) ? $stats['attendance_rate_today'] . '%' : '—' }}</div>
         <div class="text-sm text-gray-600 mt-1">نسبة الحضور اليوم</div>
     </div>
+    <div class="bg-white rounded-xl shadow p-4 text-center">
+        <div class="text-3xl font-bold text-green-700">{{ $stats['exam_passed_count'] ?? 0 }}</div>
+        <div class="text-sm text-gray-600 mt-1">ناجحون بالامتحانات</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 text-center">
+        <div class="text-3xl font-bold text-red-700">{{ $stats['exam_failed_count'] ?? 0 }}</div>
+        <div class="text-sm text-gray-600 mt-1">راسبون بالامتحانات</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 text-center">
+        <div class="text-3xl font-bold text-blue-700">{{ isset($stats['exam_pass_rate']) ? $stats['exam_pass_rate'] . '%' : '—' }}</div>
+        <div class="text-sm text-gray-600 mt-1">نسبة النجاح بالامتحانات</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 text-center">
+        <div class="text-3xl font-bold text-green-700">{{ $stats['homework_passed_count'] ?? 0 }}</div>
+        <div class="text-sm text-gray-600 mt-1">ناجحون بالواجبات</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 text-center">
+        <div class="text-3xl font-bold text-red-700">{{ $stats['homework_failed_count'] ?? 0 }}</div>
+        <div class="text-sm text-gray-600 mt-1">راسبون بالواجبات</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 text-center">
+        <div class="text-3xl font-bold text-blue-700">{{ isset($stats['homework_pass_rate']) ? $stats['homework_pass_rate'] . '%' : '—' }}</div>
+        <div class="text-sm text-gray-600 mt-1">نسبة النجاح بالواجبات</div>
+    </div>
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">

@@ -53,4 +53,29 @@ class Teacher extends Model
     {
         return $this->hasMany(Attendance::class);
     }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(TeacherRating::class);
+    }
+
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(TeacherCertificate::class);
+    }
+
+    public function lessons(): HasMany
+    {
+        return $this->hasMany(Lesson::class);
+    }
+
+    public function exams(): HasMany
+    {
+        return $this->hasMany(Exam::class);
+    }
+
+    public function homeworks(): HasMany
+    {
+        return $this->hasMany(Homework::class);
+    }
 }

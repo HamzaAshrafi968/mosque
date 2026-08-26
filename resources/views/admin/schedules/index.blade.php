@@ -104,41 +104,43 @@
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
-    <table class="w-full">
-        <thead>
-            <tr class="bg-gray-50 text-gray-600 text-sm">
-                <th class="px-4 py-3 text-right">اليوم</th>
-                <th class="px-4 py-3 text-right">الوقت</th>
-                <th class="px-4 py-3 text-right">الصف</th>
-                <th class="px-4 py-3 text-right">الشعبة</th>
-                <th class="px-4 py-3 text-right">المادة</th>
-                <th class="px-4 py-3 text-right">المعلم</th>
-                <th class="px-4 py-3 text-right">حذف</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($schedules as $schedule)
-                <tr>
-                    <td class="px-4 py-3 border-t font-bold">{{ $days[$schedule->day_of_week] }}</td>
-                    <td class="px-4 py-3 border-t">{{ $schedule->starts_at }}–{{ $schedule->ends_at }}</td>
-                    <td class="px-4 py-3 border-t">{{ $schedule->classroom?->name }}</td>
-                    <td class="px-4 py-3 border-t">{{ $schedule->section?->name }}</td>
-                    <td class="px-4 py-3 border-t">{{ $schedule->subject?->name }}</td>
-                    <td class="px-4 py-3 border-t">{{ $schedule->teacher?->name }}</td>
-                    <td class="px-4 py-3 border-t">
-                        <form method="POST" action="{{ route('admin.schedules.destroy', $schedule) }}" onsubmit="return confirm('هل أنت متأكد؟')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
-                        </form>
-                    </td>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 text-gray-600 text-sm">
+                    <th class="px-4 py-3 text-right whitespace-nowrap">اليوم</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الوقت</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الصف</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الشعبة</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">المادة</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">المعلم</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">حذف</th>
                 </tr>
-            @empty
-                <tr>
-                    <td colspan="7" class="px-4 py-6 text-center text-gray-500">لا توجد جداول</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @forelse($schedules as $schedule)
+                    <tr>
+                        <td class="px-4 py-3 border-t font-bold whitespace-nowrap">{{ $days[$schedule->day_of_week] }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->starts_at }}–{{ $schedule->ends_at }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->classroom?->name }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->section?->name }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->subject?->name }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->teacher?->name }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <form method="POST" action="{{ route('admin.schedules.destroy', $schedule) }}" onsubmit="return confirm('هل أنت متأكد؟')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="px-4 py-6 text-center text-gray-500">لا توجد جداول</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 @endsection

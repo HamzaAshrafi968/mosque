@@ -16,14 +16,14 @@
 
     <div class="w-full max-w-md relative z-10 animate-scale-in">
         <div class="text-center mb-8">
-            <div class="w-20 h-20 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg border border-white/10">
+            <div class="w-20 h-20 bg-white/15 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg border border-white/10">
                 🕌
             </div>
             <h1 class="text-3xl font-bold text-white">إدارة الجوامع</h1>
             <p class="text-emerald-200/80 text-sm mt-1">نظام إدارة المساجد وحلقات القرآن</p>
         </div>
 
-        <div class="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-white/20">
+        <div class="bg-white/95 rounded-3xl shadow-2xl p-8 border border-white/20">
             <div class="ornament-top mb-1"></div>
             <h2 class="text-xl font-bold text-gray-800 mb-6 text-center">@yield('title')</h2>
 

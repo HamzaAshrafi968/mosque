@@ -6,6 +6,7 @@ use App\Contracts\Repositories\TeacherRepositoryInterface;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
 class CreateTeacherAction
@@ -28,7 +29,7 @@ class CreateTeacherAction
                 $userId = $user->id;
             }
 
-            return $repository->create([...$data, 'user_id' => $userId]);
+            return $repository->create([...Arr::except($data, 'password'), 'user_id' => $userId]);
         });
     }
 }

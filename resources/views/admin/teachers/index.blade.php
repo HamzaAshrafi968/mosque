@@ -29,55 +29,58 @@
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
-    <table class="w-full">
-        <thead>
-            <tr class="bg-gray-50 text-gray-600 text-sm">
-                <th class="px-4 py-3 text-right">الاسم</th>
-                <th class="px-4 py-3 text-right">الجنس</th>
-                <th class="px-4 py-3 text-right">التخصص</th>
-                <th class="px-4 py-3 text-right">الهاتف</th>
-                <th class="px-4 py-3 text-right">البريد الإلكتروني</th>
-                <th class="px-4 py-3 text-right">عدد المواد</th>
-                <th class="px-4 py-3 text-right">الحالة</th>
-                <th class="px-4 py-3 text-right">إجراءات</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($teachers as $teacher)
-                <tr>
-                    <td class="px-4 py-3 border-t font-bold">{{ $teacher->name }}</td>
-                    <td class="px-4 py-3 border-t">{{ $teacher->gender === 'male' ? 'ذكر' : 'أنثى' }}</td>
-                    <td class="px-4 py-3 border-t">{{ $teacher->specialty }}</td>
-                    <td class="px-4 py-3 border-t">{{ $teacher->phone }}</td>
-                    <td class="px-4 py-3 border-t">{{ $teacher->email }}</td>
-                    <td class="px-4 py-3 border-t">{{ $teacher->subjects_count }}</td>
-                    <td class="px-4 py-3 border-t">
-                        <span @class([
-                            'px-2 py-1 rounded-full text-xs font-bold',
-                            'bg-green-100 text-green-800' => $teacher->is_active,
-                            'bg-red-100 text-red-800' => !$teacher->is_active,
-                        ])>
-                            {{ $teacher->is_active ? 'نشط' : 'غير نشط' }}
-                        </span>
-                    </td>
-                    <td class="px-4 py-3 border-t">
-                        <div class="flex gap-2">
-                            <a href="{{ route('admin.teachers.edit', $teacher) }}" class="text-blue-600 hover:underline text-sm">تعديل</a>
-                            <form method="POST" action="{{ route('admin.teachers.destroy', $teacher) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
-                            </form>
-                        </div>
-                    </td>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 text-gray-600 text-sm">
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الاسم</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الجنس</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">التخصص</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الهاتف</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">البريد الإلكتروني</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">عدد المواد</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الحالة</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">إجراءات</th>
                 </tr>
-            @empty
-                <tr>
-                    <td colspan="8" class="px-4 py-6 text-center text-gray-500">لا يوجد معلمون</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @forelse($teachers as $teacher)
+                    <tr>
+                        <td class="px-4 py-3 border-t font-bold whitespace-nowrap">{{ $teacher->name }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->gender === 'male' ? 'ذكر' : 'أنثى' }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->specialty }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->phone }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->email }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->subjects_count }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <span @class([
+                                'px-2 py-1 rounded-full text-xs font-bold',
+                                'bg-green-100 text-green-800' => $teacher->is_active,
+                                'bg-red-100 text-red-800' => !$teacher->is_active,
+                            ])>
+                                {{ $teacher->is_active ? 'نشط' : 'غير نشط' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <div class="flex gap-2">
+                                <a href="{{ route('admin.teachers.show', $teacher) }}" class="text-emerald-600 hover:underline text-sm">عرض</a>
+                                <a href="{{ route('admin.teachers.edit', $teacher) }}" class="text-blue-600 hover:underline text-sm">تعديل</a>
+                                <form method="POST" action="{{ route('admin.teachers.destroy', $teacher) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="8" class="px-4 py-6 text-center text-gray-500">لا يوجد معلمون</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <div class="mt-4">

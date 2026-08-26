@@ -24,7 +24,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('students/{student}/archive', [Admin\StudentController::class, 'archive'])->name('students.archive');
     Route::resource('students', Admin\StudentController::class);
 
-    Route::resource('teachers', Admin\TeacherController::class)->except(['show']);
+    Route::resource('teachers', Admin\TeacherController::class);
+    Route::post('teachers/{teacher}/ratings', [Admin\TeacherController::class, 'storeRating'])->name('teachers.ratings.store');
+    Route::delete('teachers/{teacher}/ratings/{rating}', [Admin\TeacherController::class, 'destroyRating'])->name('teachers.ratings.destroy');
+    Route::post('teachers/{teacher}/certificates', [Admin\TeacherController::class, 'storeCertificate'])->name('teachers.certificates.store');
+    Route::delete('teachers/{teacher}/certificates/{certificate}', [Admin\TeacherController::class, 'destroyCertificate'])->name('teachers.certificates.destroy');
 
     Route::get('classrooms', [Admin\ClassroomController::class, 'index'])->name('classrooms.index');
     Route::post('classrooms', [Admin\ClassroomController::class, 'store'])->name('classrooms.store');

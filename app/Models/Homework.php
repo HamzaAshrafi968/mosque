@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Homework extends Model
 {
-    use MultiTenantTrait, UuidTrait;
+    use FlushesTenantCache, MultiTenantTrait, UuidTrait;
 
     protected $table = 'homeworks';
 
@@ -24,12 +25,14 @@ class Homework extends Model
         'description',
         'due_date',
         'attachment_path',
+        'pass_marks',
     ];
 
     protected function casts(): array
     {
         return [
             'due_date' => 'date',
+            'pass_marks' => 'integer',
         ];
     }
 

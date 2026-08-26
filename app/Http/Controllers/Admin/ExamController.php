@@ -40,6 +40,7 @@ class ExamController extends Controller
             'section_id' => ['nullable', 'exists:sections,id'],
             'exam_date' => ['required', 'date'],
             'total_marks' => ['required', 'integer', 'min:1', 'max:1000'],
+            'pass_marks' => ['nullable', 'integer', 'min:0', 'lte:total_marks'],
         ]);
 
         Exam::create($data);

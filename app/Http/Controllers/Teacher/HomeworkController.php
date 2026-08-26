@@ -49,6 +49,7 @@ class HomeworkController extends BaseTeacherController
             'classroom_id' => ['required', 'exists:classrooms,id'],
             'section_id' => ['nullable', 'exists:sections,id'],
             'due_date' => ['required', 'date', 'after_or_equal:today'],
+            'pass_marks' => ['nullable', 'integer', 'min:0', 'max:1000'],
             'attachment' => ['nullable', 'file', 'max:10240'],
         ]);
 

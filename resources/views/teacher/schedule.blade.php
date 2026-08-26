@@ -23,26 +23,28 @@
     @if($schedules->has($num))
         <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
             <h2 class="text-lg font-bold text-gray-800 p-4 border-b">{{ $dayName }}</h2>
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-gray-50 text-gray-600 text-sm">
-                        <th class="px-4 py-3 text-right">الوقت</th>
-                        <th class="px-4 py-3 text-right">المادة</th>
-                        <th class="px-4 py-3 text-right">الصف</th>
-                        <th class="px-4 py-3 text-right">الشعبة</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($schedules[$num] as $schedule)
-                        <tr>
-                            <td class="px-4 py-3 border-t">{{ $schedule->starts_at }} - {{ $schedule->ends_at }}</td>
-                            <td class="px-4 py-3 border-t">{{ $schedule->subject?->name }}</td>
-                            <td class="px-4 py-3 border-t">{{ $schedule->classroom?->name }}</td>
-                            <td class="px-4 py-3 border-t">{{ $schedule->section?->name ?? 'كل الشعب' }}</td>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm">
+                            <th class="px-4 py-3 text-right whitespace-nowrap">الوقت</th>
+                            <th class="px-4 py-3 text-right whitespace-nowrap">المادة</th>
+                            <th class="px-4 py-3 text-right whitespace-nowrap">الصف</th>
+                            <th class="px-4 py-3 text-right whitespace-nowrap">الشعبة</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach($schedules[$num] as $schedule)
+                            <tr>
+                                <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->starts_at }} - {{ $schedule->ends_at }}</td>
+                                <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->subject?->name }}</td>
+                                <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->classroom?->name }}</td>
+                                <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->section?->name ?? 'كل الشعب' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     @endif
 @endforeach

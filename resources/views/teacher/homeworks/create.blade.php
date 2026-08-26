@@ -60,6 +60,13 @@
                 </div>
 
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">علامة النجاح</label>
+                    <input type="number" name="pass_marks" value="{{ old('pass_marks', 50) }}" min="0"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <p class="text-xs text-gray-500 mt-1">الطالب الذي يحصل على هذه الدرجة أو أكثر يعتبر ناجحاً</p>
+                </div>
+
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">ملف مرفق (اختياري)</label>
                     <input type="file" name="attachment"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
