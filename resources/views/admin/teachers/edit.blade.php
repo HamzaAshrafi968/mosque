@@ -46,6 +46,13 @@
             <label for="is_active" class="text-sm font-medium text-gray-700">نشط</label>
         </div>
 
+        @if($customFields->isNotEmpty())
+            <div class="border-t pt-4">
+                <h3 class="text-sm font-bold text-gray-700 mb-3">بيانات إضافية (حقول مخصصة)</h3>
+                <x-custom-field-inputs :fields="$customFields" :values="$customValues" />
+            </div>
+        @endif
+
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">حفظ</button>
     </form>
 </div>

@@ -7,11 +7,13 @@ use App\Models\Exam;
 use App\Models\QuranReviewSession;
 use App\Models\QuranSurah;
 use App\Models\RewardPoint;
+use App\Models\Section;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EnrollmentService;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -128,7 +130,18 @@ class Phase0RegressionTest extends TestCase
     {
         $tenant = $this->tenant();
         [$teacherUser] = $this->teacherUser($tenant);
-        $student = Student::factory()->create(['tenant_id' => $tenant->id]);
+
+        $classroom = Classroom::create(['tenant_id' => $tenant->id, 'name' => 'الأول']);
+        $section = Section::create(['tenant_id' => $tenant->id, 'classroom_id' => $classroom->id, 'name' => 'أ']);
+
+        $teacher = Teacher::where('tenant_id', $tenant->id)->where('user_id', $teacherUser->id)->first();
+        app(EnrollmentService::class)->assignTeacher($section, $teacher);
+
+        $student = Student::factory()->create([
+            'tenant_id' => $tenant->id,
+            'classroom_id' => $classroom->id,
+            'section_id' => $section->id,
+        ]);
 
         Sanctum::actingAs($teacherUser);
 
@@ -145,7 +158,39 @@ class Phase0RegressionTest extends TestCase
             'statuses' => [$student->id => 'present'],
         ])->assertOk();
 
-        $this->assertDatabaseHas('attendances', ['student_id' => $student->id, 'status' => 'present']);
+        $this->assertDatabaseHas('attendance_sessions', [
+            'section_id' => $section->id,
+            'date' => now()->toDateString(),
+        ]);
+
+        $this->assertDatabaseHas('attendance_records', [
+            'student_id' => $student->id,
+            'status' => 'present',
+        ]);
+    }
+
+    public function test_teacher_cannot_mark_students_of_unassigned_sections(): void
+    {
+        $tenant = $this->tenant();
+        [$teacherUser] = $this->teacherUser($tenant);
+
+        $classroom = Classroom::create(['tenant_id' => $tenant->id, 'name' => 'الأول']);
+        $section = Section::create(['tenant_id' => $tenant->id, 'classroom_id' => $classroom->id, 'name' => 'أ']);
+
+        $student = Student::factory()->create([
+            'tenant_id' => $tenant->id,
+            'classroom_id' => $classroom->id,
+            'section_id' => $section->id,
+        ]);
+
+        Sanctum::actingAs($teacherUser);
+
+        $this->postJson('/api/v1/teacher/attendance', [
+            'date' => now()->toDateString(),
+            'statuses' => [$student->id => 'absent'],
+        ])->assertStatus(422);
+
+        $this->assertDatabaseCount('attendance_records', 0);
     }
 
     public function test_reward_point_delete_is_limited_to_own_manual_points(): void

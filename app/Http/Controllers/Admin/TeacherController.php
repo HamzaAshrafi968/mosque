@@ -13,6 +13,8 @@ use App\Models\Teacher;
 use App\Models\TeacherCertificate;
 use App\Models\TeacherRating;
 use App\Models\User;
+use App\Services\AuditLogger;
+use App\Services\CustomFieldService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -22,6 +24,11 @@ use Illuminate\View\View;
 
 class TeacherController extends Controller
 {
+    public function __construct(
+        private readonly CustomFieldService $customFields,
+        private readonly AuditLogger $audit,
+    ) {}
+
     public function index(Request $request): View
     {
         $teachers = Teacher::query()
@@ -37,7 +44,9 @@ class TeacherController extends Controller
 
     public function create(): View
     {
-        return view('admin.teachers.create');
+        return view('admin.teachers.create', [
+            'customFields' => $this->customFields->definitions(Teacher::CUSTOM_FIELD_ENTITY),
+        ]);
     }
 
     public function show(Teacher $teacher): View
@@ -46,6 +55,7 @@ class TeacherController extends Controller
             'subjects:id,name',
             'ratings' => fn ($q) => $q->with('user:id,name')->latest(),
             'certificates' => fn ($q) => $q->latest(),
+            'assignedSections.classroom:id,name',
         ]);
 
         $activity = [
@@ -64,6 +74,8 @@ class TeacherController extends Controller
             'teacher' => $teacher,
             'avgRating' => round((float) $teacher->ratings()->avg('rating'), 1),
             'activity' => $activity,
+            'customValues' => $this->customFields->displayedValues(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id),
+            'assignedSections' => $teacher->assignedSections()->with('classroom:id,name')->orderBy('name')->get(),
         ]);
     }
 
@@ -117,8 +129,10 @@ class TeacherController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
+        $customFields = $data['custom_fields'] ?? [];
+        $this->customFields->validate(Teacher::CUSTOM_FIELD_ENTITY, $customFields);
 
-        DB::transaction(function () use ($data, $request) {
+        $teacher = DB::transaction(function () use ($data, $request, $customFields) {
             $userId = null;
 
             if ($request->filled('password')) {
@@ -136,26 +150,48 @@ class TeacherController extends Controller
 
             unset($data['password']);
 
-            Teacher::create([...$data, 'user_id' => $userId]);
+            $teacher = Teacher::create([...Arr::except($data, ['custom_fields']), 'user_id' => $userId]);
+
+            $this->customFields->save(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id, $customFields);
+
+            return $teacher;
         });
+
+        $this->audit->logModel('teacher.created', $teacher, actor: $request->user());
 
         return redirect()->route('admin.teachers.index')->with('success', 'تمت إضافة المعلم بنجاح');
     }
 
     public function edit(Teacher $teacher): View
     {
-        return view('admin.teachers.edit', ['teacher' => $teacher]);
+        return view('admin.teachers.edit', [
+            'teacher' => $teacher,
+            'customFields' => $this->customFields->definitions(Teacher::CUSTOM_FIELD_ENTITY),
+            'customValues' => $this->customFields->valuesFor(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id),
+        ]);
     }
 
     public function update(Request $request, Teacher $teacher): RedirectResponse
     {
-        $teacher->update(Arr::except($this->validated($request, $teacher), 'password'));
+        $data = $this->validated($request, $teacher);
+        $customFields = $data['custom_fields'] ?? [];
+        $this->customFields->validate(Teacher::CUSTOM_FIELD_ENTITY, $customFields);
 
-        return redirect()->route('admin.teachers.index')->with('success', 'تم تحديث بيانات المعلم');
+        $before = $teacher->getAttributes();
+
+        DB::transaction(function () use ($teacher, $data, $customFields) {
+            $teacher->update(Arr::except($data, ['password', 'custom_fields']));
+            $this->customFields->save(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id, $customFields);
+        });
+
+        $this->audit->logModel('teacher.updated', $teacher, $before, actor: $request->user());
+
+        return redirect()->route('admin.teachers.show', $teacher)->with('success', 'تم تحديث بيانات المعلم');
     }
 
-    public function destroy(Teacher $teacher): RedirectResponse
+    public function destroy(Request $request, Teacher $teacher): RedirectResponse
     {
+        $this->audit->logModel('teacher.deleted', $teacher, actor: $request->user());
         $teacher->delete();
 
         return redirect()->route('admin.teachers.index')->with('success', 'تم حذف المعلم');
@@ -178,6 +214,7 @@ class TeacherController extends Controller
             'hired_at' => ['nullable', 'date'],
             'is_active' => ['boolean'],
             'password' => ['nullable', 'string', 'min:8'],
+            'custom_fields' => ['nullable', 'array'],
         ]);
     }
 }

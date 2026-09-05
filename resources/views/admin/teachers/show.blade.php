@@ -159,4 +159,51 @@
         </div>
     </div>
 </div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="px-4 py-3 bg-emerald-700 text-white font-bold">الشعب الموكلة للمعلم</div>
+        @if($assignedSections->isEmpty())
+            <div class="px-4 py-6 text-center text-gray-500 text-sm">لا توجد شعب موكلة — كُلِّف المعلم من لوحة الشعبة</div>
+        @else
+            <div class="divide-y">
+                @foreach($assignedSections as $section)
+                    <a href="{{ route('admin.sections.show', $section) }}" class="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
+                        <span class="font-bold text-gray-800">{{ $section->classroom?->name }} / {{ $section->name }}</span>
+                        <span class="text-xs text-emerald-600">لوحة الشعبة ←</span>
+                    </a>
+                @endforeach
+            </div>
+        @endif
+    </div>
+
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="px-4 py-3 bg-emerald-700 text-white font-bold">💰 الملف المالي</div>
+        <div class="p-4 flex items-center justify-between">
+            <div>
+                <div class="text-sm text-gray-500">رصيد الحساب المالي للمعلم</div>
+                <a href="{{ route('admin.finance.show', ['personType' => 'teacher', 'person' => $teacher]) }}"
+                   class="text-emerald-700 font-bold hover:underline text-sm mt-1 inline-block">عرض السجل المالي ←</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if($customValues->isNotEmpty())
+    <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
+        <div class="px-4 py-3 bg-emerald-700 text-white font-bold">بيانات إضافية</div>
+        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            @foreach($customValues as $pair)
+                @php
+                    $value = $pair['value'];
+                    $display = is_bool($value) ? ($value ? 'نعم' : 'لا') : (is_array($value) ? implode('، ', $value) : $value);
+                @endphp
+                <div>
+                    <span class="text-sm text-gray-500">{{ $pair['field']->name }}:</span>
+                    <span class="font-bold mr-2">{{ $display }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
+@endif
 @endsection

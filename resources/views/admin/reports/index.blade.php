@@ -107,23 +107,25 @@
                     <tr class="bg-gray-50 text-gray-600 text-sm">
                         <th class="px-4 py-3 text-right whitespace-nowrap">التاريخ</th>
                         <th class="px-4 py-3 text-right whitespace-nowrap">الاسم</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">النوع</th>
                         <th class="px-4 py-3 text-right whitespace-nowrap">الحالة</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">ملاحظة</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($rows as $attendance)
                         <tr>
                             <td class="px-4 py-3 border-t whitespace-nowrap">{{ $attendance->date->format('Y-m-d') }}</td>
-                            <td class="px-4 py-3 border-t whitespace-nowrap">{{ $attendance->student?->name ?? $attendance->teacher?->name }}</td>
+                            <td class="px-4 py-3 border-t whitespace-nowrap font-bold">{{ $attendance->person_name }}</td>
                             <td class="px-4 py-3 border-t whitespace-nowrap">
-                                @if($attendance->status === 'present')
-                                    <span class="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">حاضر</span>
-                                @elseif($attendance->status === 'absent')
-                                    <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">غائب</span>
-                                @elseif($attendance->status === 'late')
-                                    <span class="px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">متأخر</span>
-                                @endif
+                                <span @class(['px-2 py-0.5 rounded-full text-xs font-bold', 'bg-emerald-100 text-emerald-800' => $attendance->kind === 'student', 'bg-teal-100 text-teal-800' => $attendance->kind === 'teacher'])>
+                                    {{ $attendance->kind === 'student' ? 'طالب' : 'معلم' }}
+                                </span>
                             </td>
+                            <td class="px-4 py-3 border-t whitespace-nowrap">
+                                <x-attendance-status-badge :status="$attendance->status" />
+                            </td>
+                            <td class="px-4 py-3 border-t text-sm text-gray-500">{{ $attendance->note ?? '—' }}</td>
                         </tr>
                     @endforeach
                 </tbody>

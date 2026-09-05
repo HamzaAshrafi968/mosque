@@ -33,7 +33,7 @@
                 'grades' => 'الدرجات', 'assignments' => 'الواجبات', 'lessons' => 'الدروس',
                 'announcements' => 'الإعلانات', 'messages' => 'الرسائل', 'reports' => 'التقارير',
                 'users' => 'المستخدمون', 'roles' => 'الأدوار', 'permissions' => 'الصلاحيات',
-                'custom_fields' => 'الحقول المخصصة', 'audit_logs' => 'سجل العمليات',
+                'custom_fields' => 'الحقول المخصصة', 'audit_logs' => 'سجل العمليات', 'finance' => 'العمليات المالية',
             ];
         @endphp
         @foreach(\App\Support\PermissionCatalog::grouped() as $resource => $permissions)

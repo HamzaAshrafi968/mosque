@@ -104,8 +104,8 @@
 
 صلاحيات افتراضية:
 
-- مشاهدة صفوفه وشعبه
-- مشاهدة طلابه
+- مشاهدة صفوفه وشعبه (وفق ربط الأستاذ في §5.2 فقط — لا يرى صفوفاً غير مرتبط بها)
+- مشاهدة طلابه (طلاب صفوفه/شعبه المرتبطة فقط)
 - تسجيل الحضور
 - تعديل سجل الحضور إذا سمحت الصلاحية
 - إنشاء واجبات
@@ -115,9 +115,9 @@
 - إرسال الدرجات للاعتماد
 - إضافة دروس
 - رفع ملفات
-- إدارة جدوله كمقترح
+- إدارة جدوله كمقترح (إنشاء `draft` وإرساله للاعتماد — §14)
 - إرسال رسائل للإدارة
-- تعديل ملفه الشخصي
+- تعديل ملفه الشخصي (عبر صلاحية `profile.update` بنطاق `own` — لا توجد صلاحية "ملف" سابقة)
 
 ---
 
@@ -182,7 +182,6 @@ schedule.approve
 attendance.view
 attendance.create
 attendance.update
-attendance.approve
 
 exams.view
 exams.create
@@ -195,11 +194,11 @@ grades.update
 grades.submit
 grades.approve
 
-assignments.view
-assignments.create
-assignments.update
-assignments.delete
-assignments.grade
+homeworks.view
+homeworks.create
+homeworks.update
+homeworks.delete
+homeworks.grade
 
 lessons.view
 lessons.create
@@ -235,15 +234,24 @@ custom_fields.update
 custom_fields.delete
 
 audit_logs.view
+profile.view
+profile.update
 ```
+
+> ملاحظات على القائمة:
+>
+> - **`assignments.*` أُعيدت تسميتها `homeworks.*`** (الواجبات): الاسم الموحد يطابق قاعدة البيانات والمسارات (`homeworks` / `homework_submissions`) — كانا في قوائم سابقة باسم `assignments`. رمزا `assignments.*` القديمان يجب أن يُزالا من كتالوج الصلاحيات (§55).
+> - **`attendance.approve` أُزيلت عمداً**: لا توجد دورة اعتماد للحضور ضمن هذا النطاق (§15)، فلا تُمنح ولا تُستخدم.
+> - **`profile.view` / `profile.update`** تُمنح لكل الأدوار بنطاق `own` (تعديل الملف الشخصي — §3.3).
+> - **صلاحيات `*.approve`** (مثل `schedule.approve` و `grades.approve`) تمنح صاحبها حق الاعتماد `approve` وحق الرفض `reject` معاً — لا حاجة لصلاحيات `reject` منفصلة (§43).
 
 ---
 
 # 5. Scope
 
-كل Permission يجب أن تعمل مع Scope.
+كل Permission تعمل مع Scope، والنطاق يُقيَّم دائماً في الـ Backend بعد التحقق من الصلاحية وقبل تنفيذ العملية (انظر تسلسل §33).
 
-القيم المقترحة:
+القيم المعتمدة (لا توجد قيم أخرى):
 
 ```text
 global
@@ -253,27 +261,54 @@ section
 own
 ```
 
+## 5.1 معنى كل نطاق وقاعدة تقييمه
+
+| النطاق | لمن | قاعدة التقييم |
+|---|---|---|
+| `global` | الأدوار العامة فقط (`roles.tenant_id = NULL` مثل مدير الجوامع) | `can()` تُرجع true مباشرة دون فحص عزل. ⚠️ **يمنع منح `global` لأي دور تابع لجامع** (منع في الواجهة وفي الـ Backend معاً) لأنه يتجاوز عزل الجوامع ويمنح عملياً صلاحية شاملة. |
+| `mosque` | مدير الجامع والصلاحيات الإدارية | `subject.tenant_id == user.tenant_id` وإلا تُرفض العملية. |
+| `class` | الأستاذ على صفوفه | الصف المرتبط بالموضوع `subject.classroom_id` موجود ضمن جداول ربط الأستاذ `classroom_teacher` (§5.2). |
+| `section` | الأستاذ على شعبه | الشعبة المرتبطة بالموضوع `subject.section_id` موجودة ضمن جداول ربط الأستاذ `section_teacher` (§5.2). الطالب بلا `section_id` يُحكم عليه عبر ربط صفه. |
+| `own` | الموارد المملوكة ذاتياً (درجة أدخلها، جدول أنشأه، ملفه...) | مسند ملكية خاص بالمورد يُمرَّر عند الاستدعاء (`can(user, perm, subject, owns)`)؛ **إذا لم يُمرَّر مسند ملكية تُرفض العملية** ولا تُمرَّر كأنها `mosque`. |
+
 أمثلة:
 
 ```text
-students.view = mosque
+students.view = mosque   → مدير الجامع يرى طلاب جامعه فقط.
+students.view = section  → الأستاذ يرى طلاب شعبه فقط (عبر section_teacher).
+grades.update = own      → الأستاذ يعدّل الدرجات التي أدخلها فقط.
 ```
 
-يعني المدير يرى طلاب جامعه فقط.
+مثال التقييم الفعلي:
 
 ```text
-students.view = own
+can(user, "students.delete", student)
+  1) هل يملك المستخدم students.delete أصلاً؟  (لا → رفض)
+  2) ما نطاق الصلاحية الممنوحة لدوره؟
+     - mosque:  student.tenant_id == user.tenant_id؟
+     - class:   student.classroom_id ضمن classroom_teacher للمستخدم؟
+     - section: student.section_id ضمن section_teacher للمستخدم؟
+  3) تفحص واحد من الفحوص أعلاه فاشل → رفض.
 ```
 
-يعني الأستاذ يرى طلابه فقط.
+## 5.2 ربط الأستاذ بالصفوف والشعب (Membership)
+
+الأستاذ لا يرى إلا "صفوفه/شعبه/طلابه"، والربط يكون ببيانات صريحة عبر جدولين (ولا يُستنتج من الجداول الدراسية كالجداول الزمنية أو المواد):
 
 ```text
-students.view = global
+classroom_teacher:  classroom_id  +  teacher_id    (فريدان معاً)
+section_teacher:    section_id    +  teacher_id    (فريدان معاً)
 ```
 
-يعني مدير الجوامع يستطيع رؤية الطلاب في كل الجوامع.
+قواعد الاشتقاق:
+
+- طلاب الأستاذ = الطلاب النشطون الذين `classroom_id` صفّهم في `classroom_teacher` للأستاذ نفسه، أو `section_id` شعبتهم في `section_teacher` له.
+- لا يعتبر ربطاً للأستاذ: صفوف `schedules` ولا `subjects.teacher_id`؛ هي بيانات تدريسية وليست نطاقات وصول (باستثناء `schedule.view` و `attendance.create` المقيدة بجدول الأستاذ نفسه).
+- تُدار هذه الجداول من مدير الجامع/مدير الجوامع، وتُسجَّل تغييراتها في Audit Log (§31).
 
 ---
+
+
 
 # 6. مصفوفة الصلاحيات
 
@@ -288,7 +323,7 @@ students.view = global
 | الصفوف | ✓ | ✓ | ✓ | ✓ | - |
 | الشعب | ✓ | ✓ | ✓ | ✓ | - |
 | الجداول | ✓ | ✓ | ✓ | - | ✓ |
-| الحضور | ✓ | ✓ | ✓ | - | ✓ |
+| الحضور | ✓ | ✓ | ✓ | - | - |
 | الدرجات | ✓ | ✓ | ✓ | - | ✓ |
 
 يجب أن يستطيع مدير الجوامع:
@@ -308,23 +343,24 @@ students.view = global
 
 ## Mosque
 
+> الاسم في قاعدة البيانات: جدول `tenants`، وعمود الجامع في كل الجداول هو `tenant_id` (راجع قاموس المصطلحات §53).
+
 الحقول الأساسية:
 
 ```text
 id
 name
-code
+code          (فريد — مطلوب)
 phone
 email
 address
-status
 logo
+status        active | inactive | archived
 created_at
 updated_at
-deleted_at
 ```
 
-الحالات:
+الحالات (مصدر واحد للحالة):
 
 ```text
 active
@@ -332,13 +368,20 @@ inactive
 archived
 ```
 
+ملاحظات:
+
+- **`is_active` عمود قديم (legacy)** يُقرأ ويُكتب للتوافق فقط؛ الحالة الرسمية الواحدة هي `status`.
+- `archived` قيمة تُضاف حالياً (قاعدة البيانات تحوي active/inactive فقط) — راجع §55.
+- **لا حذف فعلي للجامع أبداً**: زر الحذف يعمل أرشفة (`status = archived`)، وكل بياناته تبقى محفوظة.
+- `deleted_at` غير مستخدم مع الجوامع (§39 يخص الطلاب والأساتذة).
+
 الوظائف:
 
 - Create
 - Read
 - Update
 - Archive
-- Delete
+- Delete (أرشفة فقط — مع تأكيد في الواجهة)
 
 ---
 
@@ -349,11 +392,12 @@ archived
 ```text
 id
 name
-email
+email         (فريد عالمياً)
 phone
-password_hash
-status
-mosque_id nullable
+password      (hash قوي — كان الاسم القديم password_hash)
+status        active | inactive      ← إضافة (لا يوقف حساب مدير الجوامع إلا مركزياً)
+tenant_id     (mosque_id) nullable — لا يملكه إلا مدير الجوامع العام
+role          (سلسلة قديمة للتوافق: teacher|admin|super_admin)
 created_at
 updated_at
 ```
@@ -368,6 +412,11 @@ User
 
 المستخدم يمكن أن يمتلك أكثر من Role إذا كان النظام يسمح بذلك.
 
+قواعد إلزامية:
+
+- **مزامنة الهوية**: `users.role` (السلسلة القديمة) وجداول `role_user` يجب أن يبقيا متزامنين — أي تعديل لأحدهما يحدّث الآخر (§55). عند تفعيل طبقة الصلاحيات تكون pivots هي المرجع الفعلي.
+- المستخدم الذي `tenant_id = NULL` وليس مدير جوامع لا يمكنه استخدام صلاحيات أي جامع (يُرفض في `can()`).
+
 ---
 
 # 9. الطلاب
@@ -376,27 +425,30 @@ User
 
 ```text
 id
-mosque_id
-student_number
+tenant_id (mosque_id)
+student_number       ← إضافة (فريد داخل الجامع — يسمح بالبحث به)
 name
-date_of_birth
-age
-phone
-status
-class_id
-section_id
+gender
+birth_date          (كان الاسم القديم date_of_birth؛ والعمر يُحسب منه ولا يُخزَّن)
+guardian_name
+guardian_phone
+phone               ← إضافة
+classroom_id (class_id)   nullable
+section_id                nullable
+status             active | archived | transferred | inactive
+notes
+deleted_at         (حذف ناعم §39)
 created_at
 updated_at
-deleted_at
 ```
 
 الوظائف:
 
 - إضافة طالب
 - تعديل طالب
-- حذف/أرشفة
-- نقل طالب بين الصفوف
-- نقل طالب بين الشعب
+- حذف/أرشفة (أرشفة = `status = archived`، حذف = `deleted_at` — §39)
+- نقل طالب بين الصفوف (§40)
+- نقل طالب بين الشعب (§40)
 - البحث
 - مشاهدة التفاصيل
 - مشاهدة الحضور
@@ -411,13 +463,15 @@ deleted_at
 
 ## Class
 
+> الاسم في قاعدة البيانات: `Classroom` (جدول `classrooms`) وعمود الصف في بقية الجداول هو `classroom_id`.
+
 ```text
 id
-mosque_id
+tenant_id (mosque_id)
 name
-level
-description
-status
+level             ← إضافة
+description       ← إضافة
+status            ← إضافة  active | inactive
 created_at
 updated_at
 ```
@@ -440,12 +494,12 @@ updated_at
 
 ```text
 id
-mosque_id
-class_id
+tenant_id (mosque_id)
+classroom_id (class_id)
 name
-capacity
-room
-status
+capacity          ← إضافة
+room              ← إضافة
+status            ← إضافة  active | inactive
 created_at
 updated_at
 ```
@@ -466,23 +520,26 @@ Class
 
 ```text
 id
-mosque_id
-user_id
+tenant_id (mosque_id)
+user_id        nullable (ربط بحساب دخول)
 name
+gender
 phone
 email
-specialization
-status
+specialty      (كان الاسم القديم specialization)
+hired_at
+is_active      (legacy يُقرأ مع status) — أو status active | inactive
+deleted_at     (حذف ناعم §39)
 created_at
 updated_at
 ```
 
 يمكن ربط الأستاذ بـ:
 
-- صفوف
-- شعب
-- مواد
-- جداول
+- صفوف (عبر `classroom_teacher` — §5.2)
+- شعب (عبر `section_teacher` — §5.2)
+- مواد (عبر `subjects.teacher_id`)
+- جداول (عبر `schedules.teacher_id`)
 
 ---
 
@@ -492,11 +549,12 @@ updated_at
 
 ```text
 id
-mosque_id
+tenant_id (mosque_id)
 name
-description
+teacher_id   nullable (موجود في قاعدة البيانات — أستاذ المادة الأساسي)
+description         ← إضافة
 weekly_lessons
-status
+status              ← إضافة  active | inactive
 created_at
 updated_at
 ```
@@ -507,30 +565,32 @@ updated_at
 
 ## Schedule
 
+الجدول موجود حالياً في التطبيق بأعمدة `tenant_id, classroom_id, section_id (nullable), subject_id, teacher_id, day_of_week, starts_at, ends_at` **بدون دورة اعتماد**. الحقول الكاملة المستهدفة (الإضافات تُنفَّذ بهجرة — §55):
+
 ```text
 id
-mosque_id
+tenant_id (mosque_id)
 teacher_id
-class_id
-section_id
+classroom_id (class_id)
+section_id nullable
 subject_id
-day_of_week
-start_time
-end_time
-room
-status
-created_by
-approved_by
-approved_at
+day_of_week        (0-6)
+starts_at          (كان الاسم القديم start_time)
+ends_at            (كان الاسم القديم end_time)
+room               ← إضافة
+status             ← إضافة  draft | submitted | approved | rejected | cancelled (§43)
+status_by          ← إضافة  uuid → users
+status_at          ← إضافة
+rejection_reason   ← إضافة  (مطلوب عند الرفض)
 created_at
 updated_at
 ```
 
-الحالات:
+الحالات (تطابق محرك §43 — لا توجد أسماء موازية مثل `pending_approval`):
 
 ```text
 draft
-pending_approval
+submitted
 approved
 rejected
 cancelled
@@ -539,20 +599,23 @@ cancelled
 ## Workflow
 
 ```text
-الأستاذ ينشئ جدول
-       ↓
+ينشئ الأستاذ (أو المدير) جدولاً
+        ↓
 draft
-       ↓
-إرسال
-       ↓
-pending_approval
-       ↓
-مدير الجامع / مدير الجوامع
-       ↓
-approved
+        ↓  إرسال (submit) — بصلاحية schedule.create/update
+submitted
+        ↓  مدير الجامع / مدير الجوامع — بصلاحية schedule.approve
+approved        أو        rejected (مع سبب إلزامي)
 ```
 
-بعد الاعتماد يظهر الجدول للمستخدمين حسب الصلاحيات.
+القواعد:
+
+- الأستاذ يبني جدول مقترحه كـ `draft` (بنطاق `own`)، والمدير يدير الجداول الأساسية ويقترح أيضاً.
+- **التعديل/الحذف مسموح في `draft` و `rejected` فقط** لمن يملك `schedule.update` وللمنشئ نفسه.
+- `submitted` مجمّدة: لا تعديل ولا حذف حتى يُعتمد أو يُرفض.
+- الرفض يعيد الحالة إلى `rejected` ويُرسل السبب للمنشئ الذي يعدّل ثم يعيد `submit` (§43).
+- **`approved` نهائية**: لا تعديل ولا حذف؛ الإلغاء فقط عبر انتقال `cancelled` بصلاحية `schedule.approve` مع سبب.
+- بعد الاعتماد يظهر الجدول للمستخدمين حسب الصلاحيات؛ غير المعتمدة تظهر لمنشئها وللإدارة فقط.
 
 ---
 
@@ -560,18 +623,17 @@ approved
 
 ## Attendance
 
+الحقول المعتمدة (مطابقة لقاعدة البيانات الحالية — لا أعمدة `class_id/section_id/check_in`؛ الصف والشعبة يُستنتجان من الطالب):
+
 ```text
 id
-mosque_id
-student_id
-class_id
-section_id
+tenant_id (mosque_id)
+student_id nullable   (سجل حضور طالب — يسجله الأستاذ)
+teacher_id nullable   (سجل حضور أستاذ — يسجله المدير)
+recorded_by           (uuid → users: من سجّل/عدّل — كان الاسم القديم created_by)
 date
-status
-check_in
-note
-created_by
-updated_by
+status                present | absent | late | excused
+notes                 (كان الاسم القديم note)
 created_at
 updated_at
 ```
@@ -585,26 +647,52 @@ late
 excused
 ```
 
+القواعد:
+
+- يُملأ **أحد** الحقلين `student_id` أو `teacher_id` فقط (سجلان منفصلان بنفس الجدول).
+- التفرد: `(tenant_id, student_id, date)` و `(tenant_id, teacher_id, date)` — التسجيل تكرار لليوم نفسه = تحديث (upsert).
+- `excused` **تتطلب تعبئة `notes` إلزامياً** (قاعدة تحقق تُضاف حالياً — التحقق القائم يسمح بثلاث قيم فقط).
+- تعديل سجل ماضٍ يخضع لصلاحية `attendance.update` ويُسجَّل في Audit Log (§31).
+- لا توجد دورة اعتماد للحضور (أُزيلت `attendance.approve`) — المراجعة تتم عبر `attendance.view` والتقارير.
+- (مستقبلي/خارج النطاق) ربط الحضور بحصة معينة من الجدول المعتمد.
+
 ---
 
 # 16. الامتحانات
 
 ## Exam
 
+الحقول المعتمدة (مطابقة لقاعدة البيانات + إضافة دورة النشر):
+
 ```text
 id
-mosque_id
-name
+tenant_id (mosque_id)
 subject_id
-class_id
-section_id
+classroom_id (class_id)
+section_id nullable
+teacher_id nullable
+title                 (كان الاسم القديم name)
 exam_date
-max_score
-status
-created_by
+total_marks           (الدرجة العظمى — كانت max_score)
+pass_marks
+status                ← إضافة  draft | published | cancelled
+status_by             ← إضافة  uuid → users
+status_at             ← إضافة
 created_at
 updated_at
 ```
+
+الحالات (دورة نشر وليست اعتماداً — لا تستخدم محرك §43):
+
+```text
+draft
+published
+cancelled
+```
+
+- المعلم ينشئ امتحانه كـ `draft` (أو المدير لأي امتحان) بصلاحية `exams.create`.
+- النشر إلى `published` لمن يملك `exams.update` على الامتحان (منشئه أو المدير).
+- **التعديل/الحذف في `draft` فقط**؛ بعد `published` لا تعديل إلا بإعادته `draft` من الناشر، والحذف ممنوع — إلغاؤه يكون بـ `cancelled`.
 
 ---
 
@@ -612,69 +700,89 @@ updated_at
 
 ## Grade
 
+الجدول موجود حالياً بثلاث حالات (`draft/submitted/approved`) **بدون أعمدة فاعل/وقت**. الحقول الكاملة المستهدفة (محرك §43):
+
 ```text
 id
-mosque_id
+tenant_id (mosque_id)
 exam_id
 student_id
-score
-note
-status
-entered_by
-approved_by
-approved_at
+score decimal(6,2)   (≤ exam.total_marks؛ تفرد: exam_id + student_id)
+status               draft | submitted | approved | rejected | cancelled
+status_by            ← إضافة  uuid → users (آخر من غيّر الحالة)
+status_at            ← إضافة
+rejection_reason     ← إضافة  (مطلوب عند الرفض)
+notes                (كان الاسم القديم note)
 created_at
 updated_at
 ```
 
-Workflow:
+Workflow (حالات محرك §43 — لا توجد أسماء موازية):
 
 ```text
 Teacher
   ↓
-Draft
-  ↓
-Submit
-  ↓
-Pending Approval
-  ↓
-Manager
-  ↓
-Approved
+draft
+  ↓  إرسال للاعتماد (grades.submit)
+submitted
+  ↓  مدير الجامع/مدير الجوامع (grades.approve)
+approved   أو   rejected (مع سبب إلزامي)
 ```
+
+القواعد:
+
+- **draft**: الأستاذ يدخل الدرجات ويعدّلها (`grades.create/update` بنطاق `own`) — الدرجات غير المعتمدة فقط.
+- **submitted**: تُجمَّد الدفعة — لا يعدّل الأستاذ حتى تُرفض (التحديث الحالي يسمح بالتعديل حتى الاعتماد؛ يُغلَق).
+- **approved**: نهائية **إلى الأبد** — أي كتابة على امتحان فيه درجة معتمدة مرفوضة (سلوك `SaveGradesAction` الحالي يُحافظ عليه ويُعمَّم: لا تعديل ولا حذف).
+- **rejected**: المدير يرفض مع سبب → الدرجات تعود قابلة للتعديل من الأستاذ (الحالة `rejected`)، فيعدّل ثم يعيد `submit`.
+- **cancelled**: إلغاء دفعة امتحان كاملة من حامل `grades.approve` مع سبب.
+- كل انتقال يسجَّل في `status_by/status_at` وفي Audit Log (§31) ويُنشئ إشعاراً (§42).
 
 ---
 
 # 18. الواجبات
 
-## Assignment
+## Homework (الواجبات)
+
+> الاسم الموحد في النظام: `Homework` (الواجبات) — كان يسمى `Assignment` في مسودات سابقة، والصلاحيات المقابلة هي `homeworks.*` (§4). قاعدة البيانات والمسارات: `homeworks` / `homework_submissions`.
 
 ```text
 id
-mosque_id
+tenant_id (mosque_id)
 teacher_id
-class_id
-section_id
+subject_id
+classroom_id (class_id)
+section_id nullable
 title
 description
 due_date
-status
+pass_marks
+attachment_path      (ملف يرفعه الأستاذ)
+status               ← إضافة  draft | published | cancelled (نشر للطلاب — خارج نطاق بوابة الطالب حالياً)
 created_at
 updated_at
 ```
 
-## Submission
+## Submission (تسليم الطالب)
 
 ```text
 id
-assignment_id
+homework_id (assignment_id)
 student_id
-file
-submitted_at
-score
+status         pending | submitted | graded
+file           ← إضافة (ملف تسليم الطالب — غير موجود بعد؛ يتطلب بوابة طالب "مرحلة لاحقة")
+grade
 feedback
-status
+submitted_at
+created_at
+updated_at
 ```
+
+التنفيذ الحالي:
+
+- المعلم ينشئ الواجب وتُولَّد صفوف تسليم مسبقة لكل طالب نشط في الصف/الشعبة (حالة `pending`).
+- المعلم يصحح ويقيّم (`homeworks.grade`) من `pending` إلى `graded`.
+- مرحلة لاحقة (خارج النطاق الحالي حتى وجود بوابة الطالب): تسليم الطالب الفعلي عبر `file` + `submitted_at` وقراءة الواجبات والدرجات.
 
 ---
 
@@ -684,26 +792,27 @@ status
 
 ```text
 id
-mosque_id
+tenant_id (mosque_id)
 teacher_id
-class_id
-section_id
 subject_id
+classroom_id (class_id) nullable
 title
 description
-content
-status
+type            file | link | video | presentation (مطابق للتحقق الحالي)
+file_path
+url
 created_at
 updated_at
 ```
 
 يدعم:
 
-- PDF
-- PowerPoint
+- PDF / PowerPoint (عبر `file_path`)
 - فيديو
 - روابط
 - ملفات
+
+(الحقول `content/status/section_id` غير مستخدمة — تمييز نوع الوسيط يتم عبر `type`.)
 
 ---
 
@@ -711,30 +820,34 @@ updated_at
 
 ## Announcement
 
+الحقول المعتمدة (مطابقة لقاعدة البيانات + توسيع الاستهداف):
+
 ```text
 id
-mosque_id
+tenant_id (mosque_id)
+user_id            (الناشر — كان الاسم القديم created_by)
 title
-content
-target_type
-target_id
-created_by
-published_at
-status
+body               (كان الاسم القديم content)
+audience           all | teachers | students | guardians | class | section
+classroom_id nullable   (حين audience = class)
+section_id  nullable    ← إضافة (حين audience = section)
+published_at nullable
 created_at
 updated_at
 ```
 
-Target:
+Target (الجمهور المستهدف):
 
 ```text
-mosque
-class
-section
+all        (الجميع داخل الجامع)
 teachers
-students
-parents
+students   (قابل للتسجيل الآن؛ يظهر فعلياً عند وجود بوابة الطالب "مرحلة لاحقة")
+guardians  (كانت parents في مسودات سابقة؛ ويطابق معنى أولياء الأمور)
+class      (صف محدد عبر classroom_id)
+section    (شعبة محددة عبر section_id — إضافة)
 ```
+
+(أُلغي النموذج القديم `target_type/target_id` متعدد الأشكال — الاستهداف يُعبَّر عنه بالحقلين أعلاه.)
 
 ---
 
@@ -742,15 +855,18 @@ parents
 
 ## Message
 
+الحقول المعتمدة (مطابقة لقاعدة البيانات):
+
 ```text
 id
-mosque_id
-sender_id
-receiver_id
+tenant_id (mosque_id)
+sender_id           (uuid → users)
+recipient_id        (كان الاسم القديم receiver_id)
 subject
-content
+body                (كان الاسم القديم content)
 read_at
 created_at
+updated_at
 ```
 
 ---
@@ -807,6 +923,25 @@ multi_select
 file
 image
 ```
+
+## 22.1 التقييم المتدرج لصلاحية الوصول إلى الحقل
+
+وصول أي مستخدم لحقل مخصص يمر بثلاث طبقات **كلها إلزامية** (تُنفَّذ في الـ Backend):
+
+1. **صلاحية الكيان**: `custom_fields.view` / `custom_fields.create` / `custom_fields.update` عبر `can(user, code, subject)` بنطاق الجامع.
+2. **تفعيل الحقل ونطاقه**: `is_active = true` و (`is_global = true` أو `custom_field.mosque_id == مستخدم.tenant_id` — §26).
+3. **مصفوفة الحقل**: سجل `CustomFieldPermission` الخاص بدور المستخدم في جامعه (`can_view` / `can_create` / `can_update`).
+
+نتائج القرار (سلوك موحد في الواجهة والـ API):
+
+```text
+الطبقة 3 can_view = false  → الحقل مخفي تماماً، وقيمته مرفوضة في الإدخال API 403
+can_view = true, can_create = false → عند إنشاء كيان لا يظهر الحقل للإدخال
+can_view = true, can_update = false → القيمة مقروءة فقط (read-only)
+```
+
+- إخفاء الحقل في الواجهة **ليس حماية**: كل طبقة تُفحص في الـ Backend قبل القراءة والكتابة.
+- `custom_field_id` بلا سجل صفوف مصفوفة = يعامل كأن الدور لا يملك أي صلاحية على الحقل.
 
 ---
 
@@ -880,6 +1015,14 @@ role_id
 can_view
 can_create
 can_update
+```
+
+معاني الأعلام (يُقيَّم وفق التدرج في §22.1):
+
+```text
+can_view   =  الحقل يظهر ويُقرأ
+can_create =  يمكن إدخال قيمة عند إنشاء الكيان
+can_update =  يمكن تعديل القيمة
 ```
 
 مثال:
@@ -1076,6 +1219,26 @@ phone = 092222222
 2026-09-05 16:30
 ```
 
+## خريطة التسجيل الإلزامية
+
+تسجيل مضمون (لا يعتمد على تذكّر المطور) لكل عملية حساسة:
+
+```text
+CREATE / UPDATE / DELETE   (الطلاب، الأساتذة، الصفوف، الشعب، المواد، المستخدمون، الأدوار)
+TRANSFER student           (§40)
+APPROVE / REJECT / CANCEL  (schedule و grades — §43)
+CHANGE permission          (تعديل مصفوفة دور أو تخصيصه لمستخدم)
+CREATE/UPDATE custom field + تغيير مصفوفة حقوله (§25)
+```
+
+آلية التنفيذ:
+
+- عمليات الكتابة القياسية: **Observer مركزي** على النماذج يسجل الفاعل (`user_id`) وقيم `old_values/new_values` قبل/بعد التغيير.
+- العمليات المركّبة (نقل، اعتماد/رفض، تغيير صلاحيات): تسجيل **صريح** في الخدمة المنفذة.
+- **قراءات GET لا تُسجَّل** إطلاقاً.
+- تُحفظ الحقول المتغيرة فقط (قبل/بعد) لتقليل الحجم، مع `ip_address` و `user_agent`.
+- `mosque_id` يُملأ من سياق الطلب؛ والاطلاع على السجل عبر `audit_logs.view` بنطاق الجامع (مدير الجامع يرى جامعه، مدير الجوامع يرى الكل).
+
 ---
 
 # 32. الأمان
@@ -1166,7 +1329,7 @@ student.mosque_id == currentUser.mosque_id
 /attendance
 /exams
 /grades
-/assignments
+/homeworks
 /lessons
 /announcements
 /messages
@@ -1234,11 +1397,11 @@ Mosque
  ├── Schedules
  ├── Attendance
  ├── Exams
- ├── Grades
- ├── Assignments
- ├── Lessons
- ├── Announcements
- └── CustomFields
+  ├── Grades
+  ├── Homeworks (الواجبات)
+  ├── Lessons
+  ├── Announcements
+  └── CustomFields
 
 Class
  └── Sections
@@ -1248,15 +1411,15 @@ Section
 
 Teacher
  ├── Subjects
- ├── Classes
- ├── Sections
+ ├── Classes (عبر classroom_teacher — §5.2)
+ ├── Sections (عبر section_teacher — §5.2)
  └── Schedules
 
 Exam
  └── Grades
 
-Assignment
- └── Submissions
+Homework
+ └── HomeworkSubmissions
 
 CustomField
  └── CustomFieldValues
@@ -1341,15 +1504,22 @@ Dashboard
 
 لا تحذف البيانات الحساسة مباشرة.
 
-استخدم:
+السياسة الموحدة (مساران متكاملان وليسا بديلين):
+
+```text
+أرشفة  = تغيير حالة (status) مع بقاء السجل ظاهراً لمن يريد استعراض المؤرشف
+حذف    = deleted_at (Soft Delete): يختفي السجل من كل الاستعلامات والتقارير
+```
 
 ```text
 deleted_at
 ```
 
-للطلاب والأساتذة وغيرها عند الحاجة.
-
-واجهة الحذف يجب أن تعرض Confirmation.
+- يُطبَّق `deleted_at` (ناعم) على: **الطلاب والأساتذة** والبيانات الحساسة المشابهة.
+- معنى زر "حذف" في الواجهات = `delete()` الناعم، لا `delete` الفعلي — وأي حذف فعلي ممنوع في كود الإنتاج.
+- `students.status = archived` (المستخدمة حالياً في التطبيق) هي **أرشفة ظاهرة**، بينما الحذف الناعم `deleted_at` يزيل السجل من النتائج نهائياً — الاثنان يتكاملان (أرشفة ثم حذف اختياري).
+- الواجهة تعرض Confirmation قبل أي حذف، والحذف يُسجَّل في Audit Log (§31).
+- الجوامع لا تُحذف ولا تُؤرشف إلا عبر `status = archived` (§7).
 
 ---
 
@@ -1400,7 +1570,21 @@ Transfer Student
 
 # 42. Notifications
 
-أنواع الإشعارات:
+## نموذج البيانات (جدول جديد — هجرة §55)
+
+```text
+id
+tenant_id (mosque_id)
+user_id        (المستلم)
+type           (نصي يمثل الحدث: schedule.submitted / grades.approved / ...)
+data           (JSON: روابط وسياق)
+read_at nullable
+created_at
+```
+
+القاعدة: الإشعارات **أثر جانبي آلي** للأحداث في §43 و §31 — لا تُنشأ يدوياً من الواجهات (إنشاء الإشعار يقع داخل نفس Transaction للعملية).
+
+## أنواع الإشعارات
 
 ```text
 طلب جدول جديد
@@ -1413,24 +1597,65 @@ Transfer Student
 تعديل صلاحيات
 ```
 
+ربط كل نوع بحدثه المولّد له:
+
+- طلب جدول جديد ← عند `submit` لجدول من أستاذ: إلى مديري الجامع (حملة `schedule.approve`).
+- اعتماد/رفض جدول ← عند `approve/reject`: إلى منشئ الجدول.
+- طلب اعتماد درجات ← عند `grades.submit`: إلى المديرين.
+- اعتماد/رفض درجات ← إلى الأستاذ المدرِج.
+- إعلان جديد ← حسب جمهور الإعلان في §20.
+- رسالة جديدة ← إلى المستلم.
+- تعديل صلاحيات ← للمستخدم المتأثر عند تغيير دوره أو مصفوفة صلاحياته.
+
 ---
 
-# 43. حالات الموافقة العامة
+# 43. حالات الموافقة العامة — Approval Engine موحّد
 
-صمم Approval Engine قابل لإعادة الاستخدام:
+صمم محرك موافقات واحداً قابلاً لإعادة الاستخدام يُستعمل مع الجداول (§14) والدرجات (§17) وأي Workflow مستقبلي.
+
+## الحالات المعيارية (خمس حالات فقط — بدون مرادفات)
 
 ```text
 draft
-pending
+submitted
 approved
 rejected
 cancelled
 ```
 
-ويستخدم مع:
+> الحالة الواحدة لها اسم واحد في النظام كله؛ أسماء مثل `pending` أو `pending_approval` غير معتمدة. `submitted` = قيد المراجعة/بانتظار الاعتماد.
 
-- الجداول
-- الدرجات
+## مصفوفة الانتقالات المسموحة
+
+| من | العملية | إلى | الفاعل المسموح |
+|---|---|---|---|
+| `draft` | submit | `submitted` | المنشئ (أستاذ/مدير) |
+| `submitted` | approve | `approved` | حامل صلاحية `*.approve` |
+| `submitted` | reject | `rejected` | حامل صلاحية `*.approve` (مع `rejection_reason` إلزامي) |
+| `rejected` | submit | `submitted` | المنشئ (بعد التعديل) |
+| `draft` | cancel | `cancelled` | المنشئ أو حامل `*.approve` |
+| `approved` | cancel | `cancelled` | حامل `*.approve` فقط (مع سبب) |
+
+قواعد إلزامية:
+
+- لا انتقال خارج الجدول أعلاه (مثال: `draft → approved` أو `submitted → draft` ممنوعان).
+- صلاحية `*.approve` تمنح حقّي الاعتماد والرفض معاً — لا حاجة لصلاحية `reject` منفصلة.
+- التعديل/الحذف مسموح في `draft` و `rejected` فقط، والمجمّد `submitted` لا يُلمس حتى القرار.
+- كل انتقال يُسجَّل: الفاعل والوقت والسبب في أعمدة `status_by/status_at/rejection_reason`، مع إدخال في Audit Log (§31) وإشعار (§42).
+
+## الأعمدة العامة (تُضاف لكل جدول يستخدم المحرك)
+
+```text
+status            string  draft | submitted | approved | rejected | cancelled
+status_by         uuid nullable → users      (آخر من غيّر الحالة)
+status_at         timestamp nullable
+rejection_reason  text nullable              (إلزامي عند reject/cancel)
+```
+
+## الوحدات المستخدمة معها
+
+- الجداول (§14)
+- الدرجات (§17)
 - الامتحانات إذا لزم
 - أي Workflow مستقبلي
 
@@ -1557,6 +1782,7 @@ Global
 - [ ] Sections
 - [ ] Teachers
 - [ ] Subjects
+- [ ] Teacher ↔ class/section membership bindings (§5.2)
 
 ### Schedule
 - [ ] Create
@@ -1564,6 +1790,16 @@ Global
 - [ ] Approve
 - [ ] Reject
 - [ ] View
+- [ ] Approved schedules immutable (cancel only)
+- [ ] Workflow columns + actor/time recorded
+
+### Grades
+- [ ] 5-state workflow: draft / submitted / approved / rejected / cancelled (§43)
+- [ ] Submit freezes grades (no edit while submitted)
+- [ ] Approve locks forever (no write after approval)
+- [ ] Reject (with reason) → teacher resubmits
+- [ ] Cancel
+- [ ] Actor + time recorded per transition
 
 ### Custom Fields
 - [ ] Create field
@@ -1580,6 +1816,21 @@ Global
 - [ ] Permission changes
 - [ ] Approval logs
 - [ ] Transfer logs
+- [ ] Observer-based automatic capture for standard writes (§31)
+
+### Notifications
+- [ ] Database notifications (tenant/user/read_at)
+- [ ] Notification created automatically on each workflow transition
+- [ ] New message / announcement notifications
+
+### Reports & Export
+- [ ] Report screens (students/teachers/classes/attendance/grades...)
+- [ ] Export requires `reports.export` permission (CSV minimum)
+
+### Soft Delete & Archive
+- [ ] `deleted_at` soft delete on students/teachers
+- [ ] Archive status vs deleted_at semantics documented and enforced
+- [ ] Confirmation dialogs on all destructive actions
 
 ### Security
 - [ ] Backend authorization
@@ -1588,6 +1839,7 @@ Global
 - [ ] Secure file uploads
 - [ ] Authentication
 - [ ] Rate limiting
+- [ ] Attendance status `excused` requires note
 
 ---
 
@@ -1622,17 +1874,18 @@ Global
 17. Classes
 18. Sections
 19. Subjects
+19b. Teacher↔class/section membership (جداول الربط §5.2 + واجهة ربط)
 20. Student transfer
 
 ## Phase 4 — Academic Operations
 
 21. Schedule
-22. Schedule approval
+22. Schedule approval (محرك §43: submit/approve/reject/resubmit/cancel)
 23. Attendance
 24. Exams
 25. Grades
-26. Grade approval
-27. Assignments
+26. Grade approval (محرك §43 كاملاً: reject + resubmit + cancel)
+27. Homeworks (الواجبات — كانت Assignments)
 28. Lessons
 
 ## Phase 5 — Communication
@@ -1707,6 +1960,67 @@ Mosque field
 
 Field permission denied
 → field hidden / read-only according to permission
+```
+
+## Workflow Reject / Resubmit
+
+```text
+Teacher submits grades
+→ submitted (frozen: further writes rejected)
+
+Manager rejects (with reason)
+→ rejected (teacher notified)
+
+Teacher edits and resubmits
+→ submitted
+
+Manager approves
+→ approved
+
+Any write on approved grades
+→ rejected/blocked (approval is permanent)
+```
+
+## Scope & Membership
+
+```text
+Teacher bound to section A only
+→ student of section B never appears in roster/APIs
+
+Class-scope grant
+→ rows of other classes denied
+
+Own-scope grant without ownership predicate
+→ denied (no silent mosque-scope fallback)
+
+Global scope grant on a tenant-scoped role
+→ rejected by validation (UI + backend)
+```
+
+## Notifications
+
+```text
+Schedule/grade submitted
+→ notification created for mosque managers
+
+Approve/reject
+→ notification created for the owner
+
+Announcement created
+→ notifications per audience
+
+Message sent
+→ notification to recipient
+```
+
+## Export
+
+```text
+Export route without reports.export
+→ 403
+
+CSV export with filters
+→ 200 and correct rows
 ```
 
 ---
@@ -1797,5 +2111,74 @@ Frontend
 ```
 
 لأن Multi-Mosque + Permissions هي أساس النظام، وأي خطأ فيها سيؤثر على كل باقي المكونات.
+
+# 53. مطابقة المخطط الحالي لقاعدة البيانات (مرجع الجاهزية)
+
+هذا الملحق يسد الفجوة بين أسماء المستند والأسماء الفعلية في الكود/قاعدة البيانات، ويحدد ما هو موجود وما يُضاف بهجرة (§55).
+
+## قاموس المصطلحات
+
+| في المستند | في قاعدة البيانات/الكود |
+|---|---|
+| جامع Mosque | `Tenant` (جدول `tenants`) |
+| `mosque_id` | `tenant_id` |
+| صف Class | `Classroom` (جدول `classrooms`، العمود `classroom_id`) |
+| واجب Assignment | `Homework` (جدول `homeworks`، والتسليم `homework_submissions`) |
+| صلاحيات الواجبات | `homeworks.*` (وليست `assignments.*`) |
+| محتوى الرسالة `content` | `messages.body` |
+| `password_hash` | `users.password` |
+| `date_of_birth` | `students.birth_date` |
+| `specialization` | `teachers.specialty` |
+| إشعارات | `notifications` (جدول جديد) |
+| سجل العمليات | `audit_logs` (جدول جديد) |
+| الحقول المخصصة | `custom_fields` / `custom_field_values` / `custom_field_permissions` (جديدة) |
+
+## حالة الأعمدة لكل وحدة
+
+| الوحدة | موجود في قاعدة البيانات حالياً | يُضاف لاحقاً (هجرة) |
+|---|---|---|
+| tenants | name, code, phone, email, address, logo, status (active/inactive), is_active (legacy) | قيمة `archived` في status |
+| users | name, email, phone, role, gender, password, tenant_id | status (active/inactive) |
+| students | name, gender, birth_date, guardian_name, guardian_phone, classroom_id, section_id, status, notes | student_number (فريد لكل جامع)، phone، deleted_at |
+| teachers | user_id, name, gender, phone, email, specialty, hired_at, is_active | deleted_at |
+| classrooms | name | level، description، status |
+| sections | name, classroom_id | capacity، room، status |
+| subjects | name, weekly_lessons, teacher_id | description، status |
+| schedules | tenant_id, teacher_id, classroom_id, section_id, subject_id, day_of_week, starts_at, ends_at | room + أعمدة workflow (§43): status, status_by, status_at, rejection_reason |
+| attendances | كاملة (student_id/teacher_id/recorded_by/date/status/notes) | لا شيء — تفعيل `excused` في التحقق |
+| exams | subject_id, classroom_id, section_id, teacher_id, title, exam_date, total_marks, pass_marks | status, status_by, status_at |
+| grades | exam_id, student_id, score, status, notes | status_by, status_at, rejection_reason |
+| homeworks | teacher_id, subject_id, classroom_id, section_id, title, description, due_date, pass_marks, attachment_path | status (draft/published/cancelled) |
+| homework_submissions | homework_id, student_id, status, grade, feedback, submitted_at | file (مرحلة لاحقة — بوابة الطالب) |
+| lessons | teacher_id, subject_id, classroom_id, title, description, type, file_path, url | لا شيء |
+| announcements | user_id, classroom_id, title, body, audience (all/teachers/guardians/classroom), published_at | section_id + قيم audience إضافية (students/class/section) |
+| messages | sender_id, recipient_id, subject, body, read_at | لا شيء |
+| جداول ربط الأستاذ (§5.2) | غير موجودة | `classroom_teacher`، `section_teacher` |
+| notification / audit / custom fields | غير موجودة | `notifications`، `audit_logs`، `custom_fields`، `custom_field_values`، `custom_field_permissions` |
+
+> ملاحظة: لا توجد أي `deleted_at` في قاعدة البيانات حالياً؛ وكل حالات status أعمدة نصية بلا قيود ENUM (تُدار في الكود/التحقق).
+
+# 54. سجل القرارات المعيارية
+
+| القرار | التفاصيل | البدائل المرفوضة |
+|---|---|---|
+| حالة موحدة 5 حالات | `draft/submitted/approved/rejected/cancelled` في كل الأنظمة (§43) | `pending`/`pending_approval` (تعدد أسماء) |
+| approve تشمل reject | صلاحية `*.approve` تمنح الاعتماد والرفض معاً | إضافة `*.reject` (تضخيم الكتالوج دون قيمة) |
+| الربط الصريح | جدولا `classroom_teacher`/`section_teacher` لتحديد نطاقي class/section | الاشتقاق من schedules أو subjects.teacher_id (بيانات تدريسية لا نطاقات) |
+| homeworks | تسمية موحدة `homeworks.*` بدل `assignments.*` | الإبقاء على assignments |
+| profile | صلاحيتان جديدتان `profile.view/update` (own للجميع) | استثناء مبرمج بلا صلاحية |
+| attendance | بلا دورة اعتماد؛ `attendance.approve` أُزيلت؛ excused يتطلب سبباً | دورة موافقة كاملة (ليست مطلوبة) |
+| حالة الجامع | `tenants.status` وحده (active/inactive/archived) | الاعتماد على is_active |
+| حذف/أرشفة | مساران: `status` (أرشفة ظاهرة) + `deleted_at` (حذف ناعم) للطلاب والأساتذة | الحذف الفعلي المباشر |
+| الإعلانات | استهداف عبر `audience` + `classroom_id`/`section_id` وليس target_type/target_id | النموذج متعدد الأشكال |
+
+# 55. مهام المزامنة خارج المستند (قبل تنفيذ المراحل المتبقية)
+
+1. **كتالوج الصلاحيات** (`PermissionCatalog`): إعادة تسمية `assignments.*` → `homeworks.*`، حذف `attendance.approve`، إضافة `profile.view`/`profile.update`.
+2. **إصلاح بذرة الكتالوج**: `ensurePermissionCatalog()` ترجع مبكراً إذا وُجد أول كود — تجعل أي إضافة لاحقة لا تُزرع في قواعد البيانات القائمة. تُحوَّل إلى تحديث متدرج (upsert للناقص + تنظيف الأكواد المهجورة).
+3. **تفعيل طبقة الصلاحيات**: ربط وسيط `permission:` بالمسارات عند بناء كل ميزة (قرار موثق — حتى اليوم لا يستهلك أي مسار صلاحيات الكتالوج). يُحافظ على `users.role` (السلسلة القديمة) متزامنة مع `role_user` في كل تعديل مستخدم (شاشة الإدارة الحالية تحدّث السلسلة فقط).
+4. **حماية `global`**: منع اختيار نطاق `global` لأي دور تابع لجامع في واجهة المصفوفة وفي التحقق الخلفي (`MosqueRoleController`).
+5. **هجرات قاعدة البيانات** (حسب §53): أعمدة workflows للجداول والدرجات (status/status_by/status_at/rejection_reason)، room للجداول، exam status، homework status، students (student_number/phone/deleted_at)، teachers deleted_at، announcements (section_id)، `archived` في tenants.status، جداول الربط `classroom_teacher`/`section_teacher`، وجداول `notifications`/`audit_logs`/`custom_fields` وملحقاتها.
+6. **اختبارات الحالات**: بعد كل مرحلة يُضاف غطاء من §49 (Workflow Reject/Resubmit، Scope & Membership، Notifications، Export) في `tests/Feature/`.
 
 ## End of Specification

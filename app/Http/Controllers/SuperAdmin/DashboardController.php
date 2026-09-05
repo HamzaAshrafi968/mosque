@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Attendance;
+use App\Models\AttendanceRecord;
 use App\Models\Classroom;
 use App\Models\Grade;
 use App\Models\Section;
@@ -46,9 +46,9 @@ class DashboardController extends Controller
             'classrooms' => Classroom::withoutGlobalScope('tenant')->count(),
             'sections' => Section::withoutGlobalScope('tenant')->count(),
             'users' => User::withoutGlobalScope('tenant')->count(),
-            'today_attendance' => Attendance::withoutGlobalScope('tenant')
-                ->whereDate('attendances.date', today())
-                ->whereNotNull('student_id')
+            'today_attendance' => AttendanceRecord::withoutGlobalScope('tenant')
+                ->join('attendance_sessions', 'attendance_sessions.id', '=', 'attendance_records.attendance_session_id')
+                ->whereDate('attendance_sessions.date', today())
                 ->count(),
         ];
 

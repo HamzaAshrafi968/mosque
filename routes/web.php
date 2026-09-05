@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Guardian;
+use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\Student as StudentPortal;
 use App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Teacher;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +13,8 @@ Route::get('/', fn () => auth()->check()
     ? redirect()->route(match (true) {
         auth()->user()->isSuperAdmin() => 'super-admin.dashboard',
         auth()->user()->isAdmin() => 'admin.dashboard',
+        auth()->user()->isGuardian() => 'guardian.dashboard',
+        auth()->user()->isStudent() => 'student.dashboard',
         default => 'teacher.dashboard',
     })
     : redirect()->route('login'));
@@ -26,6 +31,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::patch('students/{student}/archive', [Admin\StudentController::class, 'archive'])->name('students.archive');
     Route::resource('students', Admin\StudentController::class);
+    Route::post('students/{student}/transfer', [Admin\StudentController::class, 'transfer'])->name('students.transfer');
+
+    Route::resource('parents', Admin\ParentController::class)->except(['show']);
 
     Route::resource('teachers', Admin\TeacherController::class);
     Route::post('teachers/{teacher}/ratings', [Admin\TeacherController::class, 'storeRating'])->name('teachers.ratings.store');
@@ -34,10 +42,27 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('teachers/{teacher}/certificates/{certificate}', [Admin\TeacherController::class, 'destroyCertificate'])->name('teachers.certificates.destroy');
 
     Route::get('classrooms', [Admin\ClassroomController::class, 'index'])->name('classrooms.index');
+    Route::get('classrooms/create', [Admin\ClassroomController::class, 'create'])->name('classrooms.create')->middleware('permission:classes.create');
     Route::post('classrooms', [Admin\ClassroomController::class, 'store'])->name('classrooms.store');
+    Route::get('classrooms/{classroom}', [Admin\ClassroomController::class, 'show'])->name('classrooms.show');
+    Route::get('classrooms/{classroom}/edit', [Admin\ClassroomController::class, 'edit'])->name('classrooms.edit')->middleware('permission:classes.update');
+    Route::patch('classrooms/{classroom}', [Admin\ClassroomController::class, 'update'])->name('classrooms.update');
     Route::delete('classrooms/{classroom}', [Admin\ClassroomController::class, 'destroy'])->name('classrooms.destroy');
+
+    Route::get('sections/{section}', [Admin\ClassroomController::class, 'showSection'])->name('sections.show');
     Route::post('classrooms/{classroom}/sections', [Admin\ClassroomController::class, 'storeSection'])->name('sections.store');
+    Route::patch('sections/{section}', [Admin\ClassroomController::class, 'updateSection'])->name('sections.update');
     Route::delete('sections/{section}', [Admin\ClassroomController::class, 'destroySection'])->name('sections.destroy');
+
+    Route::post('sections/{section}/students', [Admin\ClassroomController::class, 'enrollStudent'])->name('sections.students.store');
+    Route::delete('sections/{section}/students/{student}', [Admin\ClassroomController::class, 'removeStudent'])->name('sections.students.destroy');
+    Route::post('sections/{section}/teachers', [Admin\ClassroomController::class, 'assignTeacher'])->name('sections.teachers.store');
+    Route::delete('sections/{section}/teachers/{teacher}', [Admin\ClassroomController::class, 'removeTeacher'])->name('sections.teachers.destroy');
+
+    Route::get('custom-fields', [Admin\CustomFieldController::class, 'index'])->name('custom-fields.index')->middleware('permission:custom_fields.view');
+    Route::post('custom-fields', [Admin\CustomFieldController::class, 'store'])->name('custom-fields.store')->middleware('permission:custom_fields.create');
+    Route::patch('custom-fields/{customField}', [Admin\CustomFieldController::class, 'update'])->name('custom-fields.update')->middleware('permission:custom_fields.update');
+    Route::delete('custom-fields/{customField}', [Admin\CustomFieldController::class, 'destroy'])->name('custom-fields.destroy')->middleware('permission:custom_fields.delete');
 
     Route::resource('subjects', Admin\SubjectController::class)->only(['index', 'store', 'update', 'destroy']);
 
@@ -45,8 +70,21 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('schedules', [Admin\ScheduleController::class, 'store'])->name('schedules.store');
     Route::delete('schedules/{schedule}', [Admin\ScheduleController::class, 'destroy'])->name('schedules.destroy');
 
-    Route::get('attendance', [Admin\AttendanceController::class, 'index'])->name('attendance.index');
-    Route::post('attendance', [Admin\AttendanceController::class, 'store'])->name('attendance.store');
+    Route::get('attendance', [Admin\AttendanceController::class, 'index'])->name('attendance.index')->middleware('permission:attendance.view');
+    Route::post('attendance', [Admin\AttendanceController::class, 'store'])->name('attendance.store')->middleware('permission:attendance.create');
+    Route::get('attendance/create', [Admin\AttendanceController::class, 'create'])->name('attendance.create')->middleware('permission:attendance.create');
+    Route::post('attendance/students', [Admin\AttendanceController::class, 'storeStudents'])->name('attendance.students.store')->middleware('permission:attendance.create');
+    Route::get('attendance/history', [Admin\AttendanceController::class, 'history'])->name('attendance.history')->middleware('permission:attendance.view');
+    Route::get('attendance/sessions/{session}/edit', [Admin\AttendanceController::class, 'edit'])->name('attendance.sessions.edit')->middleware('permission:attendance.update');
+    Route::patch('attendance/sessions/{session}', [Admin\AttendanceController::class, 'update'])->name('attendance.sessions.update')->middleware('permission:attendance.update');
+
+    Route::get('finance', [Admin\FinanceController::class, 'index'])->name('finance.index')->middleware('permission:finance.view');
+    Route::get('finance/{personType}/{person}', [Admin\FinanceController::class, 'show'])->name('finance.show')->middleware('permission:finance.view');
+    Route::post('finance/transactions', [Admin\FinanceController::class, 'storeTransaction'])->name('finance.transactions.store')->middleware('permission:finance.create');
+    Route::post('finance/transfers', [Admin\FinanceController::class, 'storeTransfer'])->name('finance.transfers.store')->middleware('permission:finance.create');
+    Route::post('finance/transactions/{transaction}/reverse', [Admin\FinanceController::class, 'reverse'])->name('finance.reverse')->middleware('permission:finance.update');
+
+    Route::get('audit-logs', [Admin\AuditLogController::class, 'index'])->name('audit-logs.index')->middleware('permission:audit_logs.view');
 
     Route::resource('exams', Admin\ExamController::class)->only(['index', 'create', 'store', 'destroy']);
 
@@ -77,6 +115,9 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
 
     Route::get('attendance', [Teacher\AttendanceController::class, 'create'])->name('attendance.create');
     Route::post('attendance', [Teacher\AttendanceController::class, 'store'])->name('attendance.store');
+    Route::get('attendance/history', [Teacher\AttendanceController::class, 'history'])->name('attendance.history');
+    Route::get('attendance/sessions/{session}/edit', [Teacher\AttendanceController::class, 'edit'])->name('attendance.sessions.edit');
+    Route::patch('attendance/sessions/{session}', [Teacher\AttendanceController::class, 'update'])->name('attendance.sessions.update');
 
     Route::get('homeworks/{homework}/submissions', [Teacher\HomeworkController::class, 'submissions'])->name('homeworks.submissions');
     Route::patch('submissions/{submission}', [Teacher\HomeworkController::class, 'updateSubmission'])->name('submissions.update');
@@ -118,6 +159,7 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('su
     Route::patch('mosques/{mosque}', [SuperAdmin\MosqueController::class, 'update'])->name('mosques.update');
     Route::delete('mosques/{mosque}', [SuperAdmin\MosqueController::class, 'destroy'])->name('mosques.destroy');
     Route::post('mosques/{mosque}/enter', [SuperAdmin\MosqueController::class, 'enter'])->name('mosques.enter');
+    Route::post('switch-mosque', [SuperAdmin\MosqueController::class, 'switchMosque'])->name('switch-mosque');
     Route::post('exit', [SuperAdmin\MosqueController::class, 'exit'])->name('exit');
 
     Route::get('mosques/{mosque}/users', [SuperAdmin\MosqueUserController::class, 'index'])->name('mosques.users.index');
@@ -130,4 +172,54 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('su
     Route::get('mosques/{mosque}/roles/{role}/edit', [SuperAdmin\MosqueRoleController::class, 'edit'])->name('mosques.roles.edit');
     Route::patch('mosques/{mosque}/roles/{role}', [SuperAdmin\MosqueRoleController::class, 'updatePermissions'])->name('mosques.roles.update');
     Route::delete('mosques/{mosque}/roles/{role}', [SuperAdmin\MosqueRoleController::class, 'destroy'])->name('mosques.roles.destroy');
+});
+
+// ---- Shared in-app notifications inbox (all authenticated roles) ----
+Route::middleware('auth')->group(function () {
+    Route::get('notifications', [NotificationsController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read-all', [NotificationsController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('notifications/{notification}/read', [NotificationsController::class, 'read'])->name('notifications.read');
+});
+
+// ---- Parent / Guardian portal (spec §2-§10) ----
+Route::middleware(['auth', 'role:guardian'])->prefix('guardian')->name('guardian.')->group(function () {
+    Route::get('dashboard', [Guardian\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('profile', [Guardian\ProfileController::class, 'show'])->name('profile');
+
+    Route::get('children/{student}/overview', [Guardian\ChildController::class, 'overview'])->name('children.overview');
+    Route::get('children/{student}/attendance', [Guardian\ChildController::class, 'attendance'])->name('children.attendance');
+    Route::get('children/{student}/subjects', [Guardian\ChildController::class, 'subjects'])->name('children.subjects');
+    Route::get('children/{student}/teachers', [Guardian\ChildController::class, 'teachers'])->name('children.teachers');
+    Route::get('children/{student}/exams', [Guardian\ChildController::class, 'exams'])->name('children.exams');
+    Route::get('children/{student}/grades', [Guardian\ChildController::class, 'grades'])->name('children.grades');
+    Route::get('children/{student}/homeworks', [Guardian\ChildController::class, 'homeworks'])->name('children.homeworks');
+    Route::get('children/{student}/announcements', [Guardian\ChildController::class, 'announcements'])->name('children.announcements');
+});
+
+// ---- Student portal (spec §11-§18) ----
+Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')->group(function () {
+    Route::get('dashboard', [StudentPortal\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('profile', [StudentPortal\ProfileController::class, 'show'])->name('profile');
+    Route::get('attendance', [StudentPortal\PortalController::class, 'attendance'])->name('attendance');
+    Route::get('subjects', [StudentPortal\PortalController::class, 'subjects'])->name('subjects');
+    Route::get('teachers', [StudentPortal\PortalController::class, 'teachers'])->name('teachers');
+    Route::get('exams', [StudentPortal\PortalController::class, 'exams'])->name('exams');
+    Route::get('grades', [StudentPortal\PortalController::class, 'grades'])->name('grades');
+    Route::get('homeworks', [StudentPortal\PortalController::class, 'homeworks'])->name('homeworks');
+    Route::post('homeworks/{homework}/submit', [StudentPortal\PortalController::class, 'submitHomework'])->name('homeworks.submit');
+    Route::get('announcements', [StudentPortal\PortalController::class, 'announcements'])->name('announcements');
+});
+
+// ---- Sheikh portal additions: sections & finance ledger (spec §19-§32) ----
+Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
+    Route::get('sections', [Teacher\SectionController::class, 'index'])->name('sections.index');
+    Route::get('sections/{section}', [Teacher\SectionController::class, 'show'])->name('sections.show');
+
+    Route::get('finance', [Teacher\FinanceController::class, 'index'])->name('finance.index')->middleware('permission:finance.view');
+    Route::get('finance/receive', [Teacher\FinanceController::class, 'receiveForm'])->name('finance.receive')->middleware('permission:finance.create');
+    Route::post('finance/receive', [Teacher\FinanceController::class, 'receive'])->name('finance.receive.store')->middleware('permission:finance.create');
+    Route::get('finance/transfer', [Teacher\FinanceController::class, 'transferForm'])->name('finance.transfer')->middleware('permission:finance.transfer');
+    Route::post('finance/transfer', [Teacher\FinanceController::class, 'transfer'])->name('finance.transfer.store')->middleware('permission:finance.transfer');
+    Route::post('finance/adjust', [Teacher\FinanceController::class, 'adjust'])->name('finance.adjust')->middleware('permission:finance.adjust');
+    Route::post('finance/transactions/{transaction}/reverse', [Teacher\FinanceController::class, 'reverse'])->name('finance.reverse')->middleware('permission:finance.adjust');
 });

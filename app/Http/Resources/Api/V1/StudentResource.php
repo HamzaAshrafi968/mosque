@@ -26,9 +26,9 @@ class StudentResource extends JsonResource
                 'name' => $this->section->name,
             ]),
             'grades' => GradeResource::collection($this->whenLoaded('grades')),
-            'attendance_summary' => $this->when(
-                isset($this->resource->attendance_summary),
-                $this->resource->attendance_summary ?? null
+            'attendance_stats' => $this->when(
+                isset($this->resource->attendance_stats),
+                $this->resource->attendance_stats
             ),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),

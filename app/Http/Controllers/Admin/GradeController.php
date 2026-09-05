@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
 use App\Models\Grade;
+use App\Models\Student;
 use App\Services\DashboardService;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -41,9 +43,27 @@ class GradeController extends Controller
 
     public function approve(Exam $exam): RedirectResponse
     {
+        $studentIds = Grade::query()
+            ->where('exam_id', $exam->id)
+            ->where('status', 'submitted')
+            ->pluck('student_id');
+
         Grade::where('exam_id', $exam->id)
             ->where('status', 'submitted')
             ->update(['status' => 'approved']);
+
+        if ($studentIds->isNotEmpty()) {
+            $roster = Student::query()
+                ->whereIn('id', $studentIds)
+                ->get(['id', 'name', 'tenant_id', 'user_id']);
+
+            app(NotificationService::class)->notifyRoster(
+                $roster,
+                'نشر نتائج امتحان',
+                "تم اعتماد ونشر نتائج امتحان «{$exam->title}» — يمكنك الاطلاع عليها من البوابة",
+                route('student.grades', [], false)
+            );
+        }
 
         DashboardService::flush($exam->tenant_id);
 

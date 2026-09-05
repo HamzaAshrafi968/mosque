@@ -55,6 +55,13 @@
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
         </div>
 
+        @if($customFields->isNotEmpty())
+            <div class="border-t pt-4">
+                <h3 class="text-sm font-bold text-gray-700 mb-3">بيانات إضافية (حقول مخصصة)</h3>
+                <x-custom-field-inputs :fields="$customFields" :values="old('custom_fields', [])" />
+            </div>
+        @endif
+
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">حفظ</button>
     </form>
 </div>

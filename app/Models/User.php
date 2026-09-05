@@ -26,6 +26,10 @@ class User extends Authenticatable
 
     public const ROLE_TEACHER = 'teacher';
 
+    public const ROLE_GUARDIAN = 'guardian';
+
+    public const ROLE_STUDENT = 'student';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -76,6 +80,18 @@ class User extends Authenticatable
         return $this->hasOne(Teacher::class);
     }
 
+    /** Guardian profile owning this account (portal login). */
+    public function guardian(): HasOne
+    {
+        return $this->hasOne(Guardian::class);
+    }
+
+    /** Student profile owning this account (portal login). */
+    public function student(): HasOne
+    {
+        return $this->hasOne(Student::class);
+    }
+
     public function awardedPoints(): HasMany
     {
         return $this->hasMany(RewardPoint::class, 'awarded_by');
@@ -95,6 +111,16 @@ class User extends Authenticatable
     public function isTeacher(): bool
     {
         return $this->role === self::ROLE_TEACHER;
+    }
+
+    public function isGuardian(): bool
+    {
+        return $this->role === self::ROLE_GUARDIAN;
+    }
+
+    public function isStudent(): bool
+    {
+        return $this->role === self::ROLE_STUDENT;
     }
 
     public function isSuperAdmin(): bool

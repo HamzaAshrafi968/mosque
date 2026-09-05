@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Models\Classroom;
 use App\Models\Exam;
+use App\Models\Student;
 use App\Models\Subject;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -47,7 +49,20 @@ class ExamController extends BaseTeacherController
             'pass_marks' => ['nullable', 'integer', 'min:0', 'lte:total_marks'],
         ]);
 
-        Exam::create([...$data, 'teacher_id' => $teacher->id]);
+        $exam = Exam::create([...$data, 'teacher_id' => $teacher->id]);
+
+        $roster = Student::query()
+            ->active()
+            ->where('classroom_id', $exam->classroom_id)
+            ->when($exam->section_id, fn ($q) => $q->where('section_id', $exam->section_id))
+            ->get(['id', 'tenant_id', 'user_id']);
+
+        app(NotificationService::class)->notifyRoster(
+            $roster,
+            'امتحان جديد',
+            "تم تحديد موعد امتحان «{$exam->title}» — مادة ".($exam->subject?->name ?? 'عام').' بتاريخ '.$exam->exam_date->format('Y-m-d'),
+            route('student.exams', [], false)
+        );
 
         return redirect()->route('teacher.exams.index')->with('success', 'تم إنشاء الاختبار');
     }

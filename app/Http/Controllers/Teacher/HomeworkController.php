@@ -7,6 +7,7 @@ use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -61,17 +62,24 @@ class HomeworkController extends BaseTeacherController
 
         $homework = Homework::create([...$data, 'teacher_id' => $teacher->id]);
 
-        $studentIds = Student::query()
+        $roster = Student::query()
             ->active()
             ->where('classroom_id', $homework->classroom_id)
             ->when($homework->section_id, fn ($q) => $q->where('section_id', $homework->section_id))
-            ->pluck('id');
+            ->get(['id', 'name', 'tenant_id', 'user_id']);
 
         $homework->submissions()->createMany(
-            $studentIds->map(fn ($id) => [
+            $roster->map(fn ($student) => [
                 'tenant_id' => $homework->tenant_id,
-                'student_id' => $id,
+                'student_id' => $student->id,
             ])->all()
+        );
+
+        app(NotificationService::class)->notifyRoster(
+            $roster,
+            'واجب جديد',
+            "تم نشر واجب «{$homework->title}» — مادة ".($homework->subject?->name ?? 'عام').'، استحقاق '.$homework->due_date->format('Y-m-d'),
+            route('student.homeworks', [], false)
         );
 
         return redirect()->route('teacher.homeworks.index')->with('success', 'تم إنشاء الواجب');

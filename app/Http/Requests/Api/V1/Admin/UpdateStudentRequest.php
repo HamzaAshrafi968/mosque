@@ -17,6 +17,7 @@ class UpdateStudentRequest extends FormRequest
             'guardian_name' => ['nullable', 'string', 'max:255'],
             'guardian_phone' => ['nullable', 'string', 'max:30'],
             'notes' => ['nullable', 'string'],
+            'custom_fields' => ['nullable', 'array'],
         ];
     }
 

@@ -11,22 +11,25 @@
     @stack('styles')
 </head>
 <body class="bg-gradient-to-br from-gray-50 via-emerald-50/30 to-teal-50/20 min-h-screen font-sans antialiased">
+<x-super-admin-switcher />
 <div class="min-h-screen lg:flex">
-    <header class="lg:hidden sticky top-0 z-30 gradient-sidebar text-white flex items-center justify-between px-4 py-3 shadow-lg">
-        <button type="button" id="sidebar-toggle" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition" aria-label="القائمة">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-        </button>
-        <div class="flex items-center gap-2 font-bold">
-            <span class="text-xl">🕌</span>
-            <span class="text-sm">إدارة الجوامع</span>
-        </div>
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button type="submit" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition text-xs" aria-label="تسجيل الخروج">
-                🚪
+    @if(! auth()->user()->isSuperAdmin())
+        <header class="lg:hidden sticky top-0 z-30 gradient-sidebar text-white flex items-center justify-between px-4 py-3 shadow-lg">
+            <button type="button" id="sidebar-toggle" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition" aria-label="القائمة">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
-        </form>
-    </header>
+            <div class="flex items-center gap-2 font-bold">
+                <span class="text-xl">🕌</span>
+                <span class="text-sm">إدارة الجوامع</span>
+            </div>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition text-xs" aria-label="تسجيل الخروج">
+                    🚪
+                </button>
+            </form>
+        </header>
+    @endif
 
     <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black/50 z-40 lg:hidden"></div>
 
@@ -52,6 +55,8 @@
             @php
                 $user = auth()->user();
                 $inMosqueContext = $user->isSuperAdmin() && session('super_admin_mosque_id');
+                $unreadCount = $user->unreadNotifications()->count();
+                $canSeeFinance = app(\App\Services\AuthorizationService::class)->canAny($user, ['finance.view', 'finance.create', 'finance.transfer']);
             @endphp
             @if($user->isAdmin() || $inMosqueContext)
                 <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
@@ -60,6 +65,7 @@
                 </x-nav-link>
                 <x-nav-link :href="route('admin.students.index')" :active="request()->routeIs('admin.students.*')">الطلاب</x-nav-link>
                 <x-nav-link :href="route('admin.teachers.index')" :active="request()->routeIs('admin.teachers.*')">المعلمون</x-nav-link>
+                <x-nav-link :href="route('admin.custom-fields.index')" :active="request()->routeIs('admin.custom-fields.*')">الحقول المخصصة</x-nav-link>
                 <x-nav-link :href="route('admin.classrooms.index')" :active="request()->routeIs('admin.classrooms.*')">الصفوف والشعب</x-nav-link>
                 <x-nav-link :href="route('admin.subjects.index')" :active="request()->routeIs('admin.subjects.*')">المواد الدراسية</x-nav-link>
                 <x-nav-link :href="route('admin.schedules.index')" :active="request()->routeIs('admin.schedules.*')">الجداول الدراسية</x-nav-link>
@@ -68,6 +74,8 @@
                 <x-nav-link :href="route('admin.grades.index')" :active="request()->routeIs('admin.grades.*')">الدرجات</x-nav-link>
                 <x-nav-link :href="route('admin.reports.index')" :active="request()->routeIs('admin.reports.*')">التقارير</x-nav-link>
                 <x-nav-link :href="route('admin.announcements.index')" :active="request()->routeIs('admin.announcements.*')">الإعلانات</x-nav-link>
+                <x-nav-link :href="route('admin.finance.index')" :active="request()->routeIs('admin.finance.*')">💰 العمليات المالية</x-nav-link>
+                <x-nav-link :href="route('admin.audit-logs.index')" :active="request()->routeIs('admin.audit-logs.*')">📋 سجل العمليات</x-nav-link>
                 <x-nav-link :href="route('admin.quran-review.index')" :active="request()->routeIs('admin.quran-review.*')">
                     📖 مراجعة القرآن
                 </x-nav-link>
@@ -75,24 +83,73 @@
                     🏆 نقاط المكافآت
                 </x-nav-link>
                 <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">الحسابات والصلاحيات</x-nav-link>
+                <x-nav-link :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">
+                    🔔 الإشعارات
+                    @if($unreadCount > 0)
+                        <span class="mr-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">{{ $unreadCount }}</span>
+                    @endif
+                </x-nav-link>
             @elseif($user->isSuperAdmin())
                 <x-nav-link :href="route('super-admin.dashboard')" :active="request()->routeIs('super-admin.dashboard')">
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
                     لوحة التحكم
                 </x-nav-link>
                 <x-nav-link :href="route('super-admin.mosques.index')" :active="request()->routeIs('super-admin.mosques.*')">🕌 الجوامع</x-nav-link>
-                <div class="pt-3 mt-3 border-t border-white/10 text-xs text-emerald-300/70 px-3">الدخول إلى جامع يفتح لوحة إدارته الكاملة</div>
+                <x-nav-link :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">
+                    🔔 الإشعارات
+                    @if($unreadCount > 0)
+                        <span class="mr-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">{{ $unreadCount }}</span>
+                    @endif
+                </x-nav-link>
+                <div class="pt-3 mt-3 border-t border-white/10 text-xs text-emerald-300/70 px-3">اختر جامعاً من القائمة العلوية لفتح لوحة إدارته الكاملة</div>
+            @elseif($user->isGuardian())
+                <x-nav-link :href="route('guardian.dashboard')" :active="request()->routeIs('guardian.dashboard')">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+                    الرئيسية
+                </x-nav-link>
+                <x-nav-link :href="route('guardian.dashboard')" :active="request()->routeIs('guardian.children.*')">أبنائي</x-nav-link>
+                <x-nav-link :href="route('guardian.profile')" :active="request()->routeIs('guardian.profile')">الملف الشخصي</x-nav-link>
+                <x-nav-link :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">
+                    🔔 الإشعارات
+                    @if($unreadCount > 0)
+                        <span class="mr-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">{{ $unreadCount }}</span>
+                    @endif
+                </x-nav-link>
+                <div class="pt-3 mt-3 border-t border-white/10 text-xs text-emerald-300/70 px-3">يمكنك الاطلاع على بيانات أبنائك فقط</div>
+            @elseif($user->isStudent())
+                <x-nav-link :href="route('student.dashboard')" :active="request()->routeIs('student.dashboard')">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+                    الرئيسية
+                </x-nav-link>
+                <x-nav-link :href="route('student.profile')" :active="request()->routeIs('student.profile')">ملفي الشخصي</x-nav-link>
+                <x-nav-link :href="route('student.attendance')" :active="request()->routeIs('student.attendance')">الحضور والغياب</x-nav-link>
+                <x-nav-link :href="route('student.subjects')" :active="request()->routeIs('student.subjects')">موادي الدراسية</x-nav-link>
+                <x-nav-link :href="route('student.teachers')" :active="request()->routeIs('student.teachers')">معلموّي</x-nav-link>
+                <x-nav-link :href="route('student.exams')" :active="request()->routeIs('student.exams')">الامتحانات</x-nav-link>
+                <x-nav-link :href="route('student.grades')" :active="request()->routeIs('student.grades')">الدرجات</x-nav-link>
+                <x-nav-link :href="route('student.homeworks')" :active="request()->routeIs('student.homeworks')">الواجبات</x-nav-link>
+                <x-nav-link :href="route('student.announcements')" :active="request()->routeIs('student.announcements')">الإعلانات</x-nav-link>
+                <x-nav-link :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">
+                    🔔 الإشعارات
+                    @if($unreadCount > 0)
+                        <span class="mr-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">{{ $unreadCount }}</span>
+                    @endif
+                </x-nav-link>
             @else
                 <x-nav-link :href="route('teacher.dashboard')" :active="request()->routeIs('teacher.dashboard')">
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
                     الرئيسية
                 </x-nav-link>
+                <x-nav-link :href="route('teacher.sections.index')" :active="request()->routeIs('teacher.sections.*')">شعبي والطلاب</x-nav-link>
                 <x-nav-link :href="route('teacher.schedule')" :active="request()->routeIs('teacher.schedule')">جدولي الدراسي</x-nav-link>
                 <x-nav-link :href="route('teacher.attendance.create')" :active="request()->routeIs('teacher.attendance.*')">تسجيل الحضور</x-nav-link>
                 <x-nav-link :href="route('teacher.homeworks.index')" :active="request()->routeIs('teacher.homeworks.*') || request()->routeIs('teacher.submissions.*')">الواجبات</x-nav-link>
                 <x-nav-link :href="route('teacher.exams.index')" :active="request()->routeIs('teacher.exams.*') && !request()->routeIs('teacher.grades.*')">الامتحانات</x-nav-link>
                 <x-nav-link :href="route('teacher.lessons.index')" :active="request()->routeIs('teacher.lessons.*')">الدروس</x-nav-link>
                 <x-nav-link :href="route('teacher.messages.index')" :active="request()->routeIs('teacher.messages.*')">الرسائل</x-nav-link>
+                @if($canSeeFinance)
+                    <x-nav-link :href="route('teacher.finance.index')" :active="request()->routeIs('teacher.finance.*')">💰 المالية</x-nav-link>
+                @endif
                 <x-nav-link :href="route('teacher.quran-review.index')" :active="request()->routeIs('teacher.quran-review.*')">
                     📖 مراجعة القرآن
                 </x-nav-link>
@@ -100,6 +157,12 @@
                     🏆 نقاط المكافآت
                 </x-nav-link>
                 <x-nav-link :href="route('teacher.profile.edit')" :active="request()->routeIs('teacher.profile.*')">الملف الشخصي</x-nav-link>
+                <x-nav-link :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">
+                    🔔 الإشعارات
+                    @if($unreadCount > 0)
+                        <span class="mr-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">{{ $unreadCount }}</span>
+                    @endif
+                </x-nav-link>
             @endif
         </nav>
 
@@ -117,6 +180,10 @@
                             مدير الجامع
                         @elseif($user->isSuperAdmin())
                             مدير الجوامع
+                        @elseif($user->isGuardian())
+                            ولي أمر
+                        @elseif($user->isStudent())
+                            طالب
                         @else
                             معلم
                         @endif
@@ -133,18 +200,6 @@
     </aside>
 
     <main class="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden min-w-0">
-        @if(auth()->user()->isSuperAdmin() && session('super_admin_mosque_id'))
-            <div class="mb-6 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-2xl px-5 py-3 flex items-center justify-between gap-3 shadow-sm">
-                <span>أنت تعمل الآن داخل هذا الجامع بصلاحيات مدير الجامع.</span>
-                <form method="POST" action="{{ route('super-admin.exit') }}">
-                    @csrf
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg">
-                        ← العودة لإدارة الجوامع
-                    </button>
-                </form>
-            </div>
-        @endif
-
         @if(session('success'))
             <div class="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-5 py-4 flex items-center gap-3 animate-scale-in shadow-sm">
                 <span class="text-xl">✅</span>

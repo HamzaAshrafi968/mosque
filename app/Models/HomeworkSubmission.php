@@ -17,6 +17,7 @@ class HomeworkSubmission extends Model
         'homework_id',
         'student_id',
         'status',
+        'content',
         'grade',
         'feedback',
         'submitted_at',

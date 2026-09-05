@@ -14,6 +14,7 @@ Route::prefix('v1')->group(function () {
             Route::get('dashboard', [V1\Admin\DashboardController::class, 'index']);
 
             Route::patch('students/{id}/archive', [V1\Admin\StudentController::class, 'archive']);
+            Route::post('students/{id}/transfer', [V1\Admin\StudentController::class, 'transfer']);
             Route::apiResource('students', V1\Admin\StudentController::class);
 
             Route::apiResource('teachers', V1\Admin\TeacherController::class)->except(['show']);
@@ -22,7 +23,18 @@ Route::prefix('v1')->group(function () {
             Route::post('classrooms', [V1\Admin\ClassroomController::class, 'store']);
             Route::delete('classrooms/{id}', [V1\Admin\ClassroomController::class, 'destroy']);
             Route::post('classrooms/{classroomId}/sections', [V1\Admin\ClassroomController::class, 'storeSection']);
+            Route::get('sections/{sectionId}', [V1\Admin\ClassroomController::class, 'showSection']);
+            Route::patch('sections/{sectionId}', [V1\Admin\ClassroomController::class, 'updateSection']);
             Route::delete('sections/{sectionId}', [V1\Admin\ClassroomController::class, 'destroySection']);
+            Route::post('sections/{sectionId}/students', [V1\Admin\ClassroomController::class, 'enrollStudent']);
+            Route::delete('sections/{sectionId}/students/{studentId}', [V1\Admin\ClassroomController::class, 'removeStudent']);
+            Route::post('sections/{sectionId}/teachers', [V1\Admin\ClassroomController::class, 'assignTeacher']);
+            Route::delete('sections/{sectionId}/teachers/{teacherId}', [V1\Admin\ClassroomController::class, 'removeTeacher']);
+
+            Route::get('custom-fields', [V1\Admin\CustomFieldController::class, 'index']);
+            Route::post('custom-fields', [V1\Admin\CustomFieldController::class, 'store']);
+            Route::patch('custom-fields/{id}', [V1\Admin\CustomFieldController::class, 'update']);
+            Route::delete('custom-fields/{id}', [V1\Admin\CustomFieldController::class, 'destroy']);
 
             Route::apiResource('subjects', V1\Admin\SubjectController::class)->only(['index', 'store', 'update', 'destroy']);
 
@@ -31,7 +43,14 @@ Route::prefix('v1')->group(function () {
             Route::delete('schedules/{id}', [V1\Admin\ScheduleController::class, 'destroy']);
 
             Route::get('attendance', [V1\Admin\AttendanceController::class, 'index']);
+            Route::post('attendance/students', [V1\Admin\AttendanceController::class, 'storeStudents']);
             Route::post('attendance/teachers', [V1\Admin\AttendanceController::class, 'storeTeachers']);
+
+            Route::get('finance/people', [V1\Admin\FinanceController::class, 'people']);
+            Route::get('finance/people/{personType}/{personId}', [V1\Admin\FinanceController::class, 'person']);
+            Route::post('finance/transactions', [V1\Admin\FinanceController::class, 'store']);
+            Route::post('finance/transactions/{transactionId}/reverse', [V1\Admin\FinanceController::class, 'reverse']);
+            Route::post('finance/transfers', [V1\Admin\FinanceController::class, 'transfer']);
 
             Route::apiResource('exams', V1\Admin\ExamController::class)->only(['index', 'store', 'destroy']);
 
@@ -60,6 +79,7 @@ Route::prefix('v1')->group(function () {
 
             Route::get('schedule', [V1\Teacher\ScheduleController::class, 'index']);
 
+            Route::get('attendance/sections', [V1\Teacher\AttendanceController::class, 'sections']);
             Route::get('attendance/students', [V1\Teacher\AttendanceController::class, 'students']);
             Route::post('attendance', [V1\Teacher\AttendanceController::class, 'store']);
 

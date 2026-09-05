@@ -134,4 +134,60 @@ class AuthorizationTest extends TestCase
 
         $this->get(route('admin.dashboard'))->assertForbidden();
     }
+
+    public function test_super_admin_can_switch_mosque_from_header_switcher(): void
+    {
+        $roles = app(RoleService::class);
+        $roles->ensureGlobalSuperAdminRole();
+
+        $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => 'super_admin']);
+        $roles->assignRole($superAdmin, RoleService::ROLE_SUPER_ADMIN);
+
+        [$mosque] = $this->mosqueWithManager();
+        $otherMosque = Tenant::factory()->create();
+
+        $this->actingAs($superAdmin)
+            ->post(route('super-admin.switch-mosque'), ['mosque_id' => $mosque->id])
+            ->assertRedirect(route('admin.dashboard'));
+
+        $this->assertEquals($mosque->id, session('super_admin_mosque_id'));
+        $this->get(route('admin.dashboard'))->assertOk();
+
+        $this->post(route('super-admin.switch-mosque'), ['mosque_id' => $otherMosque->id])
+            ->assertRedirect(route('admin.dashboard'));
+
+        $this->assertEquals($otherMosque->id, session('super_admin_mosque_id'));
+
+        $this->post(route('super-admin.switch-mosque'), ['mosque_id' => null])
+            ->assertRedirect(route('super-admin.dashboard'));
+
+        $this->assertNull(session('super_admin_mosque_id'));
+        $this->get(route('admin.dashboard'))->assertForbidden();
+    }
+
+    public function test_mosque_manager_cannot_use_mosque_switcher(): void
+    {
+        [, $manager] = $this->mosqueWithManager();
+
+        $this->actingAs($manager)
+            ->post(route('super-admin.switch-mosque'), ['mosque_id' => null])
+            ->assertForbidden();
+    }
+
+    public function test_super_admin_dashboard_shows_mosque_switcher(): void
+    {
+        $roles = app(RoleService::class);
+        $roles->ensureGlobalSuperAdminRole();
+
+        $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => 'super_admin']);
+        $roles->assignRole($superAdmin, RoleService::ROLE_SUPER_ADMIN);
+
+        Tenant::factory()->create(['name' => 'جامع الاختبار']);
+
+        $this->actingAs($superAdmin)
+            ->get(route('super-admin.dashboard'))
+            ->assertOk()
+            ->assertSee('mosque-switcher-button')
+            ->assertSee('جامع الاختبار');
+    }
 }

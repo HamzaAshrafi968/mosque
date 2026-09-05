@@ -2,16 +2,11 @@
 
 namespace App\Contracts\Repositories;
 
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
-
 interface AttendanceRepositoryInterface extends BaseRepositoryInterface
 {
-    public function paginateWithFilters(array $filters, int $perPage = 30): LengthAwarePaginator;
-
-    public function getForDate(string $date, array $studentIds): Collection;
-
-    public function upsertBatch(array $rows): void;
-
+    /**
+     * Upsert teacher attendance rows in the legacy `attendances` table
+     * (one row per teacher per date).
+     */
     public function upsertTeacher(array $rows): void;
 }

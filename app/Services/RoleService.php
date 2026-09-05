@@ -21,6 +21,10 @@ class RoleService
 
     public const ROLE_TEACHER = 'teacher';
 
+    public const ROLE_GUARDIAN = 'guardian';
+
+    public const ROLE_STUDENT = 'student';
+
     /**
      * Idempotent: make sure every catalog permission exists in the DB.
      */
@@ -80,6 +84,18 @@ class RoleService
                 'name' => 'أستاذ',
                 'description' => 'يدير صفوفه وطلابه والحضور والدرجات والواجبات والدروس',
                 'grants' => PermissionCatalog::TEACHER,
+            ],
+            [
+                'code' => self::ROLE_GUARDIAN,
+                'name' => 'ولي أمر',
+                'description' => 'يطلع على بيانات أبنائه فقط من خلال بوابة ولي الأمر',
+                'grants' => PermissionCatalog::GUARDIAN,
+            ],
+            [
+                'code' => self::ROLE_STUDENT,
+                'name' => 'طالب',
+                'description' => 'يطلع على بياناته الأكاديمية فقط من خلال بوابة الطالب',
+                'grants' => PermissionCatalog::STUDENT,
             ],
         ];
 
@@ -141,6 +157,16 @@ class RoleService
     {
         $role = $this->resolveRole($user, $code);
 
+        // Lazily provision the tenant's default roles when a role is missing
+        // (e.g. existing mosques created before a role type existed).
+        if (! $role && $user->tenant_id !== null) {
+            if ($tenant = Tenant::find($user->tenant_id)) {
+                $this->provisionTenantRoles($tenant);
+            }
+
+            $role = $this->resolveRole($user, $code);
+        }
+
         if ($role && ! $user->roles()->where('roles.code', $code)->exists()) {
             $user->roles()->attach($role->id);
         }
@@ -159,6 +185,8 @@ class RoleService
         $code = match ($user->role) {
             User::ROLE_ADMIN => self::ROLE_MOSQUE_MANAGER,
             User::ROLE_SUPER_ADMIN => self::ROLE_SUPER_ADMIN,
+            User::ROLE_GUARDIAN => self::ROLE_GUARDIAN,
+            User::ROLE_STUDENT => self::ROLE_STUDENT,
             default => self::ROLE_TEACHER,
         };
 

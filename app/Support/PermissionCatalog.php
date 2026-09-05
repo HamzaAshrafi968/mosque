@@ -102,6 +102,13 @@ final class PermissionCatalog
         ['custom_fields', 'create', 'إنشاء حقل مخصص'],
         ['custom_fields', 'update', 'تعديل حقل مخصص'],
         ['custom_fields', 'delete', 'حذف حقل مخصص'],
+        // Finance (العمليات المالية)
+        ['finance', 'view', 'مشاهدة العمليات المالية'],
+        ['finance', 'create', 'تسجيل عملية مالية'],
+        ['finance', 'update', 'تعديل/عكس عملية مالية'],
+        ['finance', 'adjust', 'تسوية عملية مالية'],
+        ['finance', 'transfer', 'تحويل بين الأشخاص'],
+        ['finance', 'report', 'تقارير مالية'],
         // Audit
         ['audit_logs', 'view', 'مشاهدة سجل العمليات'],
     ];
@@ -125,6 +132,7 @@ final class PermissionCatalog
         'users.view' => 'mosque', 'users.create' => 'mosque', 'users.update' => 'mosque', 'users.delete' => 'mosque',
         'roles.view' => 'mosque', 'roles.create' => 'mosque', 'roles.update' => 'mosque', 'roles.delete' => 'mosque',
         'custom_fields.view' => 'mosque', 'custom_fields.create' => 'mosque', 'custom_fields.update' => 'mosque', 'custom_fields.delete' => 'mosque',
+        'finance.view' => 'mosque', 'finance.create' => 'mosque', 'finance.update' => 'mosque', 'finance.adjust' => 'mosque', 'finance.transfer' => 'mosque', 'finance.report' => 'mosque',
         'audit_logs.view' => 'mosque',
     ];
 
@@ -144,6 +152,37 @@ final class PermissionCatalog
         'announcements.view' => 'mosque',
         'messages.view' => 'own', 'messages.create' => 'own',
         'users.view' => 'own',
+    ];
+
+    /** Default grants for the guardian portal role: code => scope (read-only). */
+    public const GUARDIAN = [
+        'students.view' => 'own',
+        'teachers.view' => 'own',
+        'classes.view' => 'own',
+        'sections.view' => 'own',
+        'subjects.view' => 'own',
+        'attendance.view' => 'own',
+        'exams.view' => 'own',
+        'grades.view' => 'own',
+        'assignments.view' => 'own',
+        'lessons.view' => 'own',
+        'announcements.view' => 'mosque',
+        'messages.view' => 'own', 'messages.create' => 'own',
+    ];
+
+    /** Default grants for the student portal role: code => scope (read-only + own homework submission). */
+    public const STUDENT = [
+        'students.view' => 'own',
+        'teachers.view' => 'own',
+        'classes.view' => 'own',
+        'sections.view' => 'own',
+        'subjects.view' => 'own',
+        'attendance.view' => 'own',
+        'exams.view' => 'own',
+        'grades.view' => 'own',
+        'assignments.view' => 'own',
+        'lessons.view' => 'own',
+        'announcements.view' => 'mosque',
     ];
 
     public static function codes(): array

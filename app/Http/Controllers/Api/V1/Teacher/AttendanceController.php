@@ -3,46 +3,83 @@
 namespace App\Http\Controllers\Api\V1\Teacher;
 
 use App\Actions\Teacher\Attendance\SaveAttendanceAction;
-use App\Contracts\Repositories\AttendanceRepositoryInterface;
 use App\Http\Requests\Api\V1\Teacher\AttendanceRequest;
+use App\Models\AttendanceRecord;
+use App\Models\AttendanceSession;
+use App\Models\Section;
 use App\Models\Student;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AttendanceController extends BaseTeacherController
 {
-    public function students(Request $request, AttendanceRepositoryInterface $attendanceRepository): JsonResponse
+    /**
+     * Sections assigned to the authenticated teacher (scope enforcement).
+     */
+    public function sections(Request $request): JsonResponse
     {
-        $classroomId = $request->input('classroom_id');
+        $teacher = $this->currentTeacher($request);
+
+        $sections = Section::query()
+            ->with('classroom:id,name')
+            ->active()
+            ->whereIn('id', $teacher->manageableSectionIds())
+            ->orderBy('name')
+            ->get(['id', 'name', 'classroom_id', 'status']);
+
+        return $this->success(['sections' => $sections]);
+    }
+
+    /** Roster for the chosen section/date with the already-saved statuses. */
+    public function students(Request $request): JsonResponse
+    {
+        $teacher = $this->currentTeacher($request);
+        $allowedIds = $teacher->manageableSectionIds();
+
         $sectionId = $request->input('section_id');
         $date = $request->input('date', now()->toDateString());
 
-        $students = collect();
-        $existing = collect();
+        $section = $sectionId ? Section::find($sectionId) : null;
 
-        if ($classroomId) {
-            $students = Student::query()
-                ->active()
-                ->where('classroom_id', $classroomId)
-                ->when($sectionId, fn ($q) => $q->where('section_id', $sectionId))
-                ->orderBy('name')
-                ->get(['id', 'name', 'gender']);
+        if ($sectionId && ! $section) {
+            return $this->notFound('الشعبة غير موجودة');
+        }
 
-            $existing = $attendanceRepository->getForDate($date, $students->pluck('id')->all());
+        if ($section && ! in_array($section->id, $allowedIds, true)) {
+            return $this->forbidden('لا تملك صلاحية الوصول لهذه الشعبة');
+        }
+
+        $students = Student::query()
+            ->active()
+            ->whereIn('section_id', $sectionId ? [$section->id] : $allowedIds)
+            ->orderBy('name')
+            ->get(['id', 'name', 'gender']);
+
+        $existing = AttendanceRecord::query()
+            ->whereIn('student_id', $students->pluck('id'))
+            ->whereHas('session', fn ($q) => $q->whereDate('date', $date))
+            ->pluck('status', 'student_id');
+
+        $sessionId = null;
+        if ($section) {
+            $sessionId = AttendanceSession::query()
+                ->where('section_id', $section->id)
+                ->whereDate('date', $date)
+                ->value('id');
         }
 
         return $this->success([
             'students' => $students,
             'existing' => $existing,
-            'classroom_id' => $classroomId,
-            'section_id' => $sectionId,
+            'section_id' => $section?->id,
             'date' => $date,
+            'session_id' => $sessionId,
         ]);
     }
 
-    public function store(AttendanceRequest $request, SaveAttendanceAction $action, AttendanceRepositoryInterface $attendanceRepository): JsonResponse
+    public function store(AttendanceRequest $request, SaveAttendanceAction $action): JsonResponse
     {
-        $action->execute($attendanceRepository, $request->validated(), $request);
+        $action->execute($request->validated(), $request->user());
 
         return $this->success(message: 'تم حفظ الحضور بنجاح');
     }

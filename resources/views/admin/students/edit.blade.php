@@ -59,6 +59,30 @@
             <textarea name="notes" rows="3"
                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">{{ old('notes', $student->notes) }}</textarea>
         </div>
+
+        <div class="border-t border-gray-100 pt-4">
+            <h3 class="font-bold text-gray-800 mb-1">حساب بوابة الطالب</h3>
+            <p class="text-xs text-gray-400 mb-3">لإزالة الحساب امسح البريد الإلكتروني واحفظ. كلمة المرور تُترك فارغة لعدم تغييرها.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
+                    <input type="email" name="portal_email" value="{{ old('portal_email', $student->user?->email) }}" dir="ltr"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">كلمة مرور جديدة</label>
+                    <input type="password" name="portal_password"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+            </div>
+        </div>
+
+        @if($customFields->isNotEmpty())
+            <div class="border-t pt-4">
+                <h3 class="text-sm font-bold text-gray-700 mb-3">بيانات إضافية (حقول مخصصة)</h3>
+                <x-custom-field-inputs :fields="$customFields" :values="$customValues" />
+            </div>
+        @endif
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">حفظ</button>
     </form>
 </div>

@@ -30,6 +30,8 @@ class AuthController extends Controller
         return redirect()->intended(match (true) {
             Auth::user()->isSuperAdmin() => route('super-admin.dashboard'),
             Auth::user()->isAdmin() => route('admin.dashboard'),
+            Auth::user()->isGuardian() => route('guardian.dashboard'),
+            Auth::user()->isStudent() => route('student.dashboard'),
             default => route('teacher.dashboard'),
         });
     }

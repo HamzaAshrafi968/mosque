@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Announcement;
-use App\Models\Attendance;
+use App\Models\AttendanceRecord;
 use App\Models\Classroom;
 use App\Models\Grade;
 use App\Models\HomeworkSubmission;
@@ -32,14 +32,15 @@ class DashboardService
         return Cache::remember(self::key($tenantId, 'dashboard_stats'), self::TTL, function () {
             $today = now()->toDateString();
 
-            $attendanceToday = Attendance::query()
-                ->whereDate('date', $today)
-                ->whereNotNull('student_id')
+            $attendanceToday = AttendanceRecord::query()
+                ->join('attendance_sessions', 'attendance_sessions.id', '=', 'attendance_records.attendance_session_id')
+                ->whereDate('attendance_sessions.date', $today)
                 ->selectRaw("
                     count(*) as total,
-                    sum(case when status = 'present' then 1 else 0 end) as present,
-                    sum(case when status = 'absent' then 1 else 0 end) as absent,
-                    sum(case when status = 'late' then 1 else 0 end) as late
+                    sum(case when attendance_records.status = 'present' then 1 else 0 end) as present,
+                    sum(case when attendance_records.status = 'absent' then 1 else 0 end) as absent,
+                    sum(case when attendance_records.status = 'late' then 1 else 0 end) as late,
+                    sum(case when attendance_records.status = 'excused' then 1 else 0 end) as excused
                 ")
                 ->first();
 
@@ -80,8 +81,9 @@ class DashboardService
                 'attendance_present_today' => (int) ($attendanceToday->present ?? 0),
                 'attendance_absent_today' => (int) ($attendanceToday->absent ?? 0),
                 'attendance_late_today' => (int) ($attendanceToday->late ?? 0),
+                'attendance_excused_today' => (int) ($attendanceToday->excused ?? 0),
                 'attendance_rate_today' => $total > 0
-                    ? round(((int) $attendanceToday->present / $total) * 100, 1)
+                    ? round((((int) ($attendanceToday->present ?? 0) + (int) ($attendanceToday->late ?? 0)) / $total) * 100, 1)
                     : null,
                 'exam_graded_count' => $examTotal,
                 'exam_passed_count' => (int) ($examStats->passed ?? 0),

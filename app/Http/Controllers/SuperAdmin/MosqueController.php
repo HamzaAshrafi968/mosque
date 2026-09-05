@@ -99,6 +99,23 @@ class MosqueController extends Controller
         return redirect()->route('super-admin.dashboard')->with('success', 'تم العودة إلى إدارة الجوامع');
     }
 
+    /** Switch mosque context from the top header, or return to the central dashboard. */
+    public function switchMosque(Request $request): RedirectResponse
+    {
+        $mosqueId = $request->input('mosque_id');
+
+        if ($mosqueId) {
+            $mosque = Tenant::findOrFail($mosqueId);
+            session(['super_admin_mosque_id' => $mosque->id]);
+
+            return redirect()->route('admin.dashboard')->with('success', "تم الدخول إلى {$mosque->name}");
+        }
+
+        session()->forget('super_admin_mosque_id');
+
+        return redirect()->route('super-admin.dashboard')->with('success', 'تم العودة إلى إدارة الجوامع');
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([

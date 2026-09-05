@@ -24,6 +24,7 @@ class StoreTeacherRequest extends FormRequest
             'hired_at' => ['nullable', 'date'],
             'is_active' => ['boolean'],
             'password' => ['nullable', 'string', 'min:8'],
+            'custom_fields' => ['nullable', 'array'],
         ];
     }
 
