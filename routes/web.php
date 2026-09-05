@@ -2,18 +2,21 @@
 
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Teacher;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => auth()->check()
-    ? redirect()->route(auth()->user()->isAdmin() ? 'admin.dashboard' : 'teacher.dashboard')
+    ? redirect()->route(match (true) {
+        auth()->user()->isSuperAdmin() => 'super-admin.dashboard',
+        auth()->user()->isAdmin() => 'admin.dashboard',
+        default => 'teacher.dashboard',
+    })
     : redirect()->route('login'));
 
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('login', [AuthController::class, 'login'])->name('login.store');
-    Route::get('register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('register', [AuthController::class, 'register'])->name('register.store');
 });
 
 Route::post('logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
@@ -43,6 +46,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('schedules/{schedule}', [Admin\ScheduleController::class, 'destroy'])->name('schedules.destroy');
 
     Route::get('attendance', [Admin\AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('attendance', [Admin\AttendanceController::class, 'store'])->name('attendance.store');
 
     Route::resource('exams', Admin\ExamController::class)->only(['index', 'create', 'store', 'destroy']);
 
@@ -102,4 +106,28 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('reward-points/create', [Teacher\RewardPointController::class, 'create'])->name('reward-points.create');
     Route::post('reward-points', [Teacher\RewardPointController::class, 'store'])->name('reward-points.store');
     Route::delete('reward-points/{id}', [Teacher\RewardPointController::class, 'destroy'])->name('reward-points.destroy');
+});
+
+Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('super-admin.')->group(function () {
+    Route::get('dashboard', [SuperAdmin\DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('mosques', [SuperAdmin\MosqueController::class, 'index'])->name('mosques.index');
+    Route::get('mosques/create', [SuperAdmin\MosqueController::class, 'create'])->name('mosques.create');
+    Route::post('mosques', [SuperAdmin\MosqueController::class, 'store'])->name('mosques.store');
+    Route::get('mosques/{mosque}/edit', [SuperAdmin\MosqueController::class, 'edit'])->name('mosques.edit');
+    Route::patch('mosques/{mosque}', [SuperAdmin\MosqueController::class, 'update'])->name('mosques.update');
+    Route::delete('mosques/{mosque}', [SuperAdmin\MosqueController::class, 'destroy'])->name('mosques.destroy');
+    Route::post('mosques/{mosque}/enter', [SuperAdmin\MosqueController::class, 'enter'])->name('mosques.enter');
+    Route::post('exit', [SuperAdmin\MosqueController::class, 'exit'])->name('exit');
+
+    Route::get('mosques/{mosque}/users', [SuperAdmin\MosqueUserController::class, 'index'])->name('mosques.users.index');
+    Route::post('mosques/{mosque}/users', [SuperAdmin\MosqueUserController::class, 'store'])->name('mosques.users.store');
+    Route::patch('mosques/{mosque}/users/{user}/role', [SuperAdmin\MosqueUserController::class, 'updateRole'])->name('mosques.users.role');
+    Route::delete('mosques/{mosque}/users/{user}', [SuperAdmin\MosqueUserController::class, 'destroy'])->name('mosques.users.destroy');
+
+    Route::get('mosques/{mosque}/roles', [SuperAdmin\MosqueRoleController::class, 'index'])->name('mosques.roles.index');
+    Route::post('mosques/{mosque}/roles', [SuperAdmin\MosqueRoleController::class, 'store'])->name('mosques.roles.store');
+    Route::get('mosques/{mosque}/roles/{role}/edit', [SuperAdmin\MosqueRoleController::class, 'edit'])->name('mosques.roles.edit');
+    Route::patch('mosques/{mosque}/roles/{role}', [SuperAdmin\MosqueRoleController::class, 'updatePermissions'])->name('mosques.roles.update');
+    Route::delete('mosques/{mosque}/roles/{role}', [SuperAdmin\MosqueRoleController::class, 'destroy'])->name('mosques.roles.destroy');
 });

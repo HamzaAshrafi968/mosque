@@ -67,7 +67,15 @@ class Student extends Model
 
     public function totalPoints(): int
     {
-        return $this->rewardPoints()->sum('points');
+        $earned = (clone $this->rewardPoints())
+            ->where('type', 'earned')
+            ->sum('points');
+
+        $deducted = (clone $this->rewardPoints())
+            ->where('type', 'deducted')
+            ->sum('points');
+
+        return (int) $earned - (int) $deducted;
     }
 
     public function scopeActive(Builder $query): Builder

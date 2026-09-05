@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\InitializeTenant;
 use App\Providers\RepositoryServiceProvider;
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => EnsureRole::class,
+            'permission' => EnsurePermission::class,
             'tenant' => InitializeTenant::class,
         ]);
 

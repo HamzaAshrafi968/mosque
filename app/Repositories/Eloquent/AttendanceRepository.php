@@ -42,4 +42,13 @@ class AttendanceRepository extends BaseRepository implements AttendanceRepositor
             ['status', 'recorded_by', 'updated_at']
         );
     }
+
+    public function upsertTeacher(array $rows): void
+    {
+        Attendance::upsert(
+            $rows,
+            ['tenant_id', 'teacher_id', 'date'],
+            ['status', 'notes', 'recorded_by', 'updated_at']
+        );
+    }
 }

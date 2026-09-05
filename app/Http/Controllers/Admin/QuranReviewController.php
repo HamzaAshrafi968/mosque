@@ -41,7 +41,7 @@ class QuranReviewController extends Controller
                 'student:id,name',
                 'teacher:id,name',
                 'surah:id,name_arabic',
-                'words' => fn ($q) => $q->orderBy('ayah_id')->orderBy('word_position'),
+                'words' => fn ($q) => $q->orderByAyah(),
                 'words.ayah:id,ayah_number',
             ])
             ->findOrFail($id);

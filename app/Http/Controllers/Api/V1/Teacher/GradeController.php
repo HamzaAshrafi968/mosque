@@ -35,12 +35,12 @@ class GradeController extends BaseTeacherController
         ]);
     }
 
-    public function store(StoreGradesRequest $request, Exam $exam, SaveGradesAction $action, GradeRepositoryInterface $gradeRepository): JsonResponse
+    public function store(StoreGradesRequest $request, Exam $exam, SaveGradesAction $action): JsonResponse
     {
         $teacher = $this->currentTeacher($request);
         abort_unless($exam->teacher_id === $teacher->id, 403);
 
-        $status = $action->execute($gradeRepository, $request->validated(), $exam);
+        $status = $action->execute($request->validated(), $exam);
 
         return $this->success(message: $status === 'submitted'
             ? 'تم إرسال الدرجات للإدارة لاعتمادها'

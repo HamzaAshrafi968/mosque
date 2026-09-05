@@ -4,7 +4,6 @@ use App\Http\Controllers\Api\V1;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-    Route::post('register', [V1\AuthController::class, 'register']);
     Route::post('login', [V1\AuthController::class, 'login']);
 
     Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
@@ -32,6 +31,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('schedules/{id}', [V1\Admin\ScheduleController::class, 'destroy']);
 
             Route::get('attendance', [V1\Admin\AttendanceController::class, 'index']);
+            Route::post('attendance/teachers', [V1\Admin\AttendanceController::class, 'storeTeachers']);
 
             Route::apiResource('exams', V1\Admin\ExamController::class)->only(['index', 'store', 'destroy']);
 

@@ -51,11 +51,27 @@ class AttendanceController extends BaseTeacherController
     {
         $data = $request->validate([
             'date' => ['required', 'date'],
-            'statuses' => ['required', 'array'],
+            'statuses' => ['required', 'array', 'min:1'],
             'statuses.*' => ['in:present,absent,late'],
         ]);
 
         $tenantId = $request->user()->tenant_id;
+
+        $validIds = Student::query()
+            ->active()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', array_keys($data['statuses']))
+            ->pluck('id')
+            ->all();
+
+        $invalidIds = array_diff(array_keys($data['statuses']), $validIds);
+
+        if ($invalidIds !== []) {
+            return back()
+                ->withErrors(['statuses' => 'يحتوي الطلب على طلاب غير مسجلين أو محذوفين في هذا الجامع'])
+                ->withInput();
+        }
+
         $now = now();
 
         $rows = collect($data['statuses'])->map(fn ($status, $studentId) => [

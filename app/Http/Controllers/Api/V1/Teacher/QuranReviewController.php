@@ -46,9 +46,11 @@ class QuranReviewController extends BaseTeacherController
         return $this->created($result);
     }
 
-    public function show(string $id, QuranReviewSessionRepositoryInterface $sessionRepository): JsonResponse
+    public function show(Request $request, string $id, QuranReviewSessionRepositoryInterface $sessionRepository): JsonResponse
     {
-        $session = $sessionRepository->findWithRelations($id);
+        $teacher = $this->currentTeacher($request);
+
+        $session = $sessionRepository->findWithRelations($id, $teacher->id);
 
         if (! $session) {
             return $this->notFound('جلسة التسميع غير موجودة');
@@ -57,17 +59,22 @@ class QuranReviewController extends BaseTeacherController
         return $this->success(new QuranReviewSessionResource($session));
     }
 
-    public function studentReport(string $studentId): JsonResponse
+    public function studentReport(Request $request, string $studentId): JsonResponse
     {
+        $teacher = $this->currentTeacher($request);
+
         $student = Student::findOrFail($studentId);
 
         $sessions = $student->quranReviewSessions()
             ->with('surah:id,name_arabic')
+            ->where('teacher_id', $teacher->id)
             ->orderByDesc('date')
             ->get();
 
         $allWords = QuranReviewWord::query()
-            ->whereHas('reviewSession', fn ($q) => $q->where('student_id', $studentId))
+            ->whereHas('reviewSession', fn ($q) => $q
+                ->where('student_id', $studentId)
+                ->where('teacher_id', $teacher->id))
             ->where('status', '!=', 'correct')
             ->where('status', '!=', 'unreviewed')
             ->with(['reviewSession:id,date,surah_id', 'reviewSession.surah:id,name_arabic', 'ayah:id,ayah_number,surah_id'])

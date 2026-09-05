@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\RegisterService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,34 +27,11 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(
-            Auth::user()->isAdmin() ? route('admin.dashboard') : route('teacher.dashboard')
-        );
-    }
-
-    public function showRegister(): View
-    {
-        return view('auth.register');
-    }
-
-    public function register(Request $request, RegisterService $service): RedirectResponse
-    {
-        $data = $request->validate([
-            'mosque_name' => ['required', 'string', 'max:255'],
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'gender' => ['required', 'in:male,female'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $user = $service->register($data);
-
-        Auth::login($user);
-        $request->session()->regenerate();
-
-        return redirect()->route('admin.dashboard');
+        return redirect()->intended(match (true) {
+            Auth::user()->isSuperAdmin() => route('super-admin.dashboard'),
+            Auth::user()->isAdmin() => route('admin.dashboard'),
+            default => route('teacher.dashboard'),
+        });
     }
 
     public function logout(Request $request): RedirectResponse

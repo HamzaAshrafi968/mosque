@@ -30,8 +30,15 @@ class RewardPointController extends BaseTeacherController
         return $this->created(new RewardPointResource($rewardPoint));
     }
 
-    public function destroy(string $id, RewardPointRepositoryInterface $rewardPointRepository): JsonResponse
+    public function destroy(Request $request, string $id, RewardPointRepositoryInterface $rewardPointRepository): JsonResponse
     {
+        $point = $rewardPointRepository->findOrFail($id);
+
+        abort_unless(
+            $point->awarded_by === $request->user()->id && $point->quran_review_session_id === null,
+            403
+        );
+
         $rewardPointRepository->delete($id);
 
         return $this->noContent();

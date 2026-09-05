@@ -108,17 +108,17 @@
             📝 تفاصيل التسميع
         </h3>
         <div class="space-y-5 text-right quran-font" style="direction: rtl; line-height: 3; font-size: 1.6rem;">
-            @php $currentAyahId = null; @endphp
+            @php $currentAyahId = null; $ayahOpen = false; @endphp
             @foreach($session->words as $word)
                 @if($currentAyahId !== $word->ayah_id)
-                    @if($currentAyahId !== null) </div> @endif
+                    @if($ayahOpen) </div> @endif
                     <div class="bg-gradient-to-r from-gray-50 to-white rounded-xl p-5 border border-gray-100">
                         <div class="flex items-center gap-2 mb-2">
                             <span class="inline-flex items-center justify-center w-8 h-8 bg-emerald-500 text-white rounded-full text-sm font-bold">
                                 {{ $word->ayah->ayah_number }}
                             </span>
                         </div>
-                    @php $currentAyahId = $word->ayah_id; @endphp
+                    @php $currentAyahId = $word->ayah_id; $ayahOpen = true; @endphp
                 @endif
                 <span class="word-badge
                     {{ $word->status === 'correct' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : '' }}
@@ -130,7 +130,10 @@
                     {{ $word->status === 'unreviewed' ? 'bg-gray-50 text-gray-400 border border-gray-100' : '' }}
                 ">{{ $word->word_text }}</span>
             @endforeach
-            </div>
+            @if($ayahOpen) </div> @endif
+            @if($session->words->isEmpty())
+                <div class="text-center py-6 text-gray-400">لا توجد كلمات مسجلة لهذه الجلسة</div>
+            @endif
         </div>
     </div>
 

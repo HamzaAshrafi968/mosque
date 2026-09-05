@@ -15,7 +15,7 @@ class DashboardController extends BaseTeacherController
     {
         $teacher = $this->currentTeacher($request);
 
-        $todaySchedule = $scheduleRepository->getForTeacher($teacher->id)->flatten(1);
+        $todaySchedule = $scheduleRepository->getForTeacher($teacher->id)->get(now()->dayOfWeek, collect());
 
         $pendingSubmissions = HomeworkSubmission::query()
             ->where('status', 'pending')

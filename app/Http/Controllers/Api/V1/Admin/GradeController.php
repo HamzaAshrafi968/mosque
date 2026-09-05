@@ -7,6 +7,7 @@ use App\Contracts\Repositories\GradeRepositoryInterface;
 use App\Http\Controllers\Api\BaseApiController;
 use App\Http\Resources\Api\V1\ExamResource;
 use App\Http\Resources\Api\V1\GradeResource;
+use App\Services\DashboardService;
 use Illuminate\Http\JsonResponse;
 
 class GradeController extends BaseApiController
@@ -40,7 +41,11 @@ class GradeController extends BaseApiController
 
     public function approve(string $examId): JsonResponse
     {
+        $exam = $this->examRepository->findOrFail($examId);
+
         $this->gradeRepository->approveByExam($examId);
+
+        DashboardService::flush($exam->tenant_id);
 
         return $this->success(message: 'تم اعتماد النتائج');
     }

@@ -9,6 +9,7 @@ use App\Models\RewardPoint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CreateQuranReviewSessionAction
 {
@@ -22,6 +23,12 @@ class CreateQuranReviewSessionAction
             ->whereBetween('ayah_number', [$data['from_ayah'], $data['to_ayah']])
             ->orderBy('ayah_number')
             ->get(['id', 'ayah_number', 'text_simple']);
+
+        if ($ayahs->isEmpty()) {
+            throw ValidationException::withMessages([
+                'to_ayah' => 'لا توجد آيات في النطاق المحدد',
+            ]);
+        }
 
         $wordRows = [];
         $stats = [

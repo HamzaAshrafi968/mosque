@@ -49,7 +49,11 @@
         </div>
 
         <nav class="relative flex-1 p-3 space-y-0.5 overflow-y-auto">
-            @if(auth()->user()->isAdmin())
+            @php
+                $user = auth()->user();
+                $inMosqueContext = $user->isSuperAdmin() && session('super_admin_mosque_id');
+            @endphp
+            @if($user->isAdmin() || $inMosqueContext)
                 <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
                     الرئيسية
@@ -71,6 +75,13 @@
                     🏆 نقاط المكافآت
                 </x-nav-link>
                 <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">الحسابات والصلاحيات</x-nav-link>
+            @elseif($user->isSuperAdmin())
+                <x-nav-link :href="route('super-admin.dashboard')" :active="request()->routeIs('super-admin.dashboard')">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+                    لوحة التحكم
+                </x-nav-link>
+                <x-nav-link :href="route('super-admin.mosques.index')" :active="request()->routeIs('super-admin.mosques.*')">🕌 الجوامع</x-nav-link>
+                <div class="pt-3 mt-3 border-t border-white/10 text-xs text-emerald-300/70 px-3">الدخول إلى جامع يفتح لوحة إدارته الكاملة</div>
             @else
                 <x-nav-link :href="route('teacher.dashboard')" :active="request()->routeIs('teacher.dashboard')">
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
@@ -98,8 +109,18 @@
                     {{ mb_substr(auth()->user()->name, 0, 1) }}
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="text-sm font-medium truncate">{{ auth()->user()->name }}</div>
-                    <div class="text-xs text-emerald-300/70">{{ auth()->user()->isAdmin() ? 'مدير النظام' : 'معلم' }}</div>
+                    <div class="text-sm font-medium truncate">{{ $user->name }}</div>
+                    <div class="text-xs text-emerald-300/70">
+                        @if($inMosqueContext)
+                            داخل جامع (صلاحيات مدير الجامع)
+                        @elseif($user->isAdmin())
+                            مدير الجامع
+                        @elseif($user->isSuperAdmin())
+                            مدير الجوامع
+                        @else
+                            معلم
+                        @endif
+                    </div>
                 </div>
             </div>
             <form method="POST" action="{{ route('logout') }}" class="mt-2">
@@ -112,6 +133,18 @@
     </aside>
 
     <main class="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden min-w-0">
+        @if(auth()->user()->isSuperAdmin() && session('super_admin_mosque_id'))
+            <div class="mb-6 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-2xl px-5 py-3 flex items-center justify-between gap-3 shadow-sm">
+                <span>أنت تعمل الآن داخل هذا الجامع بصلاحيات مدير الجامع.</span>
+                <form method="POST" action="{{ route('super-admin.exit') }}">
+                    @csrf
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg">
+                        ← العودة لإدارة الجوامع
+                    </button>
+                </form>
+            </div>
+        @endif
+
         @if(session('success'))
             <div class="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-5 py-4 flex items-center gap-3 animate-scale-in shadow-sm">
                 <span class="text-xl">✅</span>

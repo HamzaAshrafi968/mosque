@@ -12,4 +12,6 @@ interface AttendanceRepositoryInterface extends BaseRepositoryInterface
     public function getForDate(string $date, array $studentIds): Collection;
 
     public function upsertBatch(array $rows): void;
+
+    public function upsertTeacher(array $rows): void;
 }

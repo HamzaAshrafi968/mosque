@@ -13,9 +13,13 @@ class Tenant extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'phone',
+        'email',
         'address',
+        'logo',
         'is_active',
+        'status',
     ];
 
     protected function casts(): array
@@ -23,6 +27,17 @@ class Tenant extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_INACTIVE = 'inactive';
+
+    public const STATUS_ARCHIVED = 'archived';
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
     }
 
     public function users(): HasMany

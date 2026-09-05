@@ -86,6 +86,18 @@ class QuranReviewController extends BaseTeacherController
             'word_notes' => ['nullable', 'array'],
         ]);
 
+        $surah = QuranSurah::find($data['surah_id']);
+
+        if (! $surah
+            || $data['from_ayah'] > $surah->num_ayahs
+            || $data['to_ayah'] > $surah->num_ayahs
+            || $data['to_ayah'] < $data['from_ayah']
+        ) {
+            return back()
+                ->withErrors(['to_ayah' => 'نطاق الآيات غير صحيح: يجب أن يكون ضمن حدود السورة وبترتيب صحيح'])
+                ->withInput();
+        }
+
         $teacher = $this->currentTeacher($request);
         $tenantId = $request->user()->tenant_id;
         $now = now();
@@ -97,6 +109,12 @@ class QuranReviewController extends BaseTeacherController
             ->whereBetween('ayah_number', [$data['from_ayah'], $data['to_ayah']])
             ->orderBy('ayah_number')
             ->get(['id', 'ayah_number', 'text_simple']);
+
+        if ($ayahs->isEmpty()) {
+            return back()
+                ->withErrors(['to_ayah' => 'لا توجد آيات في النطاق المحدد'])
+                ->withInput();
+        }
 
         $wordRows = [];
         $stats = [
@@ -189,14 +207,17 @@ class QuranReviewController extends BaseTeacherController
 
     public function show(Request $request, string $id): View
     {
+        $teacher = $this->currentTeacher($request);
+
         $session = QuranReviewSession::query()
             ->with([
                 'student:id,name',
                 'surah:id,name_arabic',
                 'teacher:id,name',
-                'words' => fn ($q) => $q->orderBy('ayah_id')->orderBy('word_position'),
+                'words' => fn ($q) => $q->orderByAyah(),
                 'words.ayah:id,ayah_number',
             ])
+            ->where('teacher_id', $teacher->id)
             ->findOrFail($id);
 
         return view('teacher.quran-review.show', [
@@ -206,16 +227,21 @@ class QuranReviewController extends BaseTeacherController
 
     public function studentReport(Request $request, string $studentId): View
     {
+        $teacher = $this->currentTeacher($request);
+
         $student = Student::findOrFail($studentId);
 
         $sessions = QuranReviewSession::query()
             ->with('surah:id,name_arabic')
             ->where('student_id', $studentId)
+            ->where('teacher_id', $teacher->id)
             ->orderByDesc('date')
             ->get();
 
         $allWords = QuranReviewWord::query()
-            ->whereHas('reviewSession', fn ($q) => $q->where('student_id', $studentId))
+            ->whereHas('reviewSession', fn ($q) => $q
+                ->where('student_id', $studentId)
+                ->where('teacher_id', $teacher->id))
             ->where('status', '!=', 'correct')
             ->where('status', '!=', 'unreviewed')
             ->with(['reviewSession:id,date,surah_id', 'reviewSession.surah:id,name_arabic', 'ayah:id,ayah_number,surah_id'])
@@ -251,6 +277,19 @@ class QuranReviewController extends BaseTeacherController
             'from_ayah' => ['required', 'integer', 'min:1'],
             'to_ayah' => ['required', 'integer', 'min:1'],
         ]);
+
+        $surah = QuranSurah::find($request->surah_id);
+
+        if (! $surah
+            || $request->from_ayah > $surah->num_ayahs
+            || $request->to_ayah > $surah->num_ayahs
+            || $request->to_ayah < $request->from_ayah
+        ) {
+            return response()->json([
+                'message' => 'نطاق الآيات غير صحيح',
+                'errors' => ['to_ayah' => ['نطاق الآيات يجب أن يكون ضمن حدود السورة وبترتيب صحيح']],
+            ], 422);
+        }
 
         $ayahs = QuranAyah::query()
             ->where('surah_id', $request->surah_id)

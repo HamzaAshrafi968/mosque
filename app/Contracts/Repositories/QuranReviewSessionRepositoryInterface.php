@@ -10,7 +10,7 @@ interface QuranReviewSessionRepositoryInterface extends BaseRepositoryInterface
 {
     public function paginateWithFilters(array $filters, int $perPage = 20): LengthAwarePaginator;
 
-    public function findWithRelations(string $id): ?QuranReviewSession;
+    public function findWithRelations(string $id, ?string $teacherId = null): ?QuranReviewSession;
 
     public function getStatistics(): array;
 

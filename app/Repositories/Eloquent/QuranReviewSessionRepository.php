@@ -28,14 +28,15 @@ class QuranReviewSessionRepository extends BaseRepository implements QuranReview
             ->paginate($perPage);
     }
 
-    public function findWithRelations(string $id): ?QuranReviewSession
+    public function findWithRelations(string $id, ?string $teacherId = null): ?QuranReviewSession
     {
         return $this->model
+            ->when($teacherId, fn ($q) => $q->where('teacher_id', $teacherId))
             ->with([
                 'student:id,name',
                 'teacher:id,name',
                 'surah:id,name_arabic',
-                'words' => fn ($q) => $q->orderBy('ayah_id')->orderBy('word_position'),
+                'words' => fn ($q) => $q->orderByAyah(),
                 'words.ayah:id,ayah_number',
             ])
             ->find($id);

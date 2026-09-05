@@ -11,7 +11,7 @@ class DashboardController extends Controller
 {
     public function index(Request $request, DashboardService $dashboard): View
     {
-        $tenantId = $request->user()->tenant_id;
+        $tenantId = config('app.current_tenant_id') ?? $request->user()->tenant_id;
 
         return view('admin.dashboard', [
             'stats' => $dashboard->stats($tenantId),

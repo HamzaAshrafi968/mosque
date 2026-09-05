@@ -6,6 +6,7 @@ use App\Models\RewardPoint;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class RewardPointController extends BaseTeacherController
@@ -44,7 +45,11 @@ class RewardPointController extends BaseTeacherController
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'student_id' => ['required', 'uuid', 'exists:students,id'],
+            'student_id' => [
+                'required',
+                'uuid',
+                Rule::exists('students', 'id')->where('tenant_id', $request->user()->tenant_id),
+            ],
             'points' => ['required', 'integer', 'min:1'],
             'reason' => ['nullable', 'string', 'max:255'],
             'type' => ['required', 'in:earned,deducted'],
@@ -61,9 +66,15 @@ class RewardPointController extends BaseTeacherController
             ->with('success', 'تم إضافة النقاط بنجاح');
     }
 
-    public function destroy(string $id): RedirectResponse
+    public function destroy(Request $request, string $id): RedirectResponse
     {
         $point = RewardPoint::findOrFail($id);
+
+        abort_unless(
+            $point->awarded_by === $request->user()->id && $point->quran_review_session_id === null,
+            403
+        );
+
         $point->delete();
 
         return back()->with('success', 'تم حذف سجل النقاط');

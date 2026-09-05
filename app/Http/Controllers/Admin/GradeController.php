@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
 use App\Models\Grade;
+use App\Services\DashboardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -43,6 +44,8 @@ class GradeController extends Controller
         Grade::where('exam_id', $exam->id)
             ->where('status', 'submitted')
             ->update(['status' => 'approved']);
+
+        DashboardService::flush($exam->tenant_id);
 
         return back()->with('success', 'تم اعتماد النتائج');
     }

@@ -22,9 +22,8 @@
         <button type="submit" class="w-full bg-gradient-to-r from-emerald-700 to-emerald-600 hover:from-emerald-800 hover:to-emerald-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-emerald-700/25 text-lg">
             🚪 دخول
         </button>
-        <p class="text-sm text-center text-gray-500">
-            ليس لديك حساب؟
-            <a href="{{ route('register') }}" class="text-emerald-600 font-bold hover:text-emerald-800 transition">سجل جامعك الآن</a>
+        <p class="text-sm text-center text-gray-400">
+            التسجيل متاح فقط من خلال مدير الجوامع الرئيسي
         </p>
     </form>
 @endsection
