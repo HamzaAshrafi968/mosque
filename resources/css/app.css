@@ -5,90 +5,363 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
+/* ============================================================
+   الهوية البصرية — زمردي × ذهبي
+   Design tokens: يشم Jade (emerald معدّل) + Pine داكن + Gold ملكي
+============================================================ */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Cairo', ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
     --font-quran: 'Amiri', 'Scheherazade New', 'Traditional Arabic', 'UthmanicHafs', serif;
+
+    --color-gold-50: #fcf9ec;
+    --color-gold-100: #f7efcd;
+    --color-gold-200: #f0e09a;
+    --color-gold-300: #e8cd66;
+    --color-gold-400: #ddb53e;
+    --color-gold-500: #c79a2c;
+    --color-gold-600: #a87d21;
+    --color-gold-700: #87631e;
+    --color-gold-800: #6e4e1d;
+    --color-gold-900: #5c411b;
+    --color-gold-950: #34230c;
+
+    --color-pine-100: #d9f0e5;
+    --color-pine-200: #b3e0cc;
+    --color-pine-300: #84c9ab;
+    --color-pine-400: #4fae88;
+    --color-pine-500: #2f946b;
+    --color-pine-600: #1d7a56;
+    --color-pine-700: #166344;
+    --color-pine-800: #124e38;
+    --color-pine-900: #0d3d2d;
+    --color-pine-950: #052019;
+
+    --color-emerald-50: #effaf5;
+    --color-emerald-100: #d8f2e6;
+    --color-emerald-200: #b2e4cd;
+    --color-emerald-300: #7fd0ae;
+    --color-emerald-400: #4cb68c;
+    --color-emerald-500: #2b9c71;
+    --color-emerald-600: #1d8158;
+    --color-emerald-700: #176949;
+    --color-emerald-800: #14533c;
+    --color-emerald-900: #104431;
+    --color-emerald-950: #06281d;
+
+    --color-green-50: #f0faf3;
+    --color-green-100: #dcf5e2;
+    --color-green-200: #bce9c8;
+    --color-green-300: #8cd7a2;
+    --color-green-400: #57bf77;
+    --color-green-500: #32a657;
+    --color-green-600: #218744;
+    --color-green-700: #1c6c39;
+    --color-green-800: #185630;
+    --color-green-900: #144628;
+    --color-green-950: #082818;
 }
 
+/* ---------- حركات عامة ---------- */
 @keyframes fadeInUp {
-    from { transform: translateY(12px); }
-    to   { transform: translateY(0); }
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 @keyframes scaleIn {
-    from { transform: scale(0.95); }
-    to   { transform: scale(1); }
+    from { opacity: 0; transform: scale(0.94); }
+    to   { opacity: 1; transform: scale(1); }
 }
 
-@keyframes slideInRight {
-    from { transform: translateX(-20px); }
-    to   { transform: translateX(0); }
+@keyframes slideInStart {
+    from { opacity: 0; transform: translateX(26px); }
+    to   { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-    50%      { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+@keyframes floaty {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    33%      { transform: translate3d(24px, -30px, 0) scale(1.06); }
+    66%      { transform: translate3d(-18px, 18px, 0) scale(0.97); }
 }
 
-.animate-fade-in-up  { animation: fadeInUp 0.4s ease-out; }
-.animate-scale-in   { animation: scaleIn 0.3s ease-out; }
-.animate-slide-right { animation: slideInRight 0.3s ease-out; }
-.animate-stagger > * { animation: fadeInUp 0.4s ease-out forwards; }
-.animate-stagger > *:nth-child(1)  { animation-delay: 0.05s; }
-.animate-stagger > *:nth-child(2)  { animation-delay: 0.10s; }
-.animate-stagger > *:nth-child(3)  { animation-delay: 0.15s; }
-.animate-stagger > *:nth-child(4)  { animation-delay: 0.20s; }
-.animate-stagger > *:nth-child(5)  { animation-delay: 0.25s; }
-.animate-stagger > *:nth-child(6)  { animation-delay: 0.30s; }
-.animate-stagger > *:nth-child(7)  { animation-delay: 0.35s; }
-.animate-stagger > *:nth-child(8)  { animation-delay: 0.40s; }
-
-.quran-font {
-    font-family: 'Amiri', 'Scheherazade New', 'Traditional Arabic', 'UthmanicHafs', serif;
+@keyframes blobDrift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-40px, 46px) scale(1.18); }
 }
 
-.glass {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+@keyframes shineSweep {
+    0%   { transform: translateX(150%) skewX(-20deg); }
+    60%, 100% { transform: translateX(-260%) skewX(-20deg); }
 }
 
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(-16px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toastBar {
+    from { width: 100%; }
+    to   { width: 0%; }
+}
+
+@keyframes pulseGold {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.45; transform: scale(0.8); }
+}
+
+@keyframes glowRing {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(221, 181, 62, 0.35); }
+    50%      { box-shadow: 0 0 0 9px rgba(221, 181, 62, 0); }
+}
+
+@keyframes aurora {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+}
+
+@keyframes fadeUpSoft {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- أدوات الحركة ---------- */
+.animate-fade-in-up  { animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade-in     { animation: fadeIn 0.6s ease both; }
+.animate-scale-in    { animation: scaleIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-slide-right { animation: slideInStart 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-floaty      { animation: floaty 14s ease-in-out infinite; }
+.animate-blob        { animation: blobDrift 18s ease-in-out infinite; }
+.animate-glow-ring   { animation: glowRing 2.4s ease-in-out infinite; }
+.animate-toast-in    { animation: toastIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-stagger > * { animation: fadeUpSoft 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-stagger > *:nth-child(1)  { animation-delay: 0.06s; }
+.animate-stagger > *:nth-child(2)  { animation-delay: 0.12s; }
+.animate-stagger > *:nth-child(3)  { animation-delay: 0.18s; }
+.animate-stagger > *:nth-child(4)  { animation-delay: 0.24s; }
+.animate-stagger > *:nth-child(5)  { animation-delay: 0.30s; }
+.animate-stagger > *:nth-child(6)  { animation-delay: 0.36s; }
+.animate-stagger > *:nth-child(7)  { animation-delay: 0.42s; }
+.animate-stagger > *:nth-child(8)  { animation-delay: 0.48s; }
+
+.animate-page > * { animation: fadeUpSoft 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-page > *:nth-child(1) { animation-delay: 0.04s; }
+.animate-page > *:nth-child(2) { animation-delay: 0.10s; }
+.animate-page > *:nth-child(3) { animation-delay: 0.16s; }
+.animate-page > *:nth-child(4) { animation-delay: 0.22s; }
+.animate-page > *:nth-child(5) { animation-delay: 0.28s; }
+.animate-page > *:nth-child(6) { animation-delay: 0.34s; }
+
+/* ظهور أثناء التمرير */
+.reveal {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+}
+.reveal.is-visible { opacity: 1; transform: none; }
+.rd-1 { transition-delay: 0.08s; }
+.rd-2 { transition-delay: 0.16s; }
+.rd-3 { transition-delay: 0.24s; }
+.rd-4 { transition-delay: 0.32s; }
+.rd-5 { transition-delay: 0.40s; }
+.rd-6 { transition-delay: 0.48s; }
+
+/* ============================================================
+   الأسطح (Sidebar / Hero / Backgrounds)
+============================================================ */
 .gradient-sidebar {
-    background: linear-gradient(180deg, #064e3b 0%, #065f46 30%, #047857 60%, #059669 100%);
+    background:
+        radial-gradient(1000px 480px at 85% -12%, rgba(221, 181, 62, 0.16), transparent 60%),
+        radial-gradient(720px 420px at -10% 110%, rgba(47, 148, 107, 0.22), transparent 60%),
+        linear-gradient(200deg, #052019 0%, #0b3a2b 34%, #105e41 74%, #166344 100%);
 }
 
+.sidebar-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23e8cd66' stroke-width='0.6' opacity='0.10'%3E%3Cpath d='M60 8 71 31 94 40 71 49 60 72 49 49 26 40 49 31Z'/%3E%3Ccircle cx='60' cy='40' r='7'/%3E%3Ccircle cx='26' cy='96' r='5'/%3E%3Ccircle cx='94' cy='96' r='5'/%3E%3Ccircle cx='60' cy='96' r='5'/%3E%3Cpath d='M0 96h16M104 96h16'/%3E%3Cpath d='M60 60v36'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.topbar-sheen {
+    background: linear-gradient(90deg, transparent, rgba(240, 224, 154, 0.55), transparent);
+    animation: aurora 7s ease-in-out infinite;
+    background-size: 200% 100%;
+}
+
+/* توهج ذهبي أفقي للفواصل */
+.gold-hairline {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(221, 181, 62, 0.65), transparent);
+}
+
+/* ============================================================
+   الأزرار واللمسات
+============================================================ */
+.btn-shine {
+    position: relative;
+    overflow: hidden;
+}
+.btn-shine::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 40%;
+    background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    transform: translateX(160%) skewX(-20deg);
+    pointer-events: none;
+}
+.btn-shine:hover::after {
+    animation: shineSweep 0.9s ease forwards;
+}
+
+.gold-text {
+    background: linear-gradient(120deg, #f0e09a 0%, #ddb53e 45%, #c79a2c 70%, #f0e09a 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: aurora 6s ease-in-out infinite;
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+/* ============================================================
+   بطاقات وسطور عامة
+============================================================ */
 .card-hover {
-    transition: all 0.3s ease;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease;
 }
 .card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(16, 185, 129, 0.2);
+    transform: translateY(-4px);
+    box-shadow: 0 22px 44px -18px rgba(11, 58, 43, 0.28), 0 0 0 1px rgba(199, 154, 44, 0.18);
 }
+
+.card-hover-ring {
+    position: relative;
+}
+.card-hover-ring::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(140deg, rgba(221, 181, 62, 0.28), transparent 45%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+.card-hover-ring:hover::before { opacity: 1; }
 
 .ornament-top::before {
     content: '';
     display: block;
-    width: 60px;
-    height: 4px;
-    background: linear-gradient(90deg, #10b981, #34d399, #10b981);
-    border-radius: 2px;
-    margin: 0 auto 12px auto;
+    width: 64px;
+    height: 3px;
+    border-radius: 4px;
+    margin: 0 auto 14px auto;
+    background: linear-gradient(90deg, transparent, #ddb53e 30%, #e8cd66 50%, #ddb53e 70%, transparent);
+}
+.ornament-top::after {
+    content: '✦';
+    display: block;
+    text-align: center;
+    margin-top: -13px;
+    font-size: 12px;
+    line-height: 1;
+    color: #c79a2c;
+}
+
+/* ============================================================
+   بطاقة القرآن والفواصل
+============================================================ */
+.quran-font {
+    font-family: var(--font-quran);
 }
 
 .ayah-separator {
     display: inline-block;
     width: 24px;
     height: 24px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 2l2 10-2 10-2-10z'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232b9c71'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 2l2 10-2 10-2-10z'/%3E%3C/svg%3E");
     background-size: contain;
+    background-repeat: no-repeat;
 }
+
+/* ============================================================
+   التوست (رسائل الفلاش)
+============================================================ */
+.flash-toast {
+    animation: toastIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.flash-toast-bar {
+    position: absolute;
+    bottom: 0;
+    inset-inline-start: 0;
+    height: 3px;
+    border-radius: 0 4px 4px 0;
+    animation: toastBar linear both;
+}
+
+/* ============================================================
+   عناصر النظام العامة
+============================================================ */
+body {
+    font-feature-settings: 'kern';
+    text-rendering: optimizeLegibility;
+}
+
+::selection {
+    background: rgba(221, 181, 62, 0.35);
+    color: #0d3d2d;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #2b9c71, #166344);
+    border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #c79a2c, #a87d21); }
 
 .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #10b981; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #059669; }
+*:focus-visible {
+    outline: 2px solid rgba(221, 181, 62, 0.7);
+    outline-offset: 2px;
+}
+
+/* حركة النبض لشريط الإشعارات */
+.pulse-dot {
+    animation: pulseGold 1.6s ease-in-out infinite;
+}
+
+/* جدول أنيق افتراضي لبطاقات الجداول داخل لوحات التحكم */
+.mini-table thead tr {
+    background: linear-gradient(180deg, #f3f6f4, #eef3f0);
+}
+
+.mini-table tbody tr {
+    transition: background 0.25s ease;
+}
+.mini-table tbody tr:hover {
+    background: rgba(221, 181, 62, 0.05);
+}
+
+/* تفضيل تقليل الحركة */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001s !important;
+    }
+    .reveal { opacity: 1; transform: none; }
+}
