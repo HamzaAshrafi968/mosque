@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\RoleService;
+use App\Services\StudySessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,11 +30,11 @@ class MosqueController extends Controller
         return view('super-admin.mosques.form', ['mosque' => null]);
     }
 
-    public function store(Request $request, RoleService $roles): RedirectResponse
+    public function store(Request $request, RoleService $roles, StudySessionService $sessions): RedirectResponse
     {
         $data = $this->validated($request);
 
-        DB::transaction(function () use ($data, $roles) {
+        DB::transaction(function () use ($data, $roles, $sessions) {
             $mosque = Tenant::create([
                 'name' => $data['name'],
                 'code' => $data['code'] ?? null,
@@ -45,6 +46,7 @@ class MosqueController extends Controller
             ]);
 
             $roles->provisionTenantRoles($mosque);
+            $sessions->provisionTenantSessions($mosque);
 
             if (! empty($data['manager_name']) && ! empty($data['manager_email'])) {
                 $manager = User::create([
@@ -87,6 +89,7 @@ class MosqueController extends Controller
     public function enter(Tenant $mosque): RedirectResponse
     {
         session(['super_admin_mosque_id' => $mosque->id]);
+        session()->forget('study_session_id');
 
         return redirect()->route('admin.dashboard')->with('success', "تم الدخول إلى {$mosque->name}");
     }
@@ -95,6 +98,7 @@ class MosqueController extends Controller
     public function exit(): RedirectResponse
     {
         session()->forget('super_admin_mosque_id');
+        session()->forget('study_session_id');
 
         return redirect()->route('super-admin.dashboard')->with('success', 'تم العودة إلى إدارة الجوامع');
     }
@@ -103,6 +107,8 @@ class MosqueController extends Controller
     public function switchMosque(Request $request): RedirectResponse
     {
         $mosqueId = $request->input('mosque_id');
+
+        session()->forget('study_session_id');
 
         if ($mosqueId) {
             $mosque = Tenant::findOrFail($mosqueId);

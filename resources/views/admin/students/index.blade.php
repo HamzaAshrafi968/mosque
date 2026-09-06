@@ -54,6 +54,7 @@
                     <th class="px-4 py-3 text-right whitespace-nowrap">الجنس</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الصف</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الشعبة</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الدوام</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">ولي الأمر</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الهاتف</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الحالة</th>
@@ -71,6 +72,13 @@
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->gender === 'male' ? 'ذكر' : 'أنثى' }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->classroom?->name }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->section?->name }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            @if($student->studySession)
+                                <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800">{{ $student->studySession->name }}</span>
+                            @else
+                                <span class="text-xs text-gray-400">—</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->guardian_name }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->guardian_phone }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
@@ -100,7 +108,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-6 text-center text-gray-500">لا يوجد طلاب</td>
+                        <td colspan="9" class="px-4 py-6 text-center text-gray-500">لا يوجد طلاب</td>
                     </tr>
                 @endforelse
             </tbody>

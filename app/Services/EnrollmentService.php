@@ -199,11 +199,24 @@ class EnrollmentService
     /** Keep the denormalised current snapshot on `students` in sync. */
     public function syncStudentSnapshot(Student $student, Section $section): void
     {
-        if ($student->section_id !== $section->id || $student->classroom_id !== $section->classroom_id) {
-            $student->update([
-                'section_id' => $section->id,
-                'classroom_id' => $section->classroom_id,
-            ]);
+        $changes = [];
+
+        if ($student->section_id !== $section->id) {
+            $changes['section_id'] = $section->id;
+        }
+
+        if ($student->classroom_id !== $section->classroom_id) {
+            $changes['classroom_id'] = $section->classroom_id;
+        }
+
+        // A section bound to a دوام pulls the student into that same دوام so
+        // the section roster and the student list always agree.
+        if ($section->study_session_id !== null && $student->study_session_id !== $section->study_session_id) {
+            $changes['study_session_id'] = $section->study_session_id;
+        }
+
+        if ($changes !== []) {
+            $student->update($changes);
         }
     }
 

@@ -2,21 +2,28 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ProgramType;
 use App\Models\Classroom;
 use App\Models\Guardian;
 use App\Models\ParentStudent;
 use App\Models\Permission;
+use App\Models\QualifyingWeeklyEvaluation;
+use App\Models\QuranRecitationSession;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\SectionTeacher;
 use App\Models\Student;
+use App\Models\StudySession;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\QuranProgramService;
 use App\Services\RoleService;
+use App\Services\StudySessionService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Arr;
 
 class DatabaseSeeder extends Seeder
 {
@@ -48,6 +55,10 @@ class DatabaseSeeder extends Seeder
 
         config(['app.current_tenant_id' => $mosque1->id]);
         $roles->provisionTenantRoles($mosque1);
+        $sessions = app(StudySessionService::class);
+        $sessions->provisionTenantSessions($mosque1);
+
+        [$firstSession, $secondSession] = StudySession::where('tenant_id', $mosque1->id)->orderBy('name')->get();
 
         $manager = User::factory()->admin()->create([
             'tenant_id' => $mosque1->id,
@@ -68,19 +79,24 @@ class DatabaseSeeder extends Seeder
             'user_id' => $teacherUser->id,
             'name' => $teacherUser->name,
             'gender' => 'male',
+            'study_session_id' => $firstSession->id,
         ]);
 
-        Teacher::factory(4)->create(['tenant_id' => $mosque1->id]);
+        Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $firstSession->id]);
+        Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $secondSession->id]);
 
         $classrooms = collect(['الصف الأول', 'الصف الثاني', 'الصف الثالث'])
             ->map(fn ($name) => Classroom::create(['tenant_id' => $mosque1->id, 'name' => $name]));
 
-        $classrooms->each(function (Classroom $classroom) use ($mosque1) {
+        $sessionFor = fn (string $sectionName) => $sectionName === 'أ' ? $firstSession->id : $secondSession->id;
+
+        $classrooms->each(function (Classroom $classroom) use ($mosque1, $sessionFor) {
             foreach (['أ', 'ب'] as $sectionName) {
                 Section::create([
                     'tenant_id' => $mosque1->id,
                     'classroom_id' => $classroom->id,
                     'name' => $sectionName,
+                    'study_session_id' => $sessionFor($sectionName),
                 ]);
             }
         });
@@ -91,6 +107,7 @@ class DatabaseSeeder extends Seeder
             $section = $sections->random();
             $student->classroom_id = $section->classroom_id;
             $student->section_id = $section->id;
+            $student->study_session_id = $section->study_session_id;
             $student->save();
         });
 
@@ -107,8 +124,8 @@ class DatabaseSeeder extends Seeder
             ]);
         });
 
-        // Assign the demo teacher to sections so section-scoped access works.
-        $sections->take(4)->each(function (Section $section) use ($teacher) {
+        // Assign the demo teacher to the first-session sections so section-scoped access works.
+        $sections->where('study_session_id', $firstSession->id)->each(function (Section $section) use ($teacher) {
             SectionTeacher::create([
                 'tenant_id' => $teacher->tenant_id,
                 'section_id' => $section->id,
@@ -117,6 +134,47 @@ class DatabaseSeeder extends Seeder
                 'status' => 'active',
                 'starts_at' => now()->toDateString(),
             ]);
+        });
+
+        // ---- Quran programs demo data (spec: mosque_management_quran_programs.md) ----
+        $quranStudents = Student::where('tenant_id', $mosque1->id)->orderBy('name')->take(10)->get();
+
+        $quranStudents->take(6)->each(function (Student $student) use ($teacher, $today) {
+            QuranRecitationSession::create([
+                'tenant_id' => $student->tenant_id,
+                'student_id' => $student->id,
+                'teacher_id' => $teacher->id,
+                'type' => fake()->boolean(70) ? 'new' : 'revision',
+                'date' => $today,
+                'amount' => fake()->randomElement([1, 2, 3, 5, 10]),
+                'recited_portion' => 'جزء '.Arr::random(['عم', 'تبارك', 'قد سمع', 'يس']),
+                'result' => fake()->randomElement(['excellent', 'very_good', 'good', 'needs_review']),
+            ]);
+        });
+
+        // Two hafiz with the full automatic journey (2 already moved to ijazah).
+        $quranPrograms = app(QuranProgramService::class);
+
+        $quranStudents->splice(6)->take(2)->values()->each(function (Student $student, $index) use ($quranPrograms, $manager) {
+            $completion = $quranPrograms->recordCompletion($student, now()->subMonths($index)->toDateString(), null, $manager);
+            $quranPrograms->confirmCompletion($completion, $manager);
+
+            foreach (range(1, 4) as $week) {
+                QualifyingWeeklyEvaluation::create([
+                    'tenant_id' => $student->tenant_id,
+                    'student_id' => $student->id,
+                    'week_start' => now()->subWeeks(4 - $week)->startOfWeek()->toDateString(),
+                    'week_end' => now()->subWeeks(4 - $week)->endOfWeek()->toDateString(),
+                    'amount' => 5,
+                    'recited_portion' => 'الأجزاء ١-٥',
+                    'result' => 'passed',
+                ]);
+            }
+
+            if ($index === 0) {
+                $enrollment = $quranPrograms->activeEnrollment($student, ProgramType::Qualifying);
+                $quranPrograms->completeQualifying($enrollment, $manager);
+            }
         });
 
         Subject::create([
@@ -206,6 +264,9 @@ class DatabaseSeeder extends Seeder
 
         config(['app.current_tenant_id' => $mosque2->id]);
         $roles->provisionTenantRoles($mosque2);
+        $sessions->provisionTenantSessions($mosque2);
+
+        [$firstSession2, $secondSession2] = StudySession::where('tenant_id', $mosque2->id)->orderBy('name')->get();
 
         User::factory()->admin()->create([
             'tenant_id' => $mosque2->id,
@@ -226,20 +287,24 @@ class DatabaseSeeder extends Seeder
             'user_id' => $mosque2TeacherUser->id,
             'name' => $mosque2TeacherUser->name,
             'gender' => 'male',
+            'study_session_id' => $firstSession2->id,
         ]);
 
         $classrooms2 = collect(['الصف الأول', 'الصف الثاني'])
             ->map(fn ($name) => Classroom::create(['tenant_id' => $mosque2->id, 'name' => $name]));
 
+        $sessionFor2 = fn (string $sectionName) => $sectionName === 'أ' ? $firstSession2->id : $secondSession2->id;
+
         $sections2 = $classrooms2->flatMap(fn (Classroom $classroom) => collect([
-            Section::create(['tenant_id' => $mosque2->id, 'classroom_id' => $classroom->id, 'name' => 'أ']),
-            Section::create(['tenant_id' => $mosque2->id, 'classroom_id' => $classroom->id, 'name' => 'ب']),
+            Section::create(['tenant_id' => $mosque2->id, 'classroom_id' => $classroom->id, 'name' => 'أ', 'study_session_id' => $sessionFor2('أ')]),
+            Section::create(['tenant_id' => $mosque2->id, 'classroom_id' => $classroom->id, 'name' => 'ب', 'study_session_id' => $sessionFor2('ب')]),
         ]));
 
         Student::factory(25)->make(['tenant_id' => $mosque2->id])->each(function (Student $student) use ($sections2) {
             $section = $sections2->random();
             $student->classroom_id = $section->classroom_id;
             $student->section_id = $section->id;
+            $student->study_session_id = $section->study_session_id;
             $student->save();
         });
 
@@ -255,7 +320,7 @@ class DatabaseSeeder extends Seeder
             ]);
         });
 
-        $sections2->take(3)->each(function (Section $section) use ($mosque2Teacher) {
+        $sections2->where('study_session_id', $firstSession2->id)->each(function (Section $section) use ($mosque2Teacher) {
             SectionTeacher::create([
                 'tenant_id' => $mosque2Teacher->tenant_id,
                 'section_id' => $section->id,

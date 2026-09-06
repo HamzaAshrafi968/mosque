@@ -71,13 +71,15 @@ class DashboardService
 
             $homeworkTotal = (int) ($homeworkStats->total ?? 0);
 
+            // Counters stay whole-mosque even when the manager filters the
+            // panel by a دوام (the cache is shared across sessions).
             return [
-                'students_count' => Student::active()->count(),
-                'male_students_count' => Student::active()->where('gender', 'male')->count(),
-                'female_students_count' => Student::active()->where('gender', 'female')->count(),
-                'teachers_count' => Teacher::where('is_active', true)->count(),
+                'students_count' => Student::withoutGlobalScope('study_session')->active()->count(),
+                'male_students_count' => Student::withoutGlobalScope('study_session')->active()->where('gender', 'male')->count(),
+                'female_students_count' => Student::withoutGlobalScope('study_session')->active()->where('gender', 'female')->count(),
+                'teachers_count' => Teacher::withoutGlobalScope('study_session')->where('is_active', true)->count(),
                 'classrooms_count' => Classroom::count(),
-                'sections_count' => Section::count(),
+                'sections_count' => Section::withoutGlobalScope('study_session')->count(),
                 'attendance_present_today' => (int) ($attendanceToday->present ?? 0),
                 'attendance_absent_today' => (int) ($attendanceToday->absent ?? 0),
                 'attendance_late_today' => (int) ($attendanceToday->late ?? 0),

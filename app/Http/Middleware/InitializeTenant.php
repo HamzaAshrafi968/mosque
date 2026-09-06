@@ -4,12 +4,15 @@ namespace App\Http\Middleware;
 
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\StudySessionService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class InitializeTenant
 {
+    public function __construct(private readonly StudySessionService $sessions) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
@@ -30,6 +33,17 @@ class InitializeTenant
         }
 
         config(['app.current_tenant_id' => $tenantId]);
+
+        // الدوام النشط (first/second shift): only mosque managers (and the
+        // مدير الجوامع while inside a mosque) can pick one; portal users
+        // always see everything regardless of a leftover browser choice.
+        $managesMosque = $user->isAdmin() || $user->isSuperAdmin();
+
+        config([
+            'app.current_study_session_id' => $managesMosque && $tenantId !== null
+                ? $this->sessions->currentSessionId($tenantId)
+                : null,
+        ]);
 
         return $next($request);
     }

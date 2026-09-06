@@ -7,12 +7,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Classroom;
 use App\Models\Section;
 use App\Models\Student;
+use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Services\AttendanceMetricService;
 use App\Services\AuditLogger;
 use App\Services\EnrollmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -54,6 +56,7 @@ class ClassroomController extends Controller
     public function show(Classroom $classroom): View
     {
         $sections = $classroom->sections()
+            ->with(['studySession:id,name'])
             ->withCount([
                 'students' => fn ($s) => $s->active(),
                 'teacherAssignments' => fn ($a) => $a->where('status', 'active'),
@@ -67,6 +70,7 @@ class ClassroomController extends Controller
             'sections' => $sections,
             'studentsCount' => $sections->sum('students_count'),
             'assignmentsCount' => $sections->sum('teacher_assignments_count'),
+            'sessions' => StudySession::orderBy('name')->get(),
         ]);
     }
 
@@ -98,10 +102,7 @@ class ClassroomController extends Controller
 
     public function storeSection(Request $request, Classroom $classroom): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $data = $request->validate($this->sectionRules());
 
         $section = $classroom->sections()->create([...$data, 'tenant_id' => $classroom->tenant_id]);
         $this->audit->logModel('section.created', $section, actor: $request->user());
@@ -112,10 +113,7 @@ class ClassroomController extends Controller
     public function updateSection(Request $request, Section $section): RedirectResponse
     {
         $before = $section->getAttributes();
-        $section->update($request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:1000'],
-        ]));
+        $section->update($request->validate($this->sectionRules()));
 
         $this->audit->logModel('section.updated', $section, $before, actor: $request->user());
 
@@ -125,7 +123,7 @@ class ClassroomController extends Controller
     /** Section dashboard: roster with percentages, teachers, actions (spec §8.2/§9). */
     public function showSection(Section $section): View
     {
-        $section->load(['classroom:id,name', 'teacherAssignments.teacher:id,name,phone', 'classroom.sections:id,classroom_id,name']);
+        $section->load(['classroom:id,name', 'studySession:id,name', 'teacherAssignments.teacher:id,name,phone', 'classroom.sections:id,classroom_id,name']);
 
         $roster = $this->attendanceMetrics->rosterStats($section);
 
@@ -160,6 +158,7 @@ class ClassroomController extends Controller
             'availableStudents' => $availableStudents,
             'availableTeachers' => $availableTeachers,
             'sections' => $sections,
+            'sessions' => StudySession::orderBy('name')->get(),
             'enrollments' => $section->sectionStudents()
                 ->with(['student:id,name', 'section:id,name'])
                 ->orderByDesc('updated_at')
@@ -248,5 +247,14 @@ class ClassroomController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
         ]);
+    }
+
+    private function sectionRules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'study_session_id' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', config('app.current_tenant_id'))],
+        ];
     }
 }

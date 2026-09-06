@@ -27,11 +27,16 @@ class RoleService
 
     /**
      * Idempotent: make sure every catalog permission exists in the DB.
+     *
+     * The existence probe compares counts so new catalog entries are still
+     * inserted into already-seeded databases (the per-row updateOrCreate
+     * below is incremental and safe to run whenever the counts mismatch).
      */
     public function ensurePermissionCatalog(): void
     {
-        // Cheap existence probe keeps test seeding fast and correct.
-        if (Permission::query()->where('code', PermissionCatalog::codes()[0] ?? '')->exists()) {
+        $catalogCodes = PermissionCatalog::codes();
+
+        if (Permission::count() === count($catalogCodes)) {
             return;
         }
 

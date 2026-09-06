@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\SectionStudentStatus;
 use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
+use App\Traits\StudySessionScopedTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,15 +13,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Student extends Model
 {
-    use FlushesTenantCache, HasFactory, MultiTenantTrait, UuidTrait;
+    use FlushesTenantCache, HasFactory, MultiTenantTrait, StudySessionScopedTrait, UuidTrait;
 
     public const CUSTOM_FIELD_ENTITY = 'student';
 
     protected $fillable = [
         'tenant_id',
+        'study_session_id',
         'classroom_id',
         'section_id',
         'user_id',
@@ -120,6 +123,59 @@ class Student extends Model
     public function quranReviewSessions(): HasMany
     {
         return $this->hasMany(QuranReviewSession::class);
+    }
+
+    /** التسميع — historical recitation records (new & revision). */
+    public function quranRecitationSessions(): HasMany
+    {
+        return $this->hasMany(QuranRecitationSession::class);
+    }
+
+    /** إتمام حفظ القرآن records (recorded + confirmed). */
+    public function quranCompletions(): HasMany
+    {
+        return $this->hasMany(QuranCompletion::class);
+    }
+
+    /** Hafiz extension profile (exists once the completion is confirmed). */
+    public function hafizProfile(): HasOne
+    {
+        return $this->hasOne(HafizProfile::class);
+    }
+
+    /** Qualifying / Ijazah program enrollments (history preserved). */
+    public function programEnrollments(): HasMany
+    {
+        return $this->hasMany(ProgramEnrollment::class);
+    }
+
+    public function qualifyingWeeklyEvaluations(): HasMany
+    {
+        return $this->hasMany(QualifyingWeeklyEvaluation::class);
+    }
+
+    public function ijazahMonthlyEvaluations(): HasMany
+    {
+        return $this->hasMany(IjazahMonthlyEvaluation::class);
+    }
+
+    /** Monthly hafiz exams (one historical row per month). */
+    public function hafizMonthlyExams(): HasMany
+    {
+        return $this->hasMany(HafizMonthlyExam::class);
+    }
+
+    /** Faith-meeting attendance rows. */
+    public function faithMeetingAttendances(): HasMany
+    {
+        return $this->hasMany(FaithMeetingStudent::class);
+    }
+
+    public function faithMeetings(): BelongsToMany
+    {
+        return $this->belongsToMany(FaithMeeting::class, 'faith_meeting_students', 'student_id', 'meeting_id')
+            ->withPivot(['attendance_status', 'note'])
+            ->withTimestamps();
     }
 
     public function totalPoints(): int

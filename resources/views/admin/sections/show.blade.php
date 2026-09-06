@@ -14,6 +14,11 @@
         <div>
             <h1 class="text-xl font-bold">{{ $section->classroom?->name }} / {{ $section->name }}</h1>
             <p class="text-sm text-teal-100 mt-1">{{ $section->description ?: '—' }}</p>
+            <span @class([
+                'inline-flex mt-1 px-2 py-0.5 rounded-full text-[11px] font-bold',
+                'bg-white/20 text-white' => $section->studySession,
+                'bg-black/20 text-teal-100' => ! $section->studySession,
+            ])>{{ $section->studySession?->name ?: 'غير مرتبط بدوام' }}</span>
         </div>
         <div class="flex items-center gap-3 text-sm">
             <a href="{{ route('admin.attendance.create', ['section_id' => $section->id]) }}" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تسجيل حضور</a>
@@ -25,9 +30,15 @@
     <form method="POST" action="{{ route('admin.sections.update', $section) }}" id="section-edit-form" class="hidden p-4 border-t space-y-3">
         @csrf
         @method('PATCH')
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
             <input type="text" name="name" value="{{ $section->name }}" required
                    class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">بدون دوام</option>
+                @foreach($sessions as $session)
+                    <option value="{{ $session->id }}" @selected((string) $section->study_session_id === (string) $session->id)>{{ $session->name }}</option>
+                @endforeach
+            </select>
             <input type="text" name="description" value="{{ $section->description }}" placeholder="وصف اختياري"
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 md:col-span-2">
         </div>

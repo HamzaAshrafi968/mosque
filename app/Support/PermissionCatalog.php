@@ -19,6 +19,11 @@ final class PermissionCatalog
         ['mosques', 'create', 'إنشاء جامع'],
         ['mosques', 'update', 'تعديل جامع'],
         ['mosques', 'delete', 'حذف جامع'],
+        // Study sessions (الدوامين / الفترات)
+        ['sessions', 'view', 'مشاهدة الدوامات'],
+        ['sessions', 'create', 'إضافة دوام'],
+        ['sessions', 'update', 'تعديل دوام'],
+        ['sessions', 'delete', 'حذف دوام'],
         // Students
         ['students', 'view', 'مشاهدة الطلاب'],
         ['students', 'create', 'إضافة طالب'],
@@ -111,12 +116,37 @@ final class PermissionCatalog
         ['finance', 'report', 'تقارير مالية'],
         // Audit
         ['audit_logs', 'view', 'مشاهدة سجل العمليات'],
+        // Quran programs (spec: mosque_management_quran_programs.md §15)
+        ['quran', 'tasmee.view', 'مشاهدة التسميع'],
+        ['quran', 'tasmee.create', 'تسجيل تسميع جديد'],
+        ['quran', 'tasmee.update', 'تعديل تسميع'],
+        ['quran', 'completion.view', 'مشاهدة إتمام الحفظ'],
+        ['quran', 'completion.confirm', 'تأكيد إتمام الحفظ'],
+        ['qualifying', 'view', 'مشاهدة البرنامج التأهيلي'],
+        ['qualifying', 'create', 'تسجيل تقييم أسبوعي'],
+        ['qualifying', 'update', 'تعديل تقييم أسبوعي'],
+        ['qualifying', 'complete', 'إنهاء البرنامج التأهيلي'],
+        ['ijazah', 'view', 'مشاهدة برنامج الإجازة'],
+        ['ijazah', 'create', 'تسجيل تقييم شهري'],
+        ['ijazah', 'update', 'تعديل تقييم شهري'],
+        ['ijazah', 'complete', 'إنهاء برنامج الإجازة'],
+        ['hafiz_exams', 'view', 'مشاهدة اختبارات الحفاظ الشهرية'],
+        ['hafiz_exams', 'create', 'تسجيل اختبار حافظ'],
+        ['hafiz_exams', 'update', 'تعديل اختبار حافظ'],
+        ['hafiz_exams', 'grade', 'تصحيح اختبارات الحفاظ'],
+        ['hafiz_profile', 'view', 'مشاهدة ملفات الحفاظ'],
+        ['hafiz_profile', 'update', 'تعديل ملف حافظ'],
+        ['faith_meetings', 'view', 'مشاهدة اللقاءات الإيمانية'],
+        ['faith_meetings', 'create', 'إنشاء لقاء إيماني'],
+        ['faith_meetings', 'update', 'تعديل لقاء إيماني'],
+        ['faith_meetings', 'attendance', 'تسجيل حضور اللقاءات'],
     ];
 
     /** Default grants for the per-mosque manager role: code => scope. */
     public const MOSQUE_MANAGER = [
         'students.view' => 'mosque', 'students.create' => 'mosque', 'students.update' => 'mosque', 'students.delete' => 'mosque', 'students.archive' => 'mosque', 'students.transfer' => 'mosque',
         'teachers.view' => 'mosque', 'teachers.create' => 'mosque', 'teachers.update' => 'mosque', 'teachers.delete' => 'mosque',
+        'sessions.view' => 'mosque', 'sessions.create' => 'mosque', 'sessions.update' => 'mosque', 'sessions.delete' => 'mosque',
         'classes.view' => 'mosque', 'classes.create' => 'mosque', 'classes.update' => 'mosque', 'classes.delete' => 'mosque',
         'sections.view' => 'mosque', 'sections.create' => 'mosque', 'sections.update' => 'mosque', 'sections.delete' => 'mosque',
         'subjects.view' => 'mosque', 'subjects.create' => 'mosque', 'subjects.update' => 'mosque', 'subjects.delete' => 'mosque',
@@ -134,6 +164,13 @@ final class PermissionCatalog
         'custom_fields.view' => 'mosque', 'custom_fields.create' => 'mosque', 'custom_fields.update' => 'mosque', 'custom_fields.delete' => 'mosque',
         'finance.view' => 'mosque', 'finance.create' => 'mosque', 'finance.update' => 'mosque', 'finance.adjust' => 'mosque', 'finance.transfer' => 'mosque', 'finance.report' => 'mosque',
         'audit_logs.view' => 'mosque',
+        'quran.tasmee.view' => 'mosque', 'quran.tasmee.create' => 'mosque', 'quran.tasmee.update' => 'mosque',
+        'quran.completion.view' => 'mosque', 'quran.completion.confirm' => 'mosque',
+        'qualifying.view' => 'mosque', 'qualifying.create' => 'mosque', 'qualifying.update' => 'mosque', 'qualifying.complete' => 'mosque',
+        'ijazah.view' => 'mosque', 'ijazah.create' => 'mosque', 'ijazah.update' => 'mosque', 'ijazah.complete' => 'mosque',
+        'hafiz_exams.view' => 'mosque', 'hafiz_exams.create' => 'mosque', 'hafiz_exams.update' => 'mosque', 'hafiz_exams.grade' => 'mosque',
+        'hafiz_profile.view' => 'mosque', 'hafiz_profile.update' => 'mosque',
+        'faith_meetings.view' => 'mosque', 'faith_meetings.create' => 'mosque', 'faith_meetings.update' => 'mosque', 'faith_meetings.attendance' => 'mosque',
     ];
 
     /** Default grants for the teacher role: code => scope. */
@@ -152,6 +189,13 @@ final class PermissionCatalog
         'announcements.view' => 'mosque',
         'messages.view' => 'own', 'messages.create' => 'own',
         'users.view' => 'own',
+        'quran.tasmee.view' => 'own', 'quran.tasmee.create' => 'own', 'quran.tasmee.update' => 'own',
+        'quran.completion.view' => 'own',
+        'qualifying.view' => 'own', 'qualifying.create' => 'own', 'qualifying.update' => 'own',
+        'ijazah.view' => 'own', 'ijazah.create' => 'own', 'ijazah.update' => 'own',
+        'hafiz_exams.view' => 'own', 'hafiz_exams.create' => 'own', 'hafiz_exams.update' => 'own', 'hafiz_exams.grade' => 'own',
+        'hafiz_profile.view' => 'own',
+        'faith_meetings.view' => 'own', 'faith_meetings.create' => 'own', 'faith_meetings.update' => 'own', 'faith_meetings.attendance' => 'own',
     ];
 
     /** Default grants for the guardian portal role: code => scope (read-only). */

@@ -12,6 +12,7 @@ abstract class TestCase extends BaseTestCase
     protected function tearDown(): void
     {
         config(['app.current_tenant_id' => null]);
+        config(['app.current_study_session_id' => null]);
 
         parent::tearDown();
     }

@@ -20,6 +20,16 @@
             </select>
         </div>
         <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">الدوام</label>
+            <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">غير محدد (كل الدوامات)</option>
+                @foreach($sessions as $session)
+                    <option value="{{ $session->id }}" @selected(old('study_session_id', $teacher->study_session_id) == $session->id)>{{ $session->name }}</option>
+                @endforeach
+            </select>
+            <p class="text-xs text-gray-400 mt-1">عند اختيار دوام لن يظهر هذا الأستاذ في قوائم الدوام الآخر</p>
+        </div>
+        <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
             <input type="email" name="email" value="{{ old('email', $teacher->email) }}"
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">

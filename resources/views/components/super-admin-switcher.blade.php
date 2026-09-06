@@ -28,7 +28,11 @@
                 <span class="hidden sm:inline-flex bg-white/10 text-emerald-100/90 rounded-full px-3 py-1 text-[11px] whitespace-nowrap">لوحة مجمّعة لكل الجوامع</span>
             @endif
 
-            <div id="mosque-switcher" class="ms-auto relative min-w-0">
+            <div class="ms-auto flex items-center gap-2">
+                @if($currentMosque)
+                    <x-study-session-switcher />
+                @endif
+                <div id="mosque-switcher" class="relative min-w-0">
                 <button
                     type="button"
                     id="mosque-switcher-button"

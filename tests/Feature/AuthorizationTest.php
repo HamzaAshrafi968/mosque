@@ -132,7 +132,7 @@ class AuthorizationTest extends TestCase
         $this->post(route('super-admin.exit'))->assertRedirect(route('super-admin.dashboard'));
         $this->assertNull(session('super_admin_mosque_id'));
 
-        $this->get(route('admin.dashboard'))->assertForbidden();
+        $this->get(route('admin.dashboard'))->assertRedirect(route('super-admin.dashboard'));
     }
 
     public function test_super_admin_can_switch_mosque_from_header_switcher(): void
@@ -162,7 +162,7 @@ class AuthorizationTest extends TestCase
             ->assertRedirect(route('super-admin.dashboard'));
 
         $this->assertNull(session('super_admin_mosque_id'));
-        $this->get(route('admin.dashboard'))->assertForbidden();
+        $this->get(route('admin.dashboard'))->assertRedirect(route('super-admin.dashboard'));
     }
 
     public function test_mosque_manager_cannot_use_mosque_switcher(): void

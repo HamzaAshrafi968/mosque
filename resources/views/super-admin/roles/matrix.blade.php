@@ -34,6 +34,8 @@
                 'announcements' => 'الإعلانات', 'messages' => 'الرسائل', 'reports' => 'التقارير',
                 'users' => 'المستخدمون', 'roles' => 'الأدوار', 'permissions' => 'الصلاحيات',
                 'custom_fields' => 'الحقول المخصصة', 'audit_logs' => 'سجل العمليات', 'finance' => 'العمليات المالية',
+                'quran' => 'القرآن (تسميع وإتمام)', 'qualifying' => 'البرنامج التأهيلي', 'ijazah' => 'برنامج الإجازة',
+                'hafiz_exams' => 'اختبارات الحفاظ الشهرية', 'hafiz_profile' => 'ملفات الحفاظ', 'faith_meetings' => 'اللقاءات الإيمانية',
             ];
         @endphp
         @foreach(\App\Support\PermissionCatalog::grouped() as $resource => $permissions)

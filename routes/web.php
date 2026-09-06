@@ -106,6 +106,69 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('reward-points', [Admin\RewardPointController::class, 'index'])->name('reward-points.index');
 
     Route::resource('users', Admin\UserController::class)->only(['index', 'store', 'update', 'destroy']);
+
+    // ---- الدوامات (study sessions: الدورة الأولى / الثانية) ----
+    Route::get('sessions', [Admin\StudySessionController::class, 'index'])->name('sessions.index')->middleware('permission:sessions.view');
+    Route::post('sessions', [Admin\StudySessionController::class, 'store'])->name('sessions.store')->middleware('permission:sessions.create');
+    Route::post('sessions/switch', [Admin\StudySessionController::class, 'switch'])->name('sessions.switch')->middleware('permission:sessions.view');
+    Route::patch('sessions/{session}', [Admin\StudySessionController::class, 'update'])->name('sessions.update')->middleware('permission:sessions.update');
+    Route::delete('sessions/{session}', [Admin\StudySessionController::class, 'destroy'])->name('sessions.destroy')->middleware('permission:sessions.delete');
+    Route::post('sessions/assign-unassigned', [Admin\StudySessionController::class, 'assignUnassigned'])->name('sessions.assign-unassigned')->middleware('permission:sessions.update');
+
+    // ---- البرامج القرآنية (spec: mosque_management_quran_programs.md) ----
+    Route::get('quran', [Admin\QuranProgramController::class, 'index'])->name('quran.index')->middleware('permission:quran.tasmee.view');
+    Route::get('quran/students/{student}', [Admin\QuranProgramController::class, 'journey'])->name('quran.journey')->middleware('permission:quran.tasmee.view');
+
+    Route::get('quran/tasmee', [Admin\QuranTasmeeController::class, 'index'])->name('quran.tasmee.index')->middleware('permission:quran.tasmee.view');
+    Route::get('quran/tasmee/create', [Admin\QuranTasmeeController::class, 'create'])->name('quran.tasmee.create')->middleware('permission:quran.tasmee.create');
+    Route::post('quran/tasmee', [Admin\QuranTasmeeController::class, 'store'])->name('quran.tasmee.store')->middleware('permission:quran.tasmee.create');
+    Route::get('quran/tasmee/{session}/edit', [Admin\QuranTasmeeController::class, 'edit'])->name('quran.tasmee.edit')->middleware('permission:quran.tasmee.update');
+    Route::patch('quran/tasmee/{session}', [Admin\QuranTasmeeController::class, 'update'])->name('quran.tasmee.update')->middleware('permission:quran.tasmee.update');
+
+    Route::get('quran/completions', [Admin\QuranCompletionController::class, 'index'])->name('quran.completions.index')->middleware('permission:quran.completion.view');
+    Route::get('quran/completions/create', [Admin\QuranCompletionController::class, 'create'])->name('quran.completions.create')->middleware('permission:quran.completion.view');
+    Route::post('quran/completions', [Admin\QuranCompletionController::class, 'store'])->name('quran.completions.store')->middleware('permission:quran.completion.view');
+    Route::post('quran/completions/{completion}/confirm', [Admin\QuranCompletionController::class, 'confirm'])->name('quran.completions.confirm')->middleware('permission:quran.completion.confirm');
+
+    Route::get('quran/hafiz', [Admin\HafizController::class, 'index'])->name('quran.hafiz.index')->middleware('permission:hafiz_profile.view');
+    Route::get('quran/hafiz/{student}/profile', [Admin\HafizController::class, 'profile'])->name('quran.hafiz.profile')->middleware('permission:hafiz_profile.view');
+    Route::patch('quran/hafiz/{student}/profile', [Admin\HafizController::class, 'update'])->name('quran.hafiz.profile.update')->middleware('permission:hafiz_profile.update');
+
+    Route::get('quran/qualifying', [Admin\QualifyingController::class, 'index'])->name('quran.qualifying.index')->middleware('permission:qualifying.view');
+    Route::get('quran/qualifying/evaluations/create', [Admin\QualifyingController::class, 'create'])->name('quran.qualifying.evaluations.create')->middleware('permission:qualifying.create');
+    Route::post('quran/qualifying/evaluations', [Admin\QualifyingController::class, 'store'])->name('quran.qualifying.evaluations.store')->middleware('permission:qualifying.create');
+    Route::post('quran/qualifying/enrollments/{enrollment}/complete', [Admin\QualifyingController::class, 'complete'])->name('quran.qualifying.enrollments.complete')->middleware('permission:qualifying.complete');
+
+    Route::get('quran/ijazah', [Admin\IjazahController::class, 'index'])->name('quran.ijazah.index')->middleware('permission:ijazah.view');
+    Route::get('quran/ijazah/evaluations/create', [Admin\IjazahController::class, 'create'])->name('quran.ijazah.evaluations.create')->middleware('permission:ijazah.create');
+    Route::post('quran/ijazah/evaluations', [Admin\IjazahController::class, 'store'])->name('quran.ijazah.evaluations.store')->middleware('permission:ijazah.create');
+    Route::post('quran/ijazah/enrollments/{enrollment}/complete', [Admin\IjazahController::class, 'complete'])->name('quran.ijazah.enrollments.complete')->middleware('permission:ijazah.complete');
+
+    Route::get('quran/exams', [Admin\HafizExamController::class, 'index'])->name('quran.exams.index')->middleware('permission:hafiz_exams.view');
+    Route::get('quran/exams/{exam}', [Admin\HafizExamController::class, 'show'])->name('quran.exams.show')->middleware('permission:hafiz_exams.view');
+    Route::post('quran/exams/{exam}/grade', [Admin\HafizExamController::class, 'grade'])->name('quran.exams.grade')->middleware('permission:hafiz_exams.grade');
+    Route::post('quran/exams/{exam}/revisions', [Admin\HafizExamController::class, 'storeRevision'])->name('quran.exams.revisions.store')->middleware('permission:hafiz_exams.update');
+    Route::post('quran/exams/revisions/{revision}/complete', [Admin\HafizExamController::class, 'completeRevision'])->name('quran.exams.revisions.complete')->middleware('permission:hafiz_exams.update');
+    Route::post('quran/exams/revisions/{revision}/approve', [Admin\HafizExamController::class, 'approveRevision'])->name('quran.exams.revisions.approve')->middleware('permission:hafiz_exams.grade');
+
+    // ---- اللقاءات الإيمانية ----
+    Route::get('faith-meetings', [Admin\FaithMeetingController::class, 'index'])->name('faith-meetings.index')->middleware('permission:faith_meetings.view');
+    Route::get('faith-meetings/create', [Admin\FaithMeetingController::class, 'create'])->name('faith-meetings.create')->middleware('permission:faith_meetings.create');
+    Route::post('faith-meetings', [Admin\FaithMeetingController::class, 'store'])->name('faith-meetings.store')->middleware('permission:faith_meetings.create');
+    Route::get('faith-meetings/{meeting}', [Admin\FaithMeetingController::class, 'show'])->name('faith-meetings.show')->middleware('permission:faith_meetings.view');
+    Route::get('faith-meetings/{meeting}/edit', [Admin\FaithMeetingController::class, 'edit'])->name('faith-meetings.edit')->middleware('permission:faith_meetings.update');
+    Route::patch('faith-meetings/{meeting}', [Admin\FaithMeetingController::class, 'update'])->name('faith-meetings.update')->middleware('permission:faith_meetings.update');
+    Route::post('faith-meetings/{meeting}/status', [Admin\FaithMeetingController::class, 'status'])->name('faith-meetings.status')->middleware('permission:faith_meetings.update');
+    Route::delete('faith-meetings/{meeting}', [Admin\FaithMeetingController::class, 'destroy'])->name('faith-meetings.destroy')->middleware('permission:faith_meetings.update');
+    Route::post('faith-meetings/{meeting}/attendance', [Admin\FaithMeetingController::class, 'attendance'])->name('faith-meetings.attendance')->middleware('permission:faith_meetings.attendance');
+    Route::post('faith-meetings/{meeting}/notes', [Admin\FaithMeetingController::class, 'storeNote'])->name('faith-meetings.notes.store')->middleware('permission:faith_meetings.update');
+    Route::post('faith-meetings/notes/{note}/complete', [Admin\FaithMeetingController::class, 'completeNote'])->name('faith-meetings.notes.complete')->middleware('permission:faith_meetings.update');
+    Route::delete('faith-meetings/notes/{note}', [Admin\FaithMeetingController::class, 'destroyNote'])->name('faith-meetings.notes.destroy')->middleware('permission:faith_meetings.update');
+
+    Route::get('faith-meeting-templates', [Admin\FaithMeetingTemplateController::class, 'index'])->name('faith-meetings.templates')->middleware('permission:faith_meetings.update');
+    Route::post('faith-meeting-templates', [Admin\FaithMeetingTemplateController::class, 'store'])->name('faith-meetings.templates.store')->middleware('permission:faith_meetings.update');
+    Route::patch('faith-meeting-templates/{template}', [Admin\FaithMeetingTemplateController::class, 'update'])->name('faith-meetings.templates.update')->middleware('permission:faith_meetings.update');
+    Route::delete('faith-meeting-templates/{template}', [Admin\FaithMeetingTemplateController::class, 'destroy'])->name('faith-meetings.templates.destroy')->middleware('permission:faith_meetings.update');
 });
 
 Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
@@ -147,6 +210,37 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('reward-points/create', [Teacher\RewardPointController::class, 'create'])->name('reward-points.create');
     Route::post('reward-points', [Teacher\RewardPointController::class, 'store'])->name('reward-points.store');
     Route::delete('reward-points/{id}', [Teacher\RewardPointController::class, 'destroy'])->name('reward-points.destroy');
+
+    // ---- البرامج القرآنية للمعلم (spec: mosque_management_quran_programs.md) ----
+    Route::get('quran', [Teacher\QuranProgramController::class, 'index'])->name('quran.index')->middleware('permission:quran.tasmee.view');
+    Route::get('quran/students/{student}', [Teacher\QuranProgramController::class, 'journey'])->name('quran.students.journey')->middleware('permission:quran.tasmee.view');
+
+    Route::get('quran/tasmee', [Teacher\QuranTasmeeController::class, 'index'])->name('quran.tasmee.index')->middleware('permission:quran.tasmee.view');
+    Route::get('quran/tasmee/create', [Teacher\QuranTasmeeController::class, 'create'])->name('quran.tasmee.create')->middleware('permission:quran.tasmee.create');
+    Route::post('quran/tasmee', [Teacher\QuranTasmeeController::class, 'store'])->name('quran.tasmee.store')->middleware('permission:quran.tasmee.create');
+    Route::get('quran/tasmee/{session}/edit', [Teacher\QuranTasmeeController::class, 'edit'])->name('quran.tasmee.edit')->middleware('permission:quran.tasmee.update');
+    Route::patch('quran/tasmee/{session}', [Teacher\QuranTasmeeController::class, 'update'])->name('quran.tasmee.update')->middleware('permission:quran.tasmee.update');
+
+    Route::get('quran/qualifying', [Teacher\QualifyingController::class, 'index'])->name('quran.qualifying.index')->middleware('permission:qualifying.view');
+    Route::get('quran/qualifying/evaluations/create', [Teacher\QualifyingController::class, 'create'])->name('quran.qualifying.evaluations.create')->middleware('permission:qualifying.create');
+    Route::post('quran/qualifying/evaluations', [Teacher\QualifyingController::class, 'store'])->name('quran.qualifying.evaluations.store')->middleware('permission:qualifying.create');
+
+    Route::get('quran/ijazah', [Teacher\IjazahController::class, 'index'])->name('quran.ijazah.index')->middleware('permission:ijazah.view');
+    Route::get('quran/ijazah/evaluations/create', [Teacher\IjazahController::class, 'create'])->name('quran.ijazah.evaluations.create')->middleware('permission:ijazah.create');
+    Route::post('quran/ijazah/evaluations', [Teacher\IjazahController::class, 'store'])->name('quran.ijazah.evaluations.store')->middleware('permission:ijazah.create');
+
+    Route::get('quran/exams', [Teacher\HafizExamController::class, 'index'])->name('quran.exams.index')->middleware('permission:hafiz_exams.view');
+    Route::get('quran/exams/{exam}', [Teacher\HafizExamController::class, 'show'])->name('quran.exams.show')->middleware('permission:hafiz_exams.view');
+    Route::post('quran/exams/{exam}/grade', [Teacher\HafizExamController::class, 'grade'])->name('quran.exams.grade')->middleware('permission:hafiz_exams.grade');
+    Route::post('quran/exams/{exam}/revisions', [Teacher\HafizExamController::class, 'storeRevision'])->name('quran.exams.revisions.store')->middleware('permission:hafiz_exams.update');
+    Route::post('quran/exams/revisions/{revision}/complete', [Teacher\HafizExamController::class, 'completeRevision'])->name('quran.exams.revisions.complete')->middleware('permission:hafiz_exams.update');
+
+    Route::get('quran/faith-meetings', [Teacher\FaithMeetingController::class, 'index'])->name('quran.faith-meetings.index')->middleware('permission:faith_meetings.view');
+    Route::get('quran/faith-meetings/{meeting}', [Teacher\FaithMeetingController::class, 'show'])->name('quran.faith-meetings.show')->middleware('permission:faith_meetings.view');
+    Route::post('quran/faith-meetings/{meeting}/attendance', [Teacher\FaithMeetingController::class, 'attendance'])->name('quran.faith-meetings.attendance')->middleware('permission:faith_meetings.attendance');
+    Route::post('quran/faith-meetings/{meeting}/notes', [Teacher\FaithMeetingController::class, 'storeNote'])->name('quran.faith-meetings.notes.store')->middleware('permission:faith_meetings.update');
+    Route::post('quran/faith-meetings/notes/{note}/complete', [Teacher\FaithMeetingController::class, 'completeNote'])->name('quran.faith-meetings.notes.complete')->middleware('permission:faith_meetings.update');
+    Route::post('quran/faith-meetings/{meeting}/complete', [Teacher\FaithMeetingController::class, 'complete'])->name('quran.faith-meetings.complete')->middleware('permission:faith_meetings.update');
 });
 
 Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('super-admin.')->group(function () {

@@ -9,6 +9,7 @@ use App\Models\Grade;
 use App\Models\Homework;
 use App\Models\Lesson;
 use App\Models\Schedule;
+use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Models\TeacherCertificate;
 use App\Models\TeacherRating;
@@ -32,6 +33,7 @@ class TeacherController extends Controller
     public function index(Request $request): View
     {
         $teachers = Teacher::query()
+            ->with('studySession:id,name')
             ->withCount('subjects')
             ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.$request->input('q').'%'))
             ->when($request->filled('gender'), fn ($q) => $q->where('gender', $request->input('gender')))
@@ -46,6 +48,7 @@ class TeacherController extends Controller
     {
         return view('admin.teachers.create', [
             'customFields' => $this->customFields->definitions(Teacher::CUSTOM_FIELD_ENTITY),
+            'sessions' => StudySession::orderBy('name')->get(),
         ]);
     }
 
@@ -168,6 +171,7 @@ class TeacherController extends Controller
             'teacher' => $teacher,
             'customFields' => $this->customFields->definitions(Teacher::CUSTOM_FIELD_ENTITY),
             'customValues' => $this->customFields->valuesFor(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id),
+            'sessions' => StudySession::orderBy('name')->get(),
         ]);
     }
 
@@ -199,9 +203,12 @@ class TeacherController extends Controller
 
     private function validated(Request $request, ?Teacher $teacher = null): array
     {
+        $tenantId = config('app.current_tenant_id');
+
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
+            'study_session_id' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', $tenantId)],
             'email' => [
                 'nullable',
                 'email',

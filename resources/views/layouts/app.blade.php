@@ -12,8 +12,34 @@
 </head>
 <body class="bg-gradient-to-br from-gray-50 via-emerald-50/30 to-teal-50/20 min-h-screen font-sans antialiased">
 <x-super-admin-switcher />
+@if(auth()->user()->isAdmin())
+    <header class="gradient-sidebar text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-screen-2xl mx-auto px-3 sm:px-6 py-2 flex items-center gap-2 sm:gap-3">
+            <button
+                type="button"
+                id="sidebar-toggle"
+                class="lg:hidden p-2 -me-1 rounded-lg bg-white/10 hover:bg-white/20 transition"
+                aria-label="القائمة"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+
+            <div class="flex items-center gap-2 font-bold shrink-0 min-w-0">
+                <span class="text-lg leading-none">🕌</span>
+                <div class="leading-tight min-w-0">
+                    <div class="text-xs sm:text-sm truncate">إدارة الجامع — {{ auth()->user()->tenant?->name }}</div>
+                    <div class="text-[10px] sm:text-[11px] text-emerald-300/80 font-normal">مدير الجامع — اختر الدوام من القائمة لعرض بياناته</div>
+                </div>
+            </div>
+
+            <div class="ms-auto flex items-center gap-2">
+                <x-study-session-switcher />
+            </div>
+        </div>
+    </header>
+@endif
 <div class="min-h-screen lg:flex">
-    @if(! auth()->user()->isSuperAdmin())
+    @if(! auth()->user()->isSuperAdmin() && ! auth()->user()->isAdmin())
         <header class="lg:hidden sticky top-0 z-30 gradient-sidebar text-white flex items-center justify-between px-4 py-3 shadow-lg">
             <button type="button" id="sidebar-toggle" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition" aria-label="القائمة">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -79,10 +105,21 @@
                 <x-nav-link :href="route('admin.quran-review.index')" :active="request()->routeIs('admin.quran-review.*')">
                     📖 مراجعة القرآن
                 </x-nav-link>
+                <x-nav-link :href="route('admin.quran.index')" :active="request()->routeIs('admin.quran.index') || request()->routeIs('admin.quran.journey')">
+                    🕌 البرامج القرآنية
+                </x-nav-link>
+                <x-nav-link :href="route('admin.quran.tasmee.index')" :active="request()->routeIs('admin.quran.tasmee.*')">🗣️ التسميع</x-nav-link>
+                <x-nav-link :href="route('admin.quran.completions.index')" :active="request()->routeIs('admin.quran.completions.*')">🎓 إتمام الحفظ</x-nav-link>
+                <x-nav-link :href="route('admin.quran.hafiz.index')" :active="request()->routeIs('admin.quran.hafiz.*')">📿 الحفاظ</x-nav-link>
+                <x-nav-link :href="route('admin.quran.qualifying.index')" :active="request()->routeIs('admin.quran.qualifying.*')">📋 البرنامج التأهيلي</x-nav-link>
+                <x-nav-link :href="route('admin.quran.ijazah.index')" :active="request()->routeIs('admin.quran.ijazah.*')">📜 برنامج الإجازة</x-nav-link>
+                <x-nav-link :href="route('admin.quran.exams.index')" :active="request()->routeIs('admin.quran.exams.*')">✅ اختبارات الحفاظ</x-nav-link>
+                <x-nav-link :href="route('admin.faith-meetings.index')" :active="request()->routeIs('admin.faith-meetings.*')">🕊️ اللقاءات الإيمانية</x-nav-link>
                 <x-nav-link :href="route('admin.reward-points.index')" :active="request()->routeIs('admin.reward-points.*')">
                     🏆 نقاط المكافآت
                 </x-nav-link>
                 <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">الحسابات والصلاحيات</x-nav-link>
+                <x-nav-link :href="route('admin.sessions.index')" :active="request()->routeIs('admin.sessions.*')">🕑 الدوامات</x-nav-link>
                 <x-nav-link :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">
                     🔔 الإشعارات
                     @if($unreadCount > 0)
@@ -153,6 +190,14 @@
                 <x-nav-link :href="route('teacher.quran-review.index')" :active="request()->routeIs('teacher.quran-review.*')">
                     📖 مراجعة القرآن
                 </x-nav-link>
+                <x-nav-link :href="route('teacher.quran.index')" :active="request()->routeIs('teacher.quran.*') && !request()->routeIs('teacher.quran-review.*')">
+                    🕌 القرآن والبرامج
+                </x-nav-link>
+                <x-nav-link :href="route('teacher.quran.tasmee.index')" :active="request()->routeIs('teacher.quran.tasmee.*')">🗣️ التسميع</x-nav-link>
+                <x-nav-link :href="route('teacher.quran.qualifying.index')" :active="request()->routeIs('teacher.quran.qualifying.*')">📋 البرنامج التأهيلي</x-nav-link>
+                <x-nav-link :href="route('teacher.quran.ijazah.index')" :active="request()->routeIs('teacher.quran.ijazah.*')">📜 برنامج الإجازة</x-nav-link>
+                <x-nav-link :href="route('teacher.quran.exams.index')" :active="request()->routeIs('teacher.quran.exams.*')">✅ اختبارات الحفاظ</x-nav-link>
+                <x-nav-link :href="route('teacher.quran.faith-meetings.index')" :active="request()->routeIs('teacher.quran.faith-meetings.*')">🕊️ اللقاءات الإيمانية</x-nav-link>
                 <x-nav-link :href="route('teacher.reward-points.index')" :active="request()->routeIs('teacher.reward-points.*')">
                     🏆 نقاط المكافآت
                 </x-nav-link>

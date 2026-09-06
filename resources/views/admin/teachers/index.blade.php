@@ -46,7 +46,12 @@
             <tbody>
                 @forelse($teachers as $teacher)
                     <tr>
-                        <td class="px-4 py-3 border-t font-bold whitespace-nowrap">{{ $teacher->name }}</td>
+                        <td class="px-4 py-3 border-t font-bold whitespace-nowrap">
+                            {{ $teacher->name }}
+                            @if($teacher->studySession)
+                                <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800">{{ $teacher->studySession->name }}</span></div>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->gender === 'male' ? 'ذكر' : 'أنثى' }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->specialty }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->phone }}</td>

@@ -45,12 +45,18 @@
 
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
     <h2 class="font-bold text-gray-800 mb-3">إضافة شعبة</h2>
-    <form method="POST" action="{{ route('admin.sections.store', $classroom) }}" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <form method="POST" action="{{ route('admin.sections.store', $classroom) }}" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         @csrf
         <input type="text" name="name" required placeholder="اسم الشعبة (مثال: أ)"
                class="w-full border border-gray-300 rounded-lg px-3 py-2">
+        <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <option value="">بدون دوام</option>
+            @foreach($sessions as $session)
+                <option value="{{ $session->id }}" @selected(old('study_session_id', config('app.current_study_session_id')) == $session->id)>{{ $session->name }}</option>
+            @endforeach
+        </select>
         <input type="text" name="description" placeholder="وصف اختياري"
-               class="w-full border border-gray-300 rounded-lg px-3 py-2">
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 md:col-span-2">
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إنشاء الشعبة</button>
     </form>
 </div>
@@ -64,6 +70,11 @@
                     <div>
                         <div class="font-bold text-gray-800">{{ $section->name }}</div>
                         <div class="text-xs text-gray-500">{{ $section->description ?: '—' }}</div>
+                        <span @class([
+                            'inline-flex mt-1 px-2 py-0.5 rounded-full text-[11px] font-bold',
+                            'bg-teal-100 text-teal-800' => $section->studySession,
+                            'bg-gray-100 text-gray-500' => ! $section->studySession,
+                        ])>{{ $section->studySession?->name ?: 'بدون دوام' }}</span>
                     </div>
                     @if($section->status !== 'active')
                         <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">مؤرشف</span>

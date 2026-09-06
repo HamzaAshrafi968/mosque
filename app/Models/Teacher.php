@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
+use App\Traits\StudySessionScopedTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,12 +14,13 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Teacher extends Model
 {
-    use FlushesTenantCache, HasFactory, MultiTenantTrait, UuidTrait;
+    use FlushesTenantCache, HasFactory, MultiTenantTrait, StudySessionScopedTrait, UuidTrait;
 
     public const CUSTOM_FIELD_ENTITY = 'teacher';
 
     protected $fillable = [
         'tenant_id',
+        'study_session_id',
         'user_id',
         'name',
         'gender',
@@ -80,6 +82,39 @@ class Teacher extends Model
     public function homeworks(): HasMany
     {
         return $this->hasMany(Homework::class);
+    }
+
+    /** Quran program records created/supervised by this teacher. */
+    public function quranRecitationSessions(): HasMany
+    {
+        return $this->hasMany(QuranRecitationSession::class);
+    }
+
+    public function qualifyingEvaluations(): HasMany
+    {
+        return $this->hasMany(QualifyingWeeklyEvaluation::class, 'evaluated_by');
+    }
+
+    public function ijazahEvaluations(): HasMany
+    {
+        return $this->hasMany(IjazahMonthlyEvaluation::class, 'evaluated_by');
+    }
+
+    /** Hafiz monthly exams supervised by this teacher. */
+    public function supervisedExams(): HasMany
+    {
+        return $this->hasMany(HafizMonthlyExam::class, 'supervisor_id');
+    }
+
+    /** Faith meetings organized (supervised / co-run) by this teacher. */
+    public function supervisedMeetings(): HasMany
+    {
+        return $this->hasMany(FaithMeeting::class, 'supervisor_id');
+    }
+
+    public function coRunMeetings(): HasMany
+    {
+        return $this->hasMany(FaithMeeting::class, 'teacher_id');
     }
 
     /** Explicit assignments to sections (source of truth for section scope). */

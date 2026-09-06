@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Classroom;
 use App\Models\Section;
 use App\Models\Student;
+use App\Models\StudySession;
 use App\Models\User;
 use App\Services\AttendanceMetricService;
 use App\Services\AuditLogger;
@@ -32,7 +33,7 @@ class StudentController extends Controller
     public function index(Request $request): View
     {
         $students = Student::query()
-            ->with(['classroom:id,name', 'section:id,name'])
+            ->with(['classroom:id,name', 'section:id,name', 'studySession:id,name'])
             ->search($request->string('q')->toString())
             ->when($request->filled('classroom_id'), fn ($q) => $q->where('classroom_id', $request->input('classroom_id')))
             ->when($request->filled('gender'), fn ($q) => $q->where('gender', $request->input('gender')))
@@ -52,6 +53,7 @@ class StudentController extends Controller
         return view('admin.students.create', [
             'classrooms' => $this->classroomsTree(),
             'customFields' => $this->customFields->definitions(Student::CUSTOM_FIELD_ENTITY),
+            'sessions' => StudySession::orderBy('name')->get(),
         ]);
     }
 
@@ -86,6 +88,7 @@ class StudentController extends Controller
         $student->load([
             'classroom:id,name',
             'section:id,name',
+            'studySession:id,name',
             'grades' => fn ($q) => $q->with('exam:id,title,exam_date,total_marks,subject_id', 'exam.subject:id,name')->latest(),
             'enrollments.section.classroom:id,name',
         ]);
@@ -119,6 +122,7 @@ class StudentController extends Controller
             'classrooms' => $this->classroomsTree(),
             'customFields' => $this->customFields->definitions(Student::CUSTOM_FIELD_ENTITY),
             'customValues' => $values,
+            'sessions' => StudySession::orderBy('name')->get(),
         ]);
     }
 
@@ -211,12 +215,13 @@ class StudentController extends Controller
 
     private function validated(Request $request): array
     {
-        $tenantId = $request->user()->tenant_id;
+        $tenantId = config('app.current_tenant_id');
 
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
             'birth_date' => ['nullable', 'date'],
+            'study_session_id' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', $tenantId)],
             'classroom_id' => ['nullable', 'uuid', Rule::exists('classrooms', 'id')->where('tenant_id', $tenantId)],
             'section_id' => ['nullable', 'uuid', Rule::exists('sections', 'id')->where('tenant_id', $tenantId)],
             'guardian_name' => ['nullable', 'string', 'max:255'],

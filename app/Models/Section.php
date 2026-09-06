@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
+use App\Traits\StudySessionScopedTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -13,10 +14,11 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Section extends Model
 {
-    use FlushesTenantCache, MultiTenantTrait, UuidTrait;
+    use FlushesTenantCache, MultiTenantTrait, StudySessionScopedTrait, UuidTrait;
 
     protected $fillable = [
         'tenant_id',
+        'study_session_id',
         'classroom_id',
         'name',
         'description',
