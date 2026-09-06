@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\FlushesTenantCache;
+use App\Traits\HasAvatar;
 use App\Traits\MultiTenantTrait;
 use App\Traits\StudySessionScopedTrait;
 use App\Traits\UuidTrait;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Teacher extends Model
 {
-    use FlushesTenantCache, HasFactory, MultiTenantTrait, StudySessionScopedTrait, UuidTrait;
+    use FlushesTenantCache, HasAvatar, HasFactory, MultiTenantTrait, StudySessionScopedTrait, UuidTrait;
 
     public const CUSTOM_FIELD_ENTITY = 'teacher';
 
@@ -29,6 +30,7 @@ class Teacher extends Model
         'specialty',
         'hired_at',
         'is_active',
+        'photo',
     ];
 
     protected function casts(): array

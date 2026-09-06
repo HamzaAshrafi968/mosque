@@ -6,7 +6,7 @@
 @endphp
 
 @if($currentUser?->isSuperAdmin())
-    <div class="gradient-sidebar relative text-white shadow-[0_14px_34px_-16px_rgba(5,32,25,0.65)] sticky top-0 z-40 overflow-hidden">
+    <div class="gradient-sidebar relative text-white shadow-[0_14px_34px_-16px_rgba(5,32,25,0.65)] sticky top-0 z-40">
         <div aria-hidden="true" class="topbar-sheen pointer-events-none absolute inset-0 opacity-20"></div>
         <div class="relative max-w-screen-2xl mx-auto px-3 sm:px-6 py-2.5 flex items-center gap-2.5 sm:gap-3">
             <button

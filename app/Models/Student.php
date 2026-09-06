@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\SectionStudentStatus;
 use App\Traits\FlushesTenantCache;
+use App\Traits\HasAvatar;
 use App\Traits\MultiTenantTrait;
 use App\Traits\StudySessionScopedTrait;
 use App\Traits\UuidTrait;
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Student extends Model
 {
-    use FlushesTenantCache, HasFactory, MultiTenantTrait, StudySessionScopedTrait, UuidTrait;
+    use FlushesTenantCache, HasAvatar, HasFactory, MultiTenantTrait, StudySessionScopedTrait, UuidTrait;
 
     public const CUSTOM_FIELD_ENTITY = 'student';
 
@@ -34,6 +35,7 @@ class Student extends Model
         'guardian_phone',
         'status',
         'notes',
+        'photo',
     ];
 
     protected function casts(): array

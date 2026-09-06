@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\FlushesTenantCache;
+use App\Traits\HasAvatar;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Guardian extends Model
 {
-    use FlushesTenantCache, HasFactory, MultiTenantTrait, UuidTrait;
+    use FlushesTenantCache, HasAvatar, HasFactory, MultiTenantTrait, UuidTrait;
 
     protected $table = 'parents';
 
@@ -30,6 +31,7 @@ class Guardian extends Model
         'phone',
         'email',
         'status',
+        'photo',
     ];
 
     public function user(): BelongsTo
