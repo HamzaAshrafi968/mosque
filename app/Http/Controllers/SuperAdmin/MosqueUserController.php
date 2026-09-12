@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\SuperAdmin;
 
+use App\Http\Controllers\Concerns\HandlesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\Teacher;
@@ -15,6 +16,8 @@ use Illuminate\View\View;
 
 class MosqueUserController extends Controller
 {
+    use HandlesProfilePhoto;
+
     public function index(Tenant $mosque): View
     {
         $users = User::withoutGlobalScope('tenant')
@@ -34,7 +37,7 @@ class MosqueUserController extends Controller
 
     public function store(Request $request, Tenant $mosque, RoleService $roles): RedirectResponse
     {
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
@@ -42,7 +45,9 @@ class MosqueUserController extends Controller
             'gender' => ['required', 'in:male,female'],
             'phone' => ['nullable', 'string', 'max:30'],
             'specialty' => ['nullable', 'string', 'max:255'],
-        ]);
+        ], $this->profilePhotoRules()));
+
+        $data['photo'] = $this->resolveProfilePhoto($request)['photo'] ?? null;
 
         DB::transaction(function () use ($data, $mosque, $roles) {
             $role = Role::where('tenant_id', $mosque->id)->where('code', $data['role_code'])->firstOrFail();
@@ -57,6 +62,7 @@ class MosqueUserController extends Controller
                 'role' => $data['role_code'] === RoleService::ROLE_MOSQUE_MANAGER ? User::ROLE_ADMIN : User::ROLE_TEACHER,
                 'gender' => $data['gender'],
                 'phone' => $data['phone'] ?? null,
+                'photo' => $data['photo'] ?? null,
             ]);
 
             $roles->assignRole($user, $role->code);
@@ -72,6 +78,7 @@ class MosqueUserController extends Controller
                     'phone' => $user->phone,
                     'specialty' => $data['specialty'] ?? null,
                     'is_active' => true,
+                    'photo' => $data['photo'] ?? null,
                 ]);
             }
         });

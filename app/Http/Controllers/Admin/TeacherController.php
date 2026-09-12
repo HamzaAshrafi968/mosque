@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Exam;
@@ -25,6 +26,8 @@ use Illuminate\View\View;
 
 class TeacherController extends Controller
 {
+    use HandlesProfilePhoto;
+
     public function __construct(
         private readonly CustomFieldService $customFields,
         private readonly AuditLogger $audit,
@@ -135,6 +138,8 @@ class TeacherController extends Controller
         $customFields = $data['custom_fields'] ?? [];
         $this->customFields->validate(Teacher::CUSTOM_FIELD_ENTITY, $customFields);
 
+        $data = $this->applyAvatar($data, $request);
+
         $teacher = DB::transaction(function () use ($data, $request, $customFields) {
             $userId = null;
 
@@ -147,6 +152,7 @@ class TeacherController extends Controller
                     'role' => 'teacher',
                     'gender' => $data['gender'],
                     'phone' => $data['phone'] ?? null,
+                    'photo' => $data['photo'] ?? null,
                 ]);
                 $userId = $user->id;
             }
@@ -183,8 +189,15 @@ class TeacherController extends Controller
 
         $before = $teacher->getAttributes();
 
+        $data = $this->applyAvatar($data, $request, $teacher->photo);
+
         DB::transaction(function () use ($teacher, $data, $customFields) {
             $teacher->update(Arr::except($data, ['password', 'custom_fields']));
+
+            if ($teacher->user_id && array_key_exists('photo', $data)) {
+                $teacher->user()->update(['photo' => $data['photo']]);
+            }
+
             $this->customFields->save(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id, $customFields);
         });
 
@@ -205,7 +218,7 @@ class TeacherController extends Controller
     {
         $tenantId = config('app.current_tenant_id');
 
-        return $request->validate([
+        return $request->validate(array_merge([
             'name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
             'study_session_id' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', $tenantId)],
@@ -222,6 +235,14 @@ class TeacherController extends Controller
             'is_active' => ['boolean'],
             'password' => ['nullable', 'string', 'min:8'],
             'custom_fields' => ['nullable', 'array'],
-        ]);
+        ], $this->profilePhotoRules()));
+    }
+
+    /** Merge the resolved avatar (new file / removal) into the payload. */
+    private function applyAvatar(array $data, Request $request, ?string $current = null): array
+    {
+        unset($data['photo'], $data['remove_photo']);
+
+        return array_merge($data, $this->resolveProfilePhoto($request, $current));
     }
 }

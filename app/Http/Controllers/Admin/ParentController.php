@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ParentStudentRelationship;
+use App\Http\Controllers\Concerns\HandlesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\Guardian;
 use App\Models\ParentStudent;
@@ -23,6 +24,8 @@ use Illuminate\View\View;
  */
 class ParentController extends Controller
 {
+    use HandlesProfilePhoto;
+
     public function __construct(private readonly AuditLogger $audit) {}
 
     public function index(Request $request): View
@@ -51,12 +54,11 @@ class ParentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
+        $photo = $this->resolveProfilePhoto($request);
 
         try {
-            $guardian = DB::transaction(function () use ($data, $request) {
-                $guardian = $this->createGuardian($data, $request);
-
-                return $guardian;
+            $guardian = DB::transaction(function () use ($data, $photo, $request) {
+                return $this->createGuardian($data, $photo, $request);
             });
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
@@ -81,17 +83,23 @@ class ParentController extends Controller
     {
         $data = $this->validated($request);
         $before = $guardian->getAttributes();
+        $photo = $this->resolveProfilePhoto($request, $guardian->photo);
 
         try {
-            DB::transaction(function () use ($data, $request, $guardian, $before) {
+            DB::transaction(function () use ($data, $photo, $request, $guardian, $before) {
                 $guardian->update([
                     'name' => $data['name'],
                     'phone' => $data['phone'] ?? null,
                     'email' => $data['email'] ?? null,
                     'status' => $data['status'] ?? 'active',
+                    ...$photo,
                 ]);
 
-                $this->syncAccount($guardian, $data, $request);
+                if ($guardian->user_id && array_key_exists('photo', $photo)) {
+                    $guardian->user()->update(['photo' => $photo['photo']]);
+                }
+
+                $this->syncAccount($guardian, $data, $request, $photo);
                 $this->syncLinks($guardian, $data['student_ids'] ?? [], $data['relationships'] ?? []);
                 $this->audit->logModel('guardian.updated', $guardian, $before, actor: $request->user());
             });
@@ -121,7 +129,7 @@ class ParentController extends Controller
         return redirect()->route('admin.parents.index')->with('success', 'تم حذف ولي الأمر');
     }
 
-    private function createGuardian(array $data, Request $request): Guardian
+    private function createGuardian(array $data, array $photo, Request $request): Guardian
     {
         $guardian = Guardian::create([
             'tenant_id' => $request->user()->tenant_id,
@@ -129,16 +137,17 @@ class ParentController extends Controller
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
             'status' => $data['status'] ?? 'active',
+            ...$photo,
         ]);
 
-        $this->syncAccount($guardian, $data, $request);
+        $this->syncAccount($guardian, $data, $request, $photo);
         $this->syncLinks($guardian, $data['student_ids'] ?? [], $data['relationships'] ?? []);
 
         return $guardian;
     }
 
     /** Portal account creation/update (email + password) for the guardian. */
-    private function syncAccount(Guardian $guardian, array $data, Request $request): void
+    private function syncAccount(Guardian $guardian, array $data, array $photo, Request $request): void
     {
         $email = trim($data['email'] ?? '');
         $password = $data['password'] ?? null;
@@ -184,6 +193,7 @@ class ParentController extends Controller
             'password' => $password,
             'role' => User::ROLE_GUARDIAN,
             'phone' => $data['phone'] ?? null,
+            'photo' => $photo['photo'] ?? null,
         ]);
 
         $guardian->update(['user_id' => $user->id]);
@@ -232,7 +242,7 @@ class ParentController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        return $request->validate(array_merge([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -242,6 +252,6 @@ class ParentController extends Controller
             'student_ids.*' => ['uuid'],
             'relationships' => ['nullable', 'array'],
             'relationships.*' => ['nullable', Rule::in(['father', 'mother', 'guardian', 'other'])],
-        ]);
+        ], $this->profilePhotoRules()));
     }
 }

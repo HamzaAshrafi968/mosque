@@ -10,7 +10,10 @@
 
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="px-4 py-3 bg-emerald-700 text-white flex items-center justify-between">
-        <div class="font-bold text-lg">{{ $student->name }}</div>
+        <div class="flex items-center gap-3 min-w-0">
+            <x-avatar :src="$student->avatarUrl()" :name="$student->name" size="sm" class="ring-2 ring-white/50" fallback-class="bg-gradient-to-br from-gold-400 to-gold-700" />
+            <div class="font-bold text-lg truncate">{{ $student->name }}</div>
+        </div>
         <div class="flex items-center gap-3">
             <a href="{{ route('admin.students.edit', $student) }}" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تعديل</a>
             <form method="POST" action="{{ route('admin.students.archive', $student) }}">

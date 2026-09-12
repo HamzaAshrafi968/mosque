@@ -55,13 +55,13 @@ class StudentAcademicService
             $student->section->assignedTeachers()
                 ->where('section_teachers.status', 'active')
                 ->where('teachers.is_active', true)
-                ->get(['teachers.id', 'teachers.name', 'teachers.gender', 'teachers.phone', 'teachers.specialty'])
+                ->get(['teachers.id', 'teachers.name', 'teachers.gender', 'teachers.phone', 'teachers.specialty', 'teachers.photo'])
                 ->each(fn ($teacher) => $rows->push(['teacher' => $teacher, 'subject' => null]));
         }
 
         Schedule::query()
             ->where('section_id', $student->section_id)
-            ->with(['subject:id,name', 'teacher:id,name'])
+            ->with(['subject:id,name', 'teacher:id,name,photo'])
             ->orderBy('day_of_week')
             ->get()
             ->each(fn (Schedule $schedule) => $schedule->teacher
@@ -76,7 +76,7 @@ class StudentAcademicService
     {
         return Schedule::query()
             ->where('section_id', $student->section_id)
-            ->with(['subject:id,name', 'teacher:id,name', 'section:id,name'])
+            ->with(['subject:id,name', 'teacher:id,name,photo', 'section:id,name'])
             ->orderBy('day_of_week')
             ->get()
             ->map(fn (Schedule $schedule) => [
@@ -126,7 +126,7 @@ class StudentAcademicService
         return Homework::query()
             ->with([
                 'subject:id,name',
-                'teacher:id,name',
+                'teacher:id,name,photo',
                 'submissions' => fn ($q) => $q->where('student_id', $student->id),
             ])
             ->where('classroom_id', $student->classroom_id)
@@ -160,7 +160,7 @@ class StudentAcademicService
                         ->where('classroom_id', $student->classroom_id);
                 });
             })
-            ->with('author:id,name')
+            ->with('author:id,name,photo')
             ->latest('published_at')
             ->get();
     }

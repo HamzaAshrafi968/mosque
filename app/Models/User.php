@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Services\RoleService;
+use App\Traits\HasAvatar;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Database\Factories\UserFactory;
@@ -18,7 +19,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, MultiTenantTrait, Notifiable, UuidTrait;
+    use HasApiTokens, HasAvatar, HasFactory, MultiTenantTrait, Notifiable, UuidTrait;
 
     public const ROLE_SUPER_ADMIN = 'super_admin';
 
@@ -43,6 +44,7 @@ class User extends Authenticatable
         'role',
         'gender',
         'phone',
+        'photo',
     ];
 
     /**

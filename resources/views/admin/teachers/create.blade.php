@@ -4,8 +4,11 @@
 
 @section('content')
 <div class="bg-white rounded-xl shadow overflow-hidden p-6 max-w-2xl">
-    <form method="POST" action="{{ route('admin.teachers.store') }}" class="space-y-4">
+    <form method="POST" action="{{ route('admin.teachers.store') }}" enctype="multipart/form-data" class="space-y-4">
         @csrf
+        <div class="pb-4 border-b border-gray-100">
+            <x-photo-input label="صورة المعلم" />
+        </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">الاسم <span class="text-red-500">*</span></label>
             <input type="text" name="name" value="{{ old('name') }}" required

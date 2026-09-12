@@ -65,9 +65,12 @@
                 @forelse($students as $student)
                     <tr>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
-                            <a href="{{ route('admin.students.show', $student) }}" class="text-emerald-700 font-bold hover:underline">
-                                {{ $student->name }}
-                            </a>
+                            <div class="flex items-center gap-3">
+                                <x-avatar :src="$student->avatarUrl()" :name="$student->name" size="sm" fallback-class="bg-gradient-to-br from-gold-400 to-gold-700" />
+                                <a href="{{ route('admin.students.show', $student) }}" class="text-emerald-700 font-bold hover:underline">
+                                    {{ $student->name }}
+                                </a>
+                            </div>
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->gender === 'male' ? 'ذكر' : 'أنثى' }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->classroom?->name }}</td>

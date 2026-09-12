@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
 use App\Models\Section;
@@ -22,6 +23,8 @@ use Illuminate\View\View;
 
 class StudentController extends Controller
 {
+    use HandlesProfilePhoto;
+
     public function __construct(
         private readonly CustomFieldService $customFields,
         private readonly EnrollmentService $enrollment,
@@ -63,6 +66,8 @@ class StudentController extends Controller
         $customFieldPayload = $request->input('custom_fields', []);
         $this->customFields->validate(Student::CUSTOM_FIELD_ENTITY, $customFieldPayload);
 
+        $data = $this->applyAvatar($data, $request);
+
         $student = Student::create(collect($data)->except(['custom_fields', 'portal_email', 'portal_password'])->all());
 
         DB::transaction(function () use ($student, $customFieldPayload) {
@@ -75,6 +80,10 @@ class StudentController extends Controller
             $student->delete();
 
             return back()->withErrors($e->errors())->withInput();
+        }
+
+        if ($student->user_id && ($data['photo'] ?? null)) {
+            $student->user()->update(['photo' => $data['photo']]);
         }
 
         $this->enrollment->syncPlacement($student, $data['section_id'] ?? null);
@@ -134,7 +143,13 @@ class StudentController extends Controller
 
         $before = $student->getAttributes();
 
+        $data = $this->applyAvatar($data, $request, $student->photo);
+
         $student->update(collect($data)->except(['custom_fields', 'section_id', 'portal_email', 'portal_password'])->all());
+
+        if ($student->user_id && array_key_exists('photo', $data)) {
+            $student->user()->update(['photo' => $data['photo']]);
+        }
 
         DB::transaction(function () use ($student, $customFieldPayload) {
             $this->customFields->save(Student::CUSTOM_FIELD_ENTITY, $student->id, $customFieldPayload);
@@ -217,7 +232,7 @@ class StudentController extends Controller
     {
         $tenantId = config('app.current_tenant_id');
 
-        return $request->validate([
+        return $request->validate(array_merge([
             'name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
             'birth_date' => ['nullable', 'date'],
@@ -230,7 +245,15 @@ class StudentController extends Controller
             'portal_email' => ['nullable', 'email', 'max:255'],
             'portal_password' => ['nullable', 'string', 'min:6', 'max:255'],
             'custom_fields' => ['nullable', 'array'],
-        ]);
+        ], $this->profilePhotoRules()));
+    }
+
+    /** Merge the resolved avatar (new file / removal) into the payload. */
+    private function applyAvatar(array $data, Request $request, ?string $current = null): array
+    {
+        unset($data['photo'], $data['remove_photo']);
+
+        return array_merge($data, $this->resolveProfilePhoto($request, $current));
     }
 
     /**

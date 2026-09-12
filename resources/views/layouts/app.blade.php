@@ -224,8 +224,12 @@
         <div class="relative p-4 border-t border-white/10 bg-pine-950/40 backdrop-blur-sm">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full p-[1.5px] bg-gradient-to-br from-gold-200 to-gold-600 shrink-0">
-                    <div class="w-full h-full rounded-full bg-pine-800 grid place-items-center text-gold-200 font-black text-sm">
-                        {{ mb_substr($user->name, 0, 1) }}
+                    <div class="w-full h-full rounded-full bg-pine-800 grid place-items-center text-gold-200 font-black text-sm overflow-hidden">
+                        @if($user->avatarUrl())
+                            <img src="{{ $user->avatarUrl() }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
+                        @else
+                            {{ mb_substr($user->name, 0, 1) }}
+                        @endif
                     </div>
                 </div>
                 <div class="flex-1 min-w-0">

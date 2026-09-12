@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -11,6 +12,8 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
+    use HandlesProfilePhoto;
+
     public function index(): View
     {
         return view('admin.users.index', [
@@ -20,14 +23,17 @@ class UserController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'in:admin,teacher'],
             'gender' => ['required', 'in:male,female'],
             'phone' => ['nullable', 'string', 'max:30'],
-        ]);
+        ], $this->profilePhotoRules()));
+
+        $data = array_merge($data, $this->resolveProfilePhoto($request));
+        unset($data['remove_photo']);
 
         User::create($data);
 
@@ -36,16 +42,19 @@ class UserController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', 'in:admin,teacher'],
-        ]);
+        ], $this->profilePhotoRules()));
 
         if (empty($data['password'])) {
             unset($data['password']);
         }
+
+        $data = array_merge($data, $this->resolveProfilePhoto($request, $user->photo));
+        unset($data['remove_photo']);
 
         $user->update($data);
 

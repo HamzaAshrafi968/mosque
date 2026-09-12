@@ -173,7 +173,41 @@ function initPasswordToggles() {
 }
 
 /* ============================================================
-   6) زر "إغلاق" عام (أي زر يحمل class btn-dismiss-js يخفي أقرب عنصر)
+   6) معاينة الصور الشخصية قبل الرفع
+============================================================ */
+function initPhotoPreviews() {
+    document.querySelectorAll('[data-photo-input]').forEach((input) => {
+        const field = input.closest('[data-photo-field]');
+        const preview = field?.querySelector('[data-photo-preview]');
+        const empty = field?.querySelector('[data-photo-empty]');
+        const remove = field?.querySelector('[data-photo-remove]');
+        const hasPhoto = Boolean(preview?.getAttribute('src'));
+
+        const sync = () => {
+            const removed = remove?.checked ?? false;
+            preview?.classList.toggle('hidden', removed || !preview.getAttribute('src'));
+            empty?.classList.toggle('hidden', !removed && Boolean(preview?.getAttribute('src')));
+        };
+
+        input.addEventListener('change', () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            if (remove) remove.checked = false;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                sync();
+            };
+            reader.readAsDataURL(file);
+        });
+
+        remove?.addEventListener('change', sync);
+        sync();
+    });
+}
+
+/* ============================================================
+   7) زر "إغلاق" عام (أي زر يحمل class btn-dismiss-js يخفي أقرب عنصر)
 ============================================================ */
 document.querySelectorAll('[data-dismiss-parent]').forEach((btn) => {
     btn.addEventListener('click', () => btn.closest(btn.dataset.dismissParent)?.remove());
@@ -188,10 +222,12 @@ if (document.readyState === 'loading') {
         initCounters();
         initFlashToasts();
         initPasswordToggles();
+        initPhotoPreviews();
     });
 } else {
     revealOnScroll();
     initCounters();
     initFlashToasts();
     initPasswordToggles();
+    initPhotoPreviews();
 }

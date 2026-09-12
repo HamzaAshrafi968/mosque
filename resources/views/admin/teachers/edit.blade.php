@@ -4,9 +4,12 @@
 
 @section('content')
 <div class="bg-white rounded-xl shadow overflow-hidden p-6 max-w-2xl">
-    <form method="POST" action="{{ route('admin.teachers.update', $teacher) }}" class="space-y-4">
+    <form method="POST" action="{{ route('admin.teachers.update', $teacher) }}" enctype="multipart/form-data" class="space-y-4">
         @csrf
         @method('PUT')
+        <div class="pb-4 border-b border-gray-100">
+            <x-photo-input label="صورة المعلم" :current-src="$teacher->avatarUrl()" :current-name="$teacher->name" />
+        </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">الاسم <span class="text-red-500">*</span></label>
             <input type="text" name="name" value="{{ old('name', $teacher->name) }}" required

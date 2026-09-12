@@ -46,11 +46,16 @@
             <tbody>
                 @forelse($teachers as $teacher)
                     <tr>
-                        <td class="px-4 py-3 border-t font-bold whitespace-nowrap">
-                            {{ $teacher->name }}
-                            @if($teacher->studySession)
-                                <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800">{{ $teacher->studySession->name }}</span></div>
-                            @endif
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <div class="flex items-center gap-3">
+                                <x-avatar :src="$teacher->avatarUrl()" :name="$teacher->name" size="sm" fallback-class="bg-gradient-to-br from-pine-500 to-pine-800" />
+                                <div class="font-bold">
+                                    <a href="{{ route('admin.teachers.show', $teacher) }}" class="text-gray-800 hover:text-emerald-700 transition">{{ $teacher->name }}</a>
+                                    @if($teacher->studySession)
+                                        <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800">{{ $teacher->studySession->name }}</span></div>
+                                    @endif
+                                </div>
+                            </div>
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->gender === 'male' ? 'ذكر' : 'أنثى' }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $teacher->specialty }}</td>

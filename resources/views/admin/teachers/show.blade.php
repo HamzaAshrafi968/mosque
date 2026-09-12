@@ -9,9 +9,7 @@
 
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="p-6 flex flex-wrap items-center gap-5">
-        <div class="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-3xl">
-            {{ mb_substr($teacher->name, 0, 1) }}
-        </div>
+        <x-avatar :src="$teacher->avatarUrl()" :name="$teacher->name" size="2xl" fallback-class="bg-gradient-to-br from-pine-500 to-pine-800" />
         <div class="flex-1 min-w-48">
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-bold text-gray-800">{{ $teacher->name }}</h1>

@@ -35,7 +35,17 @@
             <tbody>
                 @forelse($guardians as $guardian)
                     <tr class="border-t border-gray-100">
-                        <td class="px-4 py-3 font-bold text-gray-800">{{ $guardian->name }}</td>
+                        <td class="px-4 py-3 font-bold text-gray-800">
+                            <div class="flex items-center gap-3">
+                                <x-avatar :src="$guardian->avatarUrl()" :name="$guardian->name" size="sm" />
+                                <div>
+                                    {{ $guardian->name }}
+                                    @if($guardian->user)
+                                        <div class="text-[11px] font-semibold text-gray-400">حساب بوابة: {{ $guardian->user->email }}</div>
+                                    @endif
+                                </div>
+                            </div>
+                        </td>
                         <td class="px-4 py-3 text-gray-600" dir="ltr">{{ $guardian->phone ?? '—' }}</td>
                         <td class="px-4 py-3">
                             @if($guardian->user)

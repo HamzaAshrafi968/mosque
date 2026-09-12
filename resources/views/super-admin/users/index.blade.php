@@ -13,7 +13,7 @@
 
 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
     <h3 class="font-bold text-gray-700 mb-4">إضافة مستخدم</h3>
-    <form method="POST" action="{{ route('super-admin.mosques.users.store', $mosque) }}" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+    <form method="POST" action="{{ route('super-admin.mosques.users.store', $mosque) }}" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
         @csrf
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
@@ -46,7 +46,10 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
             <input type="text" name="phone" value="{{ old('phone') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
         </div>
-        <div class="md:col-span-3">
+        <div class="md:col-span-2">
+            <x-photo-input label="الصورة الشخصية" help="صورة مدير الجامع / المعلم (اختياري) — JPG, PNG أو WebP بحد أقصى 2MB" />
+        </div>
+        <div>
             <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 py-2 rounded-lg">إضافة</button>
         </div>
     </form>
@@ -66,7 +69,12 @@
         <tbody class="divide-y divide-gray-100">
             @forelse($users as $user)
                 <tr>
-                    <td class="px-4 py-3 font-semibold text-gray-800">{{ $user->name }}</td>
+                    <td class="px-4 py-3 font-semibold text-gray-800">
+                        <div class="flex items-center gap-3">
+                            <x-avatar :src="$user->avatarUrl()" :name="$user->name" size="sm" />
+                            {{ $user->name }}
+                        </div>
+                    </td>
                     <td class="px-4 py-3 text-gray-500" dir="ltr">{{ $user->email }}</td>
                     <td class="px-4 py-3">
                         <div class="flex flex-wrap gap-1">

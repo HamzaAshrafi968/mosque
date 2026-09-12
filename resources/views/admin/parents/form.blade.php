@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <form method="POST" action="{{ $guardian ? route('admin.parents.update', $guardian) : route('admin.parents.store') }}" class="lg:col-span-3 space-y-6">
+    <form method="POST" action="{{ $guardian ? route('admin.parents.update', $guardian) : route('admin.parents.store') }}" enctype="multipart/form-data" class="lg:col-span-3 space-y-6">
         @csrf
         @if($guardian)
             @method('PATCH')
@@ -12,23 +12,28 @@
 
         <div class="bg-white rounded-2xl shadow p-6">
             <h2 class="text-lg font-bold text-gray-800 mb-4">البيانات الأساسية</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
-                    <input type="text" name="name" required value="{{ old('name', $guardian?->name) }}"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div class="lg:col-span-1">
+                    <x-photo-input label="صورة ولي الأمر" :current-src="$guardian?->avatarUrl()" :current-name="$guardian?->name" />
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">رقم الجوال</label>
-                    <input type="text" name="phone" value="{{ old('phone', $guardian?->phone) }}" dir="ltr"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">الحالة</label>
-                    <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        <option value="active" @selected(old('status', $guardian?->status ?? 'active') === 'active')>نشط</option>
-                        <option value="inactive" @selected(old('status', $guardian?->status) === 'inactive')>غير نشط</option>
-                    </select>
+                <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+                        <input type="text" name="name" required value="{{ old('name', $guardian?->name) }}"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">رقم الجوال</label>
+                        <input type="text" name="phone" value="{{ old('phone', $guardian?->phone) }}" dir="ltr"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">الحالة</label>
+                        <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <option value="active" @selected(old('status', $guardian?->status ?? 'active') === 'active')>نشط</option>
+                            <option value="inactive" @selected(old('status', $guardian?->status) === 'inactive')>غير نشط</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
