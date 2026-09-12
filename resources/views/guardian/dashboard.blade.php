@@ -37,10 +37,14 @@
     <a href="{{ route('guardian.children.overview', $student) }}" style="animation-delay:{{ $index * 90 }}ms" class="reveal rd-1 group relative block overflow-hidden rounded-2xl bg-white border border-pine-950/[0.06] card-hover card-hover-ring shadow-[0_1px_3px_rgba(5,32,25,0.05)] mb-4">
         <div class="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
             <div class="flex items-center gap-4">
-                <span class="w-14 h-14 rounded-2xl p-[2px] bg-gradient-to-br from-gold-200 via-gold-400 to-gold-600 shrink-0">
-                    <span class="w-full h-full rounded-[12px] bg-gradient-to-br {{ $gradient }} grid place-items-center text-white text-xl font-black">
-                        {{ mb_substr($student->name, 0, 1) }}
-                    </span>
+                <span class="w-14 h-14 rounded-2xl p-[2px] bg-gradient-to-br from-gold-200 via-gold-400 to-gold-600 shrink-0 overflow-hidden">
+                    @if($student->avatarUrl())
+                        <img src="{{ $student->avatarUrl() }}" alt="{{ $student->name }}" class="w-full h-full rounded-[12px] object-cover">
+                    @else
+                        <span class="w-full h-full rounded-[12px] bg-gradient-to-br {{ $gradient }} grid place-items-center text-white text-xl font-black">
+                            {{ mb_substr($student->name, 0, 1) }}
+                        </span>
+                    @endif
                 </span>
                 <div>
                     <div class="text-lg font-black text-pine-950 group-hover:text-emerald-700 transition-colors duration-300">{{ $student->name }}</div>

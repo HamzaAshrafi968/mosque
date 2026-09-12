@@ -10,10 +10,14 @@
 
     <div class="relative flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div class="flex items-center gap-5">
-            <span class="w-16 h-16 rounded-2xl p-[2px] bg-gradient-to-br from-gold-200 via-gold-400 to-gold-600 shrink-0 shadow-xl">
-                <span class="w-full h-full rounded-[14px] bg-pine-900/80 grid place-items-center text-2xl font-black text-gold-200">
-                    {{ mb_substr($student->name, 0, 1) }}
-                </span>
+            <span class="w-16 h-16 rounded-2xl p-[2px] bg-gradient-to-br from-gold-200 via-gold-400 to-gold-600 shrink-0 shadow-xl overflow-hidden">
+                @if($student->avatarUrl())
+                    <img src="{{ $student->avatarUrl() }}" alt="{{ $student->name }}" class="w-full h-full rounded-[14px] object-cover">
+                @else
+                    <span class="w-full h-full rounded-[14px] bg-pine-900/80 grid place-items-center text-2xl font-black text-gold-200">
+                        {{ mb_substr($student->name, 0, 1) }}
+                    </span>
+                @endif
             </span>
             <div>
                 <span class="inline-flex items-center gap-1.5 rounded-full border border-gold-300/30 bg-gold-400/10 px-3 py-1 text-[11px] font-bold text-gold-200 mb-2">
