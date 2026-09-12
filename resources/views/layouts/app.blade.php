@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'إدارة الجوامع') | {{ config('app.name', 'مسجد') }}</title>
+    <title>@yield('title', 'مؤسسة السفرة') | {{ config('app.name', 'مؤسسة السفرة') }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
@@ -34,8 +34,8 @@
 
             <div class="flex items-center gap-2.5 font-bold shrink-0 min-w-0">
                 <span class="w-10 h-10 rounded-xl p-[1.5px] bg-gradient-to-br from-gold-200 via-gold-400 to-gold-600 shadow-lg shadow-gold-950/20 shrink-0">
-                    <span class="w-full h-full rounded-[10px] bg-pine-900/90 backdrop-blur grid place-items-center text-gold-300">
-                        <x-icon name="mosque" class="w-5 h-5" />
+                    <span class="w-full h-full rounded-[10px] bg-white grid place-items-center overflow-hidden">
+                        <img src="{{ asset('images/logo-mark.png') }}" alt="شعار مؤسسة السفرة" class="w-7 h-7 object-contain">
                     </span>
                 </span>
                 <div class="leading-tight min-w-0">
@@ -60,8 +60,8 @@
                 <x-icon name="menu" class="w-6 h-6" />
             </button>
             <div class="relative flex items-center gap-2 font-bold">
-                <span class="text-gold-300"><x-icon name="mosque" class="w-5 h-5" /></span>
-                <span class="text-sm">إدارة الجوامع</span>
+                <span class="bg-white rounded-lg p-1 grid place-items-center overflow-hidden"><img src="{{ asset('images/logo-mark.png') }}" alt="شعار مؤسسة السفرة" class="w-6 h-6 object-contain"></span>
+                <span class="text-sm">مؤسسة السفرة</span>
             </div>
             <form method="POST" action="{{ route('logout') }}" class="relative">
                 @csrf
@@ -81,12 +81,12 @@
         <div class="relative p-5 border-b border-white/10 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-11 h-11 rounded-2xl p-[1.5px] bg-gradient-to-br from-gold-200 via-gold-400 to-gold-600 shadow-lg shadow-pine-950/30">
-                    <div class="w-full h-full rounded-[13px] bg-pine-900/80 grid place-items-center">
-                        <span class="text-gold-300"><x-icon name="mosque" class="w-6 h-6" /></span>
+                    <div class="w-full h-full rounded-[13px] bg-white grid place-items-center overflow-hidden">
+                        <img src="{{ asset('images/logo-mark.png') }}" alt="شعار مؤسسة السفرة" class="w-8 h-8 object-contain">
                     </div>
                 </div>
                 <div>
-                    <div class="text-lg font-black leading-tight">إدارة الجوامع</div>
+                    <div class="text-lg font-black leading-tight">مؤسسة السفرة</div>
                     <div class="text-[11px] text-gold-200/80 mt-0.5 font-semibold">نظام إدارة المساجد وحلقات القرآن</div>
                 </div>
             </div>
