@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title') | {{ config('app.name', 'مؤسسة السفرة') }}</title>
+    <title>@yield('title') | {{ config('app.name', 'مؤسسة السفرة للعلوم والتنمية') }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
@@ -31,12 +31,12 @@
                 <span class="absolute inset-0 rounded-3xl bg-gold-300/20 blur-xl animate-glow-ring"></span>
                 <div class="relative w-20 h-20 rounded-3xl p-[2px] bg-gradient-to-br from-gold-200 via-gold-400 to-gold-700 shadow-2xl shadow-gold-950/40">
                     <div class="w-full h-full rounded-[22px] bg-white grid place-items-center overflow-hidden">
-                        <img src="{{ asset('images/logo-mark.png') }}" alt="شعار مؤسسة السفرة" class="w-12 h-12 object-contain">
+                        <img src="{{ asset('images/logo-mark.png') }}" alt="شعار مؤسسة السفرة للعلوم والتنمية" class="w-12 h-12 object-contain">
                     </div>
                 </div>
             </div>
             <h1 class="text-3xl sm:text-4xl font-black mt-5 text-white">
-                مؤسسة <span class="gold-text">السفرة</span>
+                مؤسسة <span class="gold-text">السفرة</span> للعلوم والتنمية
             </h1>
             <p class="text-sm mt-2 text-emerald-100/70 font-medium">نظام إدارة المساجد وحلقات القرآن</p>
         </div>
@@ -60,7 +60,7 @@
         </div>
 
         <p class="text-center text-emerald-100/50 text-xs mt-7 animate-fade-in-up" style="animation-delay:.34s">
-            جميع الحقوق محفوظة © {{ date('Y') }} — مؤسسة السفرة
+            جميع الحقوق محفوظة © {{ date('Y') }} — مؤسسة السفرة للعلوم والتنمية
         </p>
     </div>
 </body>
