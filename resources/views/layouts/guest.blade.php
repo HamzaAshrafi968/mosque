@@ -25,7 +25,7 @@
     {{-- هالة أعلى المركز خلف البطاقة --}}
     <div aria-hidden="true" class="absolute top-[16%] start-1/2 -translate-x-1/2 w-[560px] h-[300px] rounded-full bg-gold-300/10 blur-[100px] pointer-events-none"></div>
 
-    <div class="w-full max-w-md relative z-10 animate-fade-in-up">
+    <div class="w-full max-w-md mx-auto relative z-10 animate-fade-in-up">
         <div class="text-center mb-8 animate-fade-in-up" style="animation-delay:.1s">
             <div class="relative inline-flex items-center justify-center">
                 <span class="absolute inset-0 rounded-3xl bg-gold-300/20 blur-xl animate-glow-ring"></span>
