@@ -27,6 +27,8 @@ class QuranRecitationSession extends Model
         'date',
         'amount',
         'recited_portion',
+        'from_page',
+        'to_page',
         'result',
         'notes',
     ];
@@ -37,6 +39,8 @@ class QuranRecitationSession extends Model
             'type' => QuranTasmeeType::class,
             'date' => 'date',
             'amount' => 'decimal:2',
+            'from_page' => 'integer',
+            'to_page' => 'integer',
             'result' => QuranTasmeeResult::class,
         ];
     }

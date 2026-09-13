@@ -48,5 +48,7 @@ class QuranDataSeeder extends Seeder
         }
 
         $this->command?->info('Quran data seeded successfully.');
+
+        $this->call(QuranPageSeeder::class);
     }
 }

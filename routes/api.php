@@ -65,6 +65,8 @@ Route::prefix('v1')->group(function () {
             Route::get('quran-review/student/{studentId}', [V1\Admin\QuranReviewController::class, 'studentReport']);
             Route::get('quran-review/{id}', [V1\Admin\QuranReviewController::class, 'show']);
 
+            Route::get('quran/pages/{page}', [V1\Admin\QuranPageController::class, 'show'])->whereNumber('page');
+
             Route::get('announcements', [V1\Admin\AnnouncementController::class, 'index']);
             Route::post('announcements', [V1\Admin\AnnouncementController::class, 'store']);
             Route::delete('announcements/{id}', [V1\Admin\AnnouncementController::class, 'destroy']);
@@ -105,6 +107,8 @@ Route::prefix('v1')->group(function () {
             Route::get('quran-review/ayahs', [V1\Teacher\QuranReviewController::class, 'getAyahs']);
             Route::get('quran-review/student/{studentId}', [V1\Teacher\QuranReviewController::class, 'studentReport']);
             Route::get('quran-review/{id}', [V1\Teacher\QuranReviewController::class, 'show']);
+
+            Route::get('quran/pages/{page}', [V1\Teacher\QuranPageController::class, 'show'])->whereNumber('page');
 
             Route::get('reward-points', [V1\Teacher\RewardPointController::class, 'index']);
             Route::post('reward-points', [V1\Teacher\RewardPointController::class, 'store']);

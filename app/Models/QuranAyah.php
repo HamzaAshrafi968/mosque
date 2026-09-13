@@ -17,12 +17,16 @@ class QuranAyah extends Model
         'ayah_number',
         'text',
         'text_simple',
+        'page',
+        'juz',
     ];
 
     protected function casts(): array
     {
         return [
             'ayah_number' => 'integer',
+            'page' => 'integer',
+            'juz' => 'integer',
         ];
     }
 

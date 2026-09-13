@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Guardian;
 use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\QuranPageController;
 use App\Http\Controllers\Student as StudentPortal;
 use App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Teacher;
@@ -169,6 +170,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('faith-meeting-templates', [Admin\FaithMeetingTemplateController::class, 'store'])->name('faith-meetings.templates.store')->middleware('permission:faith_meetings.update');
     Route::patch('faith-meeting-templates/{template}', [Admin\FaithMeetingTemplateController::class, 'update'])->name('faith-meetings.templates.update')->middleware('permission:faith_meetings.update');
     Route::delete('faith-meeting-templates/{template}', [Admin\FaithMeetingTemplateController::class, 'destroy'])->name('faith-meetings.templates.destroy')->middleware('permission:faith_meetings.update');
+});
+
+// ---- صفحات المصحف (المدير داخل الجامع + المعلم) ----
+Route::middleware(['auth', 'permission:quran.tasmee.view'])->prefix('quran/pages')->name('quran.pages.')->group(function () {
+    Route::get('{page}', [QuranPageController::class, 'show'])->whereNumber('page')->name('show');
+    Route::get('{page}/preview', [QuranPageController::class, 'preview'])->whereNumber('page')->name('preview');
+    Route::get('{page}/json', [QuranPageController::class, 'json'])->whereNumber('page')->name('json');
 });
 
 Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {

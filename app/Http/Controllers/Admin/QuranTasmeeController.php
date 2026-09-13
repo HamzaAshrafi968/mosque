@@ -9,6 +9,7 @@ use App\Models\QuranRecitationSession;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AuditLogger;
+use App\Support\TasmeePageInput;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -51,7 +52,7 @@ class QuranTasmeeController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = TasmeePageInput::normalize($this->validated($request));
 
         $session = QuranRecitationSession::create([
             'student_id' => $data['student_id'],
@@ -60,6 +61,8 @@ class QuranTasmeeController extends Controller
             'date' => $data['date'],
             'amount' => $data['amount'],
             'recited_portion' => $data['recited_portion'] ?? null,
+            'from_page' => $data['from_page'] ?? null,
+            'to_page' => $data['to_page'] ?? null,
             'result' => $data['result'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);
@@ -84,7 +87,7 @@ class QuranTasmeeController extends Controller
 
     public function update(Request $request, QuranRecitationSession $session): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = TasmeePageInput::normalize($this->validated($request));
         $before = $session->getAttributes();
 
         $session->update([
@@ -94,6 +97,8 @@ class QuranTasmeeController extends Controller
             'date' => $data['date'],
             'amount' => $data['amount'],
             'recited_portion' => $data['recited_portion'] ?? null,
+            'from_page' => $data['from_page'] ?? null,
+            'to_page' => $data['to_page'] ?? null,
             'result' => $data['result'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);
@@ -126,10 +131,11 @@ class QuranTasmeeController extends Controller
             'teacher_id' => ['required', 'uuid', Rule::exists('teachers', 'id')->where('tenant_id', $tenantId)],
             'type' => ['required', Rule::in(['new', 'revision'])],
             'date' => ['required', 'date'],
-            'amount' => ['required', 'numeric', 'min:0', 'max:9999'],
+            'amount' => ['nullable', 'required_without:from_page', 'numeric', 'min:0', 'max:9999'],
             'recited_portion' => ['nullable', 'string', 'max:255'],
             'result' => ['nullable', Rule::in(['excellent', 'very_good', 'good', 'needs_review'])],
             'notes' => ['nullable', 'string', 'max:2000'],
+            ...TasmeePageInput::rules(),
         ]);
     }
 }

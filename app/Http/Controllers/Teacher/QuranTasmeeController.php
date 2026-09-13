@@ -8,6 +8,7 @@ use App\Models\QuranRecitationSession;
 use App\Models\Student;
 use App\Services\AuditLogger;
 use App\Services\QuranScopeService;
+use App\Support\TasmeePageInput;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -57,15 +58,16 @@ class QuranTasmeeController extends BaseTeacherController
     {
         $teacher = $this->currentTeacher($request);
 
-        $data = $request->validate([
+        $data = TasmeePageInput::normalize($request->validate([
             'student_id' => ['required', 'uuid', 'exists:students,id'],
             'type' => ['required', Rule::in(['new', 'revision'])],
             'date' => ['required', 'date'],
-            'amount' => ['required', 'numeric', 'min:0', 'max:9999'],
+            'amount' => ['nullable', 'required_without:from_page', 'numeric', 'min:0', 'max:9999'],
             'recited_portion' => ['nullable', 'string', 'max:255'],
             'result' => ['nullable', Rule::in(['excellent', 'very_good', 'good', 'needs_review'])],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
+            ...TasmeePageInput::rules(),
+        ]));
 
         $student = Student::findOrFail($data['student_id']);
         $this->scope->assertCanManageStudent($teacher, $student);
@@ -77,6 +79,8 @@ class QuranTasmeeController extends BaseTeacherController
             'date' => $data['date'],
             'amount' => $data['amount'],
             'recited_portion' => $data['recited_portion'] ?? null,
+            'from_page' => $data['from_page'] ?? null,
+            'to_page' => $data['to_page'] ?? null,
             'result' => $data['result'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);
@@ -107,14 +111,15 @@ class QuranTasmeeController extends BaseTeacherController
 
         abort_unless($session->teacher_id === $teacher->id, 403, 'لا تملك صلاحية تعديل هذا التسميع');
 
-        $data = $request->validate([
+        $data = TasmeePageInput::normalize($request->validate([
             'type' => ['required', Rule::in(['new', 'revision'])],
             'date' => ['required', 'date'],
-            'amount' => ['required', 'numeric', 'min:0', 'max:9999'],
+            'amount' => ['nullable', 'required_without:from_page', 'numeric', 'min:0', 'max:9999'],
             'recited_portion' => ['nullable', 'string', 'max:255'],
             'result' => ['nullable', Rule::in(['excellent', 'very_good', 'good', 'needs_review'])],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
+            ...TasmeePageInput::rules(),
+        ]));
 
         $before = $session->getAttributes();
         $oldResult = $session->result?->value;
@@ -124,6 +129,8 @@ class QuranTasmeeController extends BaseTeacherController
             'date' => $data['date'],
             'amount' => $data['amount'],
             'recited_portion' => $data['recited_portion'] ?? null,
+            'from_page' => $data['from_page'] ?? null,
+            'to_page' => $data['to_page'] ?? null,
             'result' => $data['result'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);

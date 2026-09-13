@@ -51,6 +51,7 @@
                         <th class="px-4 py-3 text-right">الطالب</th>
                         <th class="px-4 py-3 text-right">النوع</th>
                         <th class="px-4 py-3 text-right">المقدار</th>
+                        <th class="px-4 py-3 text-right">الصفحات</th>
                         <th class="px-4 py-3 text-right">المقروء</th>
                         <th class="px-4 py-3 text-right">النتيجة</th>
                         <th class="px-4 py-3 text-right">المعلم</th>
@@ -72,6 +73,13 @@
                             ])>{{ $session->type->label() }}</span>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $session->amount }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            @if($session->from_page && $session->to_page)
+                                <a href="{{ route('quran.pages.show', $session->from_page) }}" class="text-emerald-700 hover:underline">ص {{ $session->from_page }} → ص {{ $session->to_page }}</a>
+                            @else
+                                <span class="text-gray-300">—</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3">{{ $session->recited_portion ?? '—' }}</td>
                         <td class="px-4 py-3">
                             @if($session->result)
@@ -90,7 +98,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">لا توجد سجلات تسميع</td></tr>
+                    <tr><td colspan="9" class="px-4 py-8 text-center text-gray-400">لا توجد سجلات تسميع</td></tr>
                 @endforelse
                 </tbody>
             </table>
