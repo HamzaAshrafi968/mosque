@@ -42,6 +42,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('teachers/{teacher}/certificates', [Admin\TeacherController::class, 'storeCertificate'])->name('teachers.certificates.store');
     Route::delete('teachers/{teacher}/certificates/{certificate}', [Admin\TeacherController::class, 'destroyCertificate'])->name('teachers.certificates.destroy');
 
+    // ---- ساعات عمل المشرفين (spec: mosque_management_work_hours_sharia_courses_quran_pages.md) ----
+    Route::get('work-hours', [Admin\TeacherWorkHourController::class, 'index'])->name('work-hours.index')->middleware('permission:work_hours.view');
+    Route::get('teachers/{teacher}/work-hours', [Admin\TeacherWorkHourController::class, 'teacherIndex'])->name('teachers.work-hours.index')->middleware('permission:work_hours.view');
+    Route::post('teachers/{teacher}/work-hours', [Admin\TeacherWorkHourController::class, 'store'])->name('teachers.work-hours.store')->middleware('permission:work_hours.manage');
+    Route::patch('work-hours/{workHour}', [Admin\TeacherWorkHourController::class, 'update'])->name('work-hours.update')->middleware('permission:work_hours.manage');
+    Route::delete('work-hours/{workHour}', [Admin\TeacherWorkHourController::class, 'destroy'])->name('work-hours.destroy')->middleware('permission:work_hours.manage');
+
     Route::get('classrooms', [Admin\ClassroomController::class, 'index'])->name('classrooms.index');
     Route::get('classrooms/create', [Admin\ClassroomController::class, 'create'])->name('classrooms.create')->middleware('permission:classes.create');
     Route::post('classrooms', [Admin\ClassroomController::class, 'store'])->name('classrooms.store');
@@ -183,6 +190,8 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('dashboard', [Teacher\DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('schedule', [Teacher\ScheduleController::class, 'index'])->name('schedule');
+
+    Route::get('work-hours', [Teacher\WorkHourController::class, 'index'])->name('work-hours.index')->middleware('permission:work_hours.view');
 
     Route::get('attendance', [Teacher\AttendanceController::class, 'create'])->name('attendance.create');
     Route::post('attendance', [Teacher\AttendanceController::class, 'store'])->name('attendance.store');

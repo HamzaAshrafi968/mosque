@@ -119,6 +119,12 @@ class Teacher extends Model
         return $this->hasMany(FaithMeeting::class, 'teacher_id');
     }
 
+    /** Recurring weekly work periods. */
+    public function workHours(): HasMany
+    {
+        return $this->hasMany(TeacherWorkHour::class);
+    }
+
     /** Explicit assignments to sections (source of truth for section scope). */
     public function sectionAssignments(): HasMany
     {

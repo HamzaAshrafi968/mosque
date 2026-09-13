@@ -187,6 +187,35 @@
     </div>
 </div>
 
+<div class="bg-white rounded-xl shadow overflow-hidden mb-6">
+    <div class="px-4 py-3 bg-emerald-700 text-white font-bold flex items-center justify-between">
+        <span>ساعات العمل</span>
+        <a href="{{ route('admin.teachers.work-hours.index', $teacher) }}" class="text-xs bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 font-bold">إدارة ساعات العمل ←</a>
+    </div>
+    @if($teacher->workHours->isEmpty())
+        <div class="px-4 py-6 text-center text-gray-500 text-sm">لم تُحدد ساعات عمل بعد</div>
+    @else
+        <div class="p-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            @foreach(\App\Enums\WorkDay::cases() as $day)
+                @php $dayHours = $teacher->workHours->where('day_of_week', $day->value); @endphp
+                <div @class([
+                    'rounded-xl border p-2.5 text-center',
+                    'border-gold-300 bg-gold-50/60' => $day->value === now()->dayOfWeek,
+                    'border-gray-100 bg-gray-50/60' => $day->value !== now()->dayOfWeek,
+                ])>
+                    <div class="text-xs font-black text-pine-900">{{ $day->label() }}</div>
+                    @forelse($dayHours as $hour)
+                        <div class="text-[11px] text-gray-600 mt-1">{{ substr($hour->start_time, 0, 5) }} — {{ substr($hour->end_time, 0, 5) }}</div>
+                    @empty
+                        <div class="text-[11px] text-gray-300 mt-1">—</div>
+                    @endforelse
+                </div>
+            @endforeach
+        </div>
+        <div class="px-4 pb-4 text-sm text-gray-500">الإجمالي الأسبوعي: <span class="font-bold text-emerald-700">{{ $workHoursTotal }} ساعة</span></div>
+    @endif
+</div>
+
 @if($customValues->isNotEmpty())
     <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
         <div class="px-4 py-3 bg-emerald-700 text-white font-bold">بيانات إضافية</div>

@@ -17,6 +17,7 @@ use App\Models\Student;
 use App\Models\StudySession;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\TeacherWorkHour;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\QuranProgramService;
@@ -190,6 +191,28 @@ class DatabaseSeeder extends Seeder
             'name' => 'التجويد',
             'weekly_lessons' => 3,
         ]);
+
+        // ---- ساعات عمل المشرفين (spec: work_hours_sharia_courses_quran_pages.md §1) ----
+        $workHourPeriods = [
+            [0, '07:30', '12:00', 'الفترة الصباحية'],
+            [0, '16:00', '18:30', 'حلقة الحفظ'],
+            [1, '07:30', '12:00', null],
+            [2, '07:30', '12:00', null],
+            [3, '07:30', '12:00', null],
+            [4, '07:30', '10:30', 'مراجعة عامة'],
+        ];
+
+        foreach ($workHourPeriods as [$day, $start, $end, $notes]) {
+            TeacherWorkHour::create([
+                'tenant_id' => $mosque1->id,
+                'teacher_id' => $teacher->id,
+                'day_of_week' => $day,
+                'start_time' => $start,
+                'end_time' => $end,
+                'notes' => $notes,
+                'created_by' => $manager->id,
+            ]);
+        }
 
         // ---- Portals demo data (parent + student accounts) ----
         $children = Student::where('tenant_id', $mosque1->id)->orderBy('name')->limit(2)->get();

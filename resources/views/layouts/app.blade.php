@@ -107,7 +107,8 @@
                     <span>الرئيسية</span>
                 </x-nav-link>
                 <x-nav-link icon="students" :href="route('admin.students.index')" :active="request()->routeIs('admin.students.*')"><span>الطلاب</span></x-nav-link>
-                <x-nav-link icon="teachers" :href="route('admin.teachers.index')" :active="request()->routeIs('admin.teachers.*')"><span>المعلمون</span></x-nav-link>
+                <x-nav-link icon="teachers" :href="route('admin.teachers.index')" :active="request()->routeIs('admin.teachers.*') && !request()->routeIs('admin.teachers.work-hours.*')"><span>المعلمون</span></x-nav-link>
+                <x-nav-link icon="clock" :href="route('admin.work-hours.index')" :active="request()->routeIs('admin.work-hours.*') || request()->routeIs('admin.teachers.work-hours.*')"><span>ساعات العمل</span></x-nav-link>
                 <x-nav-link icon="fields" :href="route('admin.custom-fields.index')" :active="request()->routeIs('admin.custom-fields.*')"><span>الحقول المخصصة</span></x-nav-link>
                 <x-nav-link icon="classrooms" :href="route('admin.classrooms.index')" :active="request()->routeIs('admin.classrooms.*')"><span>الصفوف والشعب</span></x-nav-link>
                 <x-nav-link icon="subjects" :href="route('admin.subjects.index')" :active="request()->routeIs('admin.subjects.*')"><span>المواد الدراسية</span></x-nav-link>
@@ -192,6 +193,7 @@
                 <x-nav-link icon="home" :href="route('teacher.dashboard')" :active="request()->routeIs('teacher.dashboard')"><span>الرئيسية</span></x-nav-link>
                 <x-nav-link icon="sections" :href="route('teacher.sections.index')" :active="request()->routeIs('teacher.sections.*')"><span>شعبي والطلاب</span></x-nav-link>
                 <x-nav-link icon="calendar" :href="route('teacher.schedule')" :active="request()->routeIs('teacher.schedule')"><span>جدولي الدراسي</span></x-nav-link>
+                <x-nav-link icon="clock" :href="route('teacher.work-hours.index')" :active="request()->routeIs('teacher.work-hours.*')"><span>ساعات عملي</span></x-nav-link>
                 <x-nav-link icon="attendance" :href="route('teacher.attendance.create')" :active="request()->routeIs('teacher.attendance.*')"><span>تسجيل الحضور</span></x-nav-link>
                 <x-nav-link icon="homework" :href="route('teacher.homeworks.index')" :active="request()->routeIs('teacher.homeworks.*') || request()->routeIs('teacher.submissions.*')"><span>الواجبات</span></x-nav-link>
                 <x-nav-link icon="exam" :href="route('teacher.exams.index')" :active="request()->routeIs('teacher.exams.*') && !request()->routeIs('teacher.grades.*')"><span>الامتحانات</span></x-nav-link>

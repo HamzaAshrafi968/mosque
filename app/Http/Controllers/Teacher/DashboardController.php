@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Models\HomeworkSubmission;
 use App\Models\Schedule;
+use App\Models\TeacherWorkHour;
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -31,6 +32,11 @@ class DashboardController extends BaseTeacherController
             'todaySchedule' => $todaySchedule,
             'pendingSubmissions' => $pendingSubmissions,
             'announcements' => $dashboard->latestAnnouncements($request->user()->tenant_id),
+            'todayWorkHours' => $teacher->workHours()
+                ->where('day_of_week', now()->dayOfWeek)
+                ->orderBy('start_time')
+                ->get(),
+            'weeklyWorkHours' => TeacherWorkHour::weeklyTotalHours($teacher->id),
         ]);
     }
 }

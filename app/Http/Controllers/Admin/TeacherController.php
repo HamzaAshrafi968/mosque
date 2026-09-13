@@ -62,6 +62,7 @@ class TeacherController extends Controller
             'ratings' => fn ($q) => $q->with('user:id,name')->latest(),
             'certificates' => fn ($q) => $q->latest(),
             'assignedSections.classroom:id,name',
+            'workHours' => fn ($q) => $q->orderBy('day_of_week')->orderBy('start_time'),
         ]);
 
         $activity = [
@@ -82,6 +83,7 @@ class TeacherController extends Controller
             'activity' => $activity,
             'customValues' => $this->customFields->displayedValues(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id),
             'assignedSections' => $teacher->assignedSections()->with('classroom:id,name')->orderBy('name')->get(),
+            'workHoursTotal' => round($teacher->workHours->sum(fn ($hour) => $hour->durationHours()), 2),
         ]);
     }
 

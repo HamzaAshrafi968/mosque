@@ -89,6 +89,31 @@
     @endif
 </section>
 
+{{-- ===== ساعات عملي اليوم ===== --}}
+<section class="reveal rd-2 rounded-2xl bg-white border border-pine-950/[0.06] shadow-[0_1px_3px_rgba(5,32,25,0.05)] overflow-hidden mb-8">
+    <div class="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+        <h2 class="font-black text-pine-950 flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-lg bg-gold-50 text-gold-600 grid place-items-center"><x-icon name="clock" class="w-4 h-4" /></span>
+            ساعات عملي اليوم
+        </h2>
+        <div class="flex items-center gap-2">
+            <span class="text-[11px] font-black text-emerald-700 bg-emerald-50 rounded-full px-3 py-1.5">الإجمالي الأسبوعي: {{ $weeklyWorkHours }} ساعة</span>
+            <a href="{{ route('teacher.work-hours.index') }}" class="text-[11px] font-bold text-pine-700 hover:underline">التفاصيل ←</a>
+        </div>
+    </div>
+    <div class="px-6 py-4">
+        @forelse($todayWorkHours as $hour)
+            <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 font-bold text-sm rounded-xl px-3 py-1.5 me-2 mb-2">
+                <x-icon name="clock" class="w-4 h-4" />
+                {{ substr($hour->start_time, 0, 5) }} — {{ substr($hour->end_time, 0, 5) }}
+                @if($hour->notes)<span class="text-[11px] text-emerald-600 font-medium">({{ $hour->notes }})</span>@endif
+            </span>
+        @empty
+            <p class="text-gray-400 text-sm font-medium">لا توجد ساعات عمل محددة لليوم</p>
+        @endforelse
+    </div>
+</section>
+
 {{-- ===== آخر الإعلانات ===== --}}
 <section class="reveal rd-2 rounded-2xl bg-white border border-pine-950/[0.06] shadow-[0_1px_3px_rgba(5,32,25,0.05)] overflow-hidden">
     <div class="px-6 py-4 flex items-center justify-between bg-gradient-to-l from-pine-800 to-pine-950 text-white">

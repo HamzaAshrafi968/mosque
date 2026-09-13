@@ -140,6 +140,9 @@ final class PermissionCatalog
         ['faith_meetings', 'create', 'إنشاء لقاء إيماني'],
         ['faith_meetings', 'update', 'تعديل لقاء إيماني'],
         ['faith_meetings', 'attendance', 'تسجيل حضور اللقاءات'],
+        // Teacher work hours (ساعات عمل المشرفين)
+        ['work_hours', 'view', 'مشاهدة ساعات العمل'],
+        ['work_hours', 'manage', 'إدارة ساعات العمل'],
     ];
 
     /** Default grants for the per-mosque manager role: code => scope. */
@@ -171,6 +174,7 @@ final class PermissionCatalog
         'hafiz_exams.view' => 'mosque', 'hafiz_exams.create' => 'mosque', 'hafiz_exams.update' => 'mosque', 'hafiz_exams.grade' => 'mosque',
         'hafiz_profile.view' => 'mosque', 'hafiz_profile.update' => 'mosque',
         'faith_meetings.view' => 'mosque', 'faith_meetings.create' => 'mosque', 'faith_meetings.update' => 'mosque', 'faith_meetings.attendance' => 'mosque',
+        'work_hours.view' => 'mosque', 'work_hours.manage' => 'mosque',
     ];
 
     /** Default grants for the teacher role: code => scope. */
@@ -196,6 +200,7 @@ final class PermissionCatalog
         'hafiz_exams.view' => 'own', 'hafiz_exams.create' => 'own', 'hafiz_exams.update' => 'own', 'hafiz_exams.grade' => 'own',
         'hafiz_profile.view' => 'own',
         'faith_meetings.view' => 'own', 'faith_meetings.create' => 'own', 'faith_meetings.update' => 'own', 'faith_meetings.attendance' => 'own',
+        'work_hours.view' => 'own',
     ];
 
     /** Default grants for the guardian portal role: code => scope (read-only). */
