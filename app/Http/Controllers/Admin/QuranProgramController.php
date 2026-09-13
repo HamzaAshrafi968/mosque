@@ -96,6 +96,13 @@ class QuranProgramController extends Controller
             ->orderByDesc('month')
             ->get();
 
+        $currentMonth = QuranProgramSettings::monthOf(now());
+        $currentMonthWeeklyEvaluations = $student->ijazahWeeklyEvaluations()
+            ->where('month', $currentMonth)
+            ->orderBy('week')
+            ->get()
+            ->keyBy('week');
+
         $exams = $student->hafizMonthlyExams()
             ->with(['supervisor:id,name', 'revisions'])
             ->orderByDesc('month')
@@ -107,6 +114,8 @@ class QuranProgramController extends Controller
             'tasmee' => $tasmee,
             'weeklyEvaluations' => $weeklyEvaluations,
             'monthlyEvaluations' => $monthlyEvaluations,
+            'currentMonth' => $currentMonth,
+            'currentMonthWeeklyEvaluations' => $currentMonthWeeklyEvaluations,
             'exams' => $exams,
             'monthLabel' => fn (string $m) => QuranProgramSettings::monthLabel($m),
         ]);

@@ -95,6 +95,20 @@
                         <span class="font-bold text-gray-800">📜 تقييمات برنامج الإجازة</span>
                         <a href="{{ route('teacher.quran.ijazah.evaluations.create', ['student_id' => $student->id]) }}" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg font-bold">+ تقييم</a>
                     </div>
+                    <div class="px-5 py-3 border-b bg-emerald-50/40 flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-bold text-gray-600">أسابيع {{ $monthLabel($currentMonth) }}:</span>
+                        @for($week = 1; $week <= 4; $week++)
+                            @php $weekEvaluation = $currentMonthWeeklyEvaluations->get($week); @endphp
+                            <span @class([
+                                'text-[11px] font-bold rounded-full px-2.5 py-1',
+                                'bg-green-100 text-green-800' => $weekEvaluation?->result?->value === 'passed',
+                                'bg-yellow-100 text-yellow-800' => $weekEvaluation?->result?->value === 'needs_review',
+                                'bg-red-100 text-red-800' => $weekEvaluation?->result?->value === 'failed',
+                                'bg-gray-100 text-gray-500' => ! $weekEvaluation,
+                            ])>الأسبوع {{ $week }}: {{ $weekEvaluation?->result?->label() ?? 'لم يُقيَّم' }}</span>
+                        @endfor
+                        <a href="{{ route('teacher.quran.ijazah.month', [$student, $currentMonth]) }}" class="text-xs text-emerald-700 hover:underline ms-auto">إدارة الأسابيع ←</a>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead><tr class="bg-gray-50 text-gray-600 text-xs">

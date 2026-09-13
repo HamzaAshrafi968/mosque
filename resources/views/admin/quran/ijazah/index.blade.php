@@ -54,7 +54,11 @@
                         <td class="px-4 py-3 whitespace-nowrap">{{ $enrollment->started_at->format('Y-m-d') }}</td>
                         <td class="px-4 py-3">{{ $evals->count() }}</td>
                         <td class="px-4 py-3">{{ $passed }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $last ? $monthLabel($last->month) : '—' }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <a href="{{ route('admin.quran.ijazah.month', [$enrollment->student, $last?->month ?? now()->format('Y-m')]) }}" class="text-emerald-700 hover:underline">
+                                {{ $last ? $monthLabel($last->month) : 'عرض الأسابيع' }}
+                            </a>
+                        </td>
                         <td class="px-4 py-3">
                             @if($last)
                                 <span @class([
@@ -68,6 +72,7 @@
                         @if($status === 'active')
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <div class="flex gap-2 justify-center">
+                                <a href="{{ route('admin.quran.ijazah.month', [$enrollment->student, $last?->month ?? now()->format('Y-m')]) }}" class="text-xs text-pine-700 hover:underline">الأسابيع</a>
                                 <a href="{{ route('admin.quran.ijazah.evaluations.create', ['student_id' => $enrollment->student->id]) }}" class="text-xs text-emerald-700 hover:underline">+ تقييم</a>
                                 @if($passed >= \App\Support\QuranProgramSettings::IJAZAH_MIN_PASSED_MONTHS)
                                     <form method="POST" action="{{ route('admin.quran.ijazah.enrollments.complete', $enrollment) }}"

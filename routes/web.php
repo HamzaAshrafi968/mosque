@@ -150,6 +150,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('quran/ijazah', [Admin\IjazahController::class, 'index'])->name('quran.ijazah.index')->middleware('permission:ijazah.view');
     Route::get('quran/ijazah/evaluations/create', [Admin\IjazahController::class, 'create'])->name('quran.ijazah.evaluations.create')->middleware('permission:ijazah.create');
     Route::post('quran/ijazah/evaluations', [Admin\IjazahController::class, 'store'])->name('quran.ijazah.evaluations.store')->middleware('permission:ijazah.create');
+    Route::get('quran/ijazah/{student}/month/{month}', [Admin\IjazahController::class, 'month'])
+        ->where('month', '\d{4}-(0[1-9]|1[0-2])')->name('quran.ijazah.month')->middleware('permission:ijazah.view');
+    Route::post('quran/ijazah/weekly', [Admin\IjazahController::class, 'storeWeekly'])->name('quran.ijazah.weekly.store')->middleware('permission:ijazah.create');
+    Route::patch('quran/ijazah/weekly/{evaluation}', [Admin\IjazahController::class, 'updateWeekly'])->name('quran.ijazah.weekly.update')->middleware('permission:ijazah.update');
+    Route::delete('quran/ijazah/weekly/{evaluation}', [Admin\IjazahController::class, 'destroyWeekly'])->name('quran.ijazah.weekly.destroy')->middleware('permission:ijazah.update');
     Route::post('quran/ijazah/enrollments/{enrollment}/complete', [Admin\IjazahController::class, 'complete'])->name('quran.ijazah.enrollments.complete')->middleware('permission:ijazah.complete');
 
     Route::get('quran/exams', [Admin\HafizExamController::class, 'index'])->name('quran.exams.index')->middleware('permission:hafiz_exams.view');
@@ -247,6 +252,10 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('quran/ijazah', [Teacher\IjazahController::class, 'index'])->name('quran.ijazah.index')->middleware('permission:ijazah.view');
     Route::get('quran/ijazah/evaluations/create', [Teacher\IjazahController::class, 'create'])->name('quran.ijazah.evaluations.create')->middleware('permission:ijazah.create');
     Route::post('quran/ijazah/evaluations', [Teacher\IjazahController::class, 'store'])->name('quran.ijazah.evaluations.store')->middleware('permission:ijazah.create');
+    Route::get('quran/ijazah/{student}/month/{month}', [Teacher\IjazahController::class, 'month'])
+        ->where('month', '\d{4}-(0[1-9]|1[0-2])')->name('quran.ijazah.month')->middleware('permission:ijazah.view');
+    Route::post('quran/ijazah/weekly', [Teacher\IjazahController::class, 'storeWeekly'])->name('quran.ijazah.weekly.store')->middleware('permission:ijazah.create');
+    Route::patch('quran/ijazah/weekly/{evaluation}', [Teacher\IjazahController::class, 'updateWeekly'])->name('quran.ijazah.weekly.update')->middleware('permission:ijazah.update');
 
     Route::get('quran/exams', [Teacher\HafizExamController::class, 'index'])->name('quran.exams.index')->middleware('permission:hafiz_exams.view');
     Route::get('quran/exams/month/{month}', [Teacher\HafizExamController::class, 'month'])

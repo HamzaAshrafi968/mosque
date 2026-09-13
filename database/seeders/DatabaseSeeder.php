@@ -2,11 +2,15 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
 use App\Models\Classroom;
 use App\Models\Guardian;
+use App\Models\IjazahMonthlyEvaluation;
+use App\Models\IjazahWeeklyEvaluation;
 use App\Models\ParentStudent;
 use App\Models\Permission;
+use App\Models\ProgramEnrollment;
 use App\Models\QualifyingWeeklyEvaluation;
 use App\Models\QuranRecitationSession;
 use App\Models\Role;
@@ -211,6 +215,42 @@ class DatabaseSeeder extends Seeder
                 'end_time' => $end,
                 'notes' => $notes,
                 'created_by' => $manager->id,
+            ]);
+        }
+
+        // ---- أسابيع برنامج الإجازة (spec §3) ----
+        $ijazahStudent = ProgramEnrollment::query()
+            ->where('program_type', ProgramType::Ijazah)
+            ->where('status', ProgramEnrollmentStatus::Active)
+            ->first()?->student;
+
+        if ($ijazahStudent) {
+            $currentMonth = now()->format('Y-m');
+            $monthStart = now()->startOfMonth();
+
+            foreach (range(1, 4) as $week) {
+                IjazahWeeklyEvaluation::create([
+                    'tenant_id' => $mosque1->id,
+                    'student_id' => $ijazahStudent->id,
+                    'month' => $currentMonth,
+                    'week' => $week,
+                    'week_start' => $monthStart->copy()->addWeeks($week - 1)->toDateString(),
+                    'week_end' => $monthStart->copy()->addWeeks($week - 1)->addDays(6)->toDateString(),
+                    'amount' => 5,
+                    'recited_portion' => 'مقدار الأسبوع '.$week,
+                    'result' => $week === 4 ? 'needs_review' : 'passed',
+                    'evaluated_by' => $teacher->id,
+                ]);
+            }
+
+            IjazahMonthlyEvaluation::create([
+                'tenant_id' => $mosque1->id,
+                'student_id' => $ijazahStudent->id,
+                'month' => $currentMonth,
+                'amount' => 20,
+                'recited_portion' => 'من الجزء ١ إلى الجزء ٤',
+                'result' => 'passed',
+                'evaluated_by' => $teacher->id,
             ]);
         }
 

@@ -161,6 +161,12 @@ class Student extends Model
         return $this->hasMany(IjazahMonthlyEvaluation::class);
     }
 
+    /** Weekly evaluations inside each ijazah month (4 per month). */
+    public function ijazahWeeklyEvaluations(): HasMany
+    {
+        return $this->hasMany(IjazahWeeklyEvaluation::class);
+    }
+
     /** Monthly hafiz exams (one historical row per month). */
     public function hafizMonthlyExams(): HasMany
     {

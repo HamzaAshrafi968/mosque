@@ -17,11 +17,10 @@
         @if($students->isNotEmpty())
             <div class="flex flex-wrap gap-2">
                 @foreach($students as $student)
-                    <a href="{{ route('teacher.quran.ijazah.evaluations.create', ['student_id' => $student->id]) }}"
-                       class="inline-flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-sm font-bold px-3 py-1.5 rounded-full transition">
-                        {{ $student->name }}
-                        <span class="text-emerald-500">+</span>
-                    </a>
+                    <span class="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold px-3 py-1.5 rounded-full">
+                        <a href="{{ route('teacher.quran.ijazah.month', [$student, now()->format('Y-m')]) }}" class="hover:underline">{{ $student->name }}</a>
+                        <a href="{{ route('teacher.quran.ijazah.evaluations.create', ['student_id' => $student->id]) }}" class="text-emerald-500 hover:text-emerald-700">+</a>
+                    </span>
                 @endforeach
             </div>
         @else
@@ -48,7 +47,9 @@
                         <td class="px-4 py-3 font-bold text-gray-800">
                             <a href="{{ route('teacher.quran.students.journey', $evaluation->student) }}" class="hover:text-emerald-700">{{ $evaluation->student->name }}</a>
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $monthLabel($evaluation->month) }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <a href="{{ route('teacher.quran.ijazah.month', [$evaluation->student, $evaluation->month]) }}" class="text-emerald-700 hover:underline">{{ $monthLabel($evaluation->month) }}</a>
+                        </td>
                         <td class="px-4 py-3">{{ $evaluation->amount }}</td>
                         <td class="px-4 py-3">{{ $evaluation->recited_portion ?? '—' }}</td>
                         <td class="px-4 py-3">

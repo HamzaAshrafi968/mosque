@@ -118,6 +118,8 @@ class QuranProgramController extends BaseTeacherController
 
         $journey = $this->journeys->journey($student);
 
+        $currentMonth = QuranProgramSettings::monthOf(now());
+
         return view('teacher.quran.journey', [
             'student' => $student,
             'journey' => $journey,
@@ -135,6 +137,12 @@ class QuranProgramController extends BaseTeacherController
                 ->with('evaluatedBy:id,name')
                 ->orderByDesc('month')
                 ->get(),
+            'currentMonth' => $currentMonth,
+            'currentMonthWeeklyEvaluations' => $student->ijazahWeeklyEvaluations()
+                ->where('month', $currentMonth)
+                ->orderBy('week')
+                ->get()
+                ->keyBy('week'),
             'exams' => $student->hafizMonthlyExams()
                 ->with(['supervisor:id,name', 'revisions'])
                 ->orderByDesc('month')
