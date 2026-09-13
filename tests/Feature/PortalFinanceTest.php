@@ -247,16 +247,21 @@ class PortalFinanceTest extends TestCase
 
     // -------------------------------------------------------------- finance
 
-    public function test_teacher_finance_requires_explicit_permission(): void
+    public function test_teacher_finance_is_granted_by_default_and_revocable(): void
     {
         [$tenant, , , , , , , $section] = $this->familyFixture();
         $admin = User::factory()->admin()->for($tenant)->create();
         $teacherUser = $this->teacherUser($tenant, $admin, $section);
 
-        $this->actingAs($teacherUser)->get(route('teacher.finance.index'))->assertForbidden();
-
-        $this->grantFinance($teacherUser);
         $this->actingAs($teacherUser)->get(route('teacher.finance.index'))->assertOk();
+
+        Role::where('tenant_id', $tenant->id)
+            ->where('code', RoleService::ROLE_TEACHER)
+            ->firstOrFail()
+            ->permissions()
+            ->detach();
+
+        $this->actingAs($teacherUser)->get(route('teacher.finance.index'))->assertForbidden();
     }
 
     public function test_sheikh_ledger_derives_received_handed_and_remaining(): void

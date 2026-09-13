@@ -81,6 +81,9 @@ class PermissionEnforcementTest extends TestCase
         $mosque = $this->mosque();
         [$teacher] = $this->teacher($mosque);
 
+        // Start from a teacher role without any grant: the route is forbidden.
+        $this->syncRole($mosque, RoleService::ROLE_TEACHER, []);
+
         $this->actingAs($teacher)
             ->get(route('teacher.finance.index'))
             ->assertForbidden();
@@ -229,6 +232,8 @@ class PermissionEnforcementTest extends TestCase
     {
         $mosque = $this->mosque();
         [$teacher] = $this->teacher($mosque);
+
+        $this->syncRole($mosque, RoleService::ROLE_TEACHER, []);
 
         $this->actingAs($teacher)
             ->get(route('teacher.dashboard'))
