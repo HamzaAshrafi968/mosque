@@ -162,6 +162,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::get('quran/tasmee', [Admin\QuranTasmeeController::class, 'index'])->name('quran.tasmee.index')->middleware('permission:quran.tasmee.view');
     Route::get('quran/tasmee/create', [Admin\QuranTasmeeController::class, 'create'])->name('quran.tasmee.create')->middleware('permission:quran.tasmee.create');
+    Route::get('quran/tasmee/review/{session?}', [Admin\QuranTasmeeController::class, 'review'])->name('quran.tasmee.review')->middleware('permission:quran.tasmee.create,quran.tasmee.update');
     Route::post('quran/tasmee', [Admin\QuranTasmeeController::class, 'store'])->name('quran.tasmee.store')->middleware('permission:quran.tasmee.create');
     Route::get('quran/tasmee/{session}/edit', [Admin\QuranTasmeeController::class, 'edit'])->name('quran.tasmee.edit')->middleware('permission:quran.tasmee.update');
     Route::patch('quran/tasmee/{session}', [Admin\QuranTasmeeController::class, 'update'])->name('quran.tasmee.update')->middleware('permission:quran.tasmee.update');
@@ -301,6 +302,7 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
 
     Route::get('quran/tasmee', [Teacher\QuranTasmeeController::class, 'index'])->name('quran.tasmee.index')->middleware('permission:quran.tasmee.view');
     Route::get('quran/tasmee/create', [Teacher\QuranTasmeeController::class, 'create'])->name('quran.tasmee.create')->middleware('permission:quran.tasmee.create');
+    Route::get('quran/tasmee/review/{session?}', [Teacher\QuranTasmeeController::class, 'review'])->name('quran.tasmee.review')->middleware('permission:quran.tasmee.create,quran.tasmee.update');
     Route::post('quran/tasmee', [Teacher\QuranTasmeeController::class, 'store'])->name('quran.tasmee.store')->middleware('permission:quran.tasmee.create');
     Route::get('quran/tasmee/{session}/edit', [Teacher\QuranTasmeeController::class, 'edit'])->name('quran.tasmee.edit')->middleware('permission:quran.tasmee.update');
     Route::patch('quran/tasmee/{session}', [Teacher\QuranTasmeeController::class, 'update'])->name('quran.tasmee.update')->middleware('permission:quran.tasmee.update');

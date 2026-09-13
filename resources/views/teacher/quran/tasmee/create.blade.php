@@ -37,7 +37,7 @@
                 <input type="number" step="0.01" min="0" name="amount" data-amount-input value="{{ old('amount') }}" placeholder="مثال: 2" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                 <p class="text-xs text-gray-400 mt-1">مطلوب ما لم تحدد نطاق صفحات.</p>
             </div>
-            <x-quran-page-range />
+            <x-quran-page-range :review-url="route('teacher.quran.tasmee.review')" />
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-1">النتيجة</label>
                 <select name="result" class="w-full border border-gray-300 rounded-lg px-3 py-2">

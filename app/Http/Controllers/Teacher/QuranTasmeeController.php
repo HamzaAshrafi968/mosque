@@ -7,6 +7,7 @@ use App\Enums\QuranTasmeeType;
 use App\Models\QuranRecitationSession;
 use App\Models\Student;
 use App\Services\AuditLogger;
+use App\Services\QuranPageService;
 use App\Services\QuranScopeService;
 use App\Support\TasmeePageInput;
 use Illuminate\Http\RedirectResponse;
@@ -54,6 +55,55 @@ class QuranTasmeeController extends BaseTeacherController
         ]);
     }
 
+    public function review(Request $request, QuranPageService $pages, ?QuranRecitationSession $session = null): View|RedirectResponse
+    {
+        $teacher = $this->currentTeacher($request);
+
+        if ($session) {
+            abort_unless($session->teacher_id === $teacher->id, 403, 'لا تملك صلاحية تعديل هذا التسميع');
+        }
+
+        $data = $request->validate([
+            'student_id' => ['required', 'uuid', 'exists:students,id'],
+            'type' => ['required', Rule::in(['new', 'revision'])],
+            'date' => ['required', 'date'],
+            'amount' => ['nullable', 'required_without:from_page', 'numeric', 'min:0', 'max:9999'],
+            'recited_portion' => ['nullable', 'string', 'max:255'],
+            'result' => ['nullable', Rule::in(['excellent', 'very_good', 'good', 'needs_review'])],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            ...TasmeePageInput::rules(),
+        ]);
+
+        $student = Student::findOrFail($data['student_id']);
+        $this->scope->assertCanManageStudent($teacher, $student);
+
+        $from = (int) ($data['from_page'] ?? 0);
+        $to = (int) ($data['to_page'] ?? 0);
+
+        if ($from < 1 || $to < $from || ($to - $from + 1) > QuranPageService::MAX_REVIEW_PAGES) {
+            return redirect()
+                ->route($session ? 'teacher.quran.tasmee.edit' : 'teacher.quran.tasmee.create', $session ? [$session] : [])
+                ->withInput()
+                ->withErrors(['from_page' => 'حدد نطاق صفحات صحيحاً (حتى '.QuranPageService::MAX_REVIEW_PAGES.' صفحات) لفتح صفحة التسميع.']);
+        }
+
+        return view('teacher.quran.tasmee.review', [
+            'session' => $session,
+            'student' => $student,
+            'type' => QuranTasmeeType::from($data['type']),
+            'date' => $data['date'],
+            'amount' => $data['amount'] ?? ($to - $from + 1),
+            'recitedPortion' => $data['recited_portion'] ?? "من الصفحة {$from} إلى الصفحة {$to}",
+            'notes' => $data['notes'] ?? null,
+            'resultValue' => $data['result'] ?? null,
+            'results' => QuranTasmeeResult::cases(),
+            'pages' => $pages->pagesForRange($from, $to),
+            'fromPage' => $from,
+            'toPage' => $to,
+            'statuses' => $session?->word_statuses ?? [],
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $teacher = $this->currentTeacher($request);
@@ -67,6 +117,7 @@ class QuranTasmeeController extends BaseTeacherController
             'result' => ['nullable', Rule::in(['excellent', 'very_good', 'good', 'needs_review'])],
             'notes' => ['nullable', 'string', 'max:2000'],
             ...TasmeePageInput::rules(),
+            ...TasmeePageInput::wordStatusRules(),
         ]));
 
         $student = Student::findOrFail($data['student_id']);
@@ -83,6 +134,7 @@ class QuranTasmeeController extends BaseTeacherController
             'to_page' => $data['to_page'] ?? null,
             'result' => $data['result'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'word_statuses' => TasmeePageInput::errorStatuses($data['word_statuses'] ?? null),
         ]);
 
         $this->audit->logModel('quran.tasmee.created', $session, actor: $request->user());
@@ -119,6 +171,7 @@ class QuranTasmeeController extends BaseTeacherController
             'result' => ['nullable', Rule::in(['excellent', 'very_good', 'good', 'needs_review'])],
             'notes' => ['nullable', 'string', 'max:2000'],
             ...TasmeePageInput::rules(),
+            ...TasmeePageInput::wordStatusRules(),
         ]));
 
         $before = $session->getAttributes();
@@ -133,6 +186,7 @@ class QuranTasmeeController extends BaseTeacherController
             'to_page' => $data['to_page'] ?? null,
             'result' => $data['result'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'word_statuses' => TasmeePageInput::errorStatuses($data['word_statuses'] ?? null),
         ]);
 
         $this->audit->logModel('quran.tasmee.updated', $session, $before, actor: $request->user());

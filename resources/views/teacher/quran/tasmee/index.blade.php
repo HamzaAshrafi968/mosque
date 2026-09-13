@@ -82,6 +82,9 @@
                                     'bg-yellow-100 text-yellow-800' => $session->result->value === 'needs_review',
                                 ])>{{ $session->result->label() }}</span>
                             @else <span class="text-gray-300">—</span> @endif
+                            @if(! empty($session->word_statuses))
+                                <div class="text-[11px] text-red-600 mt-1">{{ count($session->word_statuses) }} خطأ محدد</div>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-center">
                             <a href="{{ route('teacher.quran.tasmee.edit', $session) }}" class="text-xs text-emerald-700 hover:underline">تعديل</a>

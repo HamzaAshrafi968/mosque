@@ -134,7 +134,70 @@ class QuranPagesTest extends TestCase
             ->get(route('quran.pages.preview', ['page' => 2, 'to' => 3]))
             ->assertOk()
             ->assertSee('البَقَرَة')
-            ->assertSee('۝٥');
+            ->assertSee('۝٥')
+            ->assertDontSee('data-ayah-id', false);
+    }
+
+    public function test_tasmee_review_page_renders_full_page_marking_view(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        [, $teacher] = $this->makeTeacher($mosque->id);
+        $student = $this->makeStudent($mosque->id);
+
+        $response = $this->actingAs($admin)->get(route('admin.quran.tasmee.review', [
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'new',
+            'date' => now()->toDateString(),
+            'from_page' => 2,
+            'to_page' => 3,
+        ]))
+            ->assertOk()
+            ->assertSee('data-preview-viewer', false)
+            ->assertSee('data-preview-nav', false)
+            ->assertSee('data-preview-step="0"', false)
+            ->assertSee('data-preview-step="1"', false)
+            ->assertSee('data-ayah-id', false)
+            ->assertSee('tasmeePreviewWord', false)
+            ->assertSee('data-preview-popup', false)
+            ->assertSee('data-preview-stat="mastery"', false)
+            ->assertSee('data-quran-preview-form', false)
+            ->assertSee('حفظ التسميع');
+
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression('/data-preview-step="0" data-page="2" class=""/', $html);
+        $this->assertMatchesRegularExpression('/data-preview-step="1" data-page="3" class="hidden"/', $html);
+    }
+
+    public function test_tasmee_review_page_requires_a_valid_page_range(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        [, $teacher] = $this->makeTeacher($mosque->id);
+        $student = $this->makeStudent($mosque->id);
+
+        $this->actingAs($admin)->get(route('admin.quran.tasmee.review', [
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'new',
+            'date' => now()->toDateString(),
+            'amount' => 2,
+        ]))
+            ->assertRedirect(route('admin.quran.tasmee.create'))
+            ->assertSessionHasErrors('from_page');
+    }
+
+    public function test_tasmee_create_page_links_to_the_full_page_review(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        $this->makeTeacher($mosque->id);
+        $this->makeStudent($mosque->id);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.tasmee.create'))
+            ->assertOk()
+            ->assertSee('formaction="'.route('admin.quran.tasmee.review').'"', false)
+            ->assertDontSee('<div data-pages-modal', false);
     }
 
     public function test_tasmee_with_page_range_computes_amount_and_portion(): void
@@ -206,6 +269,86 @@ class QuranPagesTest extends TestCase
         $this->assertEquals(2.5, (float) $session->amount);
     }
 
+    public function test_tasmee_stores_error_word_statuses_and_shows_them_on_edit(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        [, $teacher] = $this->makeTeacher($mosque->id);
+        $student = $this->makeStudent($mosque->id);
+
+        $this->actingAs($admin)->post(route('admin.quran.tasmee.store'), [
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'new',
+            'date' => now()->toDateString(),
+            'from_page' => 2,
+            'to_page' => 2,
+            'word_statuses' => [
+                'word-1:0' => 'incorrect',
+                'word-1:1' => 'correct',
+                'word-1:2' => 'hesitation',
+            ],
+        ])->assertRedirect();
+
+        $session = QuranRecitationSession::query()->latest('created_at')->firstOrFail();
+
+        $this->assertSame([
+            'word-1:0' => 'incorrect',
+            'word-1:2' => 'hesitation',
+        ], $session->word_statuses);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.tasmee.edit', $session))
+            ->assertOk()
+            ->assertSee('2 خطأ محفوظ');
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.tasmee.review', [
+                'session' => $session,
+                'student_id' => $student->id,
+                'teacher_id' => $teacher->id,
+                'type' => 'new',
+                'date' => now()->toDateString(),
+                'from_page' => 2,
+                'to_page' => 2,
+            ]))
+            ->assertOk()
+            ->assertSee('data-preview-statuses', false)
+            ->assertSee('word-1:0', false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.tasmee.index'))
+            ->assertOk()
+            ->assertSee('2 خطأ محدد');
+    }
+
+    public function test_tasmee_update_replaces_word_error_statuses(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        [, $teacher] = $this->makeTeacher($mosque->id);
+        $student = $this->makeStudent($mosque->id);
+
+        $session = QuranRecitationSession::create([
+            'tenant_id' => $mosque->id,
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'new',
+            'date' => now()->toDateString(),
+            'amount' => 1,
+            'word_statuses' => ['word-1:0' => 'incorrect'],
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.quran.tasmee.update', $session), [
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'revision',
+            'date' => now()->toDateString(),
+            'amount' => 1,
+            'word_statuses' => ['word-2:3' => 'forgotten'],
+        ])->assertRedirect();
+
+        $this->assertSame(['word-2:3' => 'forgotten'], $session->fresh()->word_statuses);
+    }
+
     public function test_teacher_can_record_tasmee_with_page_range_for_scope_student(): void
     {
         [$mosque] = $this->mosque();
@@ -233,6 +376,44 @@ class QuranPagesTest extends TestCase
         $session = QuranRecitationSession::query()->first();
         $this->assertSame($teacher->id, $session->teacher_id);
         $this->assertEquals(3, (float) $session->amount);
+    }
+
+    public function test_teacher_can_open_full_page_review_for_scope_student(): void
+    {
+        [$mosque] = $this->mosque();
+        [$teacherUser, $teacher] = $this->makeTeacher($mosque->id);
+        $student = $this->makeStudent($mosque->id);
+
+        $classroom = Classroom::create(['tenant_id' => $mosque->id, 'name' => 'صف']);
+        $section = Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroom->id, 'name' => 'أ']);
+        $this->enrollStudent($student, $section);
+        SectionTeacher::create([
+            'tenant_id' => $mosque->id,
+            'section_id' => $section->id,
+            'teacher_id' => $teacher->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($teacherUser)->get(route('teacher.quran.tasmee.review', [
+            'student_id' => $student->id,
+            'type' => 'revision',
+            'date' => now()->toDateString(),
+            'from_page' => 2,
+            'to_page' => 2,
+        ]))
+            ->assertOk()
+            ->assertSee('data-preview-viewer', false)
+            ->assertSee('data-quran-preview-form', false);
+
+        $outsider = $this->makeStudent($mosque->id);
+
+        $this->actingAs($teacherUser)->get(route('teacher.quran.tasmee.review', [
+            'student_id' => $outsider->id,
+            'type' => 'revision',
+            'date' => now()->toDateString(),
+            'from_page' => 2,
+            'to_page' => 2,
+        ]))->assertForbidden();
     }
 
     public function test_page_range_requires_authentication_and_permission(): void

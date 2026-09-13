@@ -31,6 +31,7 @@ class QuranRecitationSession extends Model
         'to_page',
         'result',
         'notes',
+        'word_statuses',
     ];
 
     protected function casts(): array
@@ -42,16 +43,17 @@ class QuranRecitationSession extends Model
             'from_page' => 'integer',
             'to_page' => 'integer',
             'result' => QuranTasmeeResult::class,
+            'word_statuses' => 'array',
         ];
     }
 
     public function student(): BelongsTo
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class)->withoutGlobalScope('study_session');
     }
 
     public function teacher(): BelongsTo
     {
-        return $this->belongsTo(Teacher::class);
+        return $this->belongsTo(Teacher::class)->withoutGlobalScope('study_session');
     }
 }

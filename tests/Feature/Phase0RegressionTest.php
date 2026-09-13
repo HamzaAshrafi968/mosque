@@ -4,11 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\Classroom;
 use App\Models\Exam;
+use App\Models\QuranRecitationSession;
 use App\Models\QuranReviewSession;
 use App\Models\QuranSurah;
 use App\Models\RewardPoint;
 use App\Models\Section;
 use App\Models\Student;
+use App\Models\StudySession;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Tenant;
@@ -292,5 +294,43 @@ class Phase0RegressionTest extends TestCase
             'student_id' => null,
             'status' => 'present',
         ]);
+    }
+
+    public function test_tasmee_history_resolves_teacher_across_study_sessions(): void
+    {
+        $tenant = $this->tenant();
+        $admin = User::factory()->admin()->for($tenant)->create();
+
+        $firstShift = StudySession::create(['tenant_id' => $tenant->id, 'name' => 'الدوام الأول']);
+        $secondShift = StudySession::create(['tenant_id' => $tenant->id, 'name' => 'الدوام الثاني']);
+
+        $teacher = Teacher::factory()->create([
+            'tenant_id' => $tenant->id,
+            'study_session_id' => $firstShift->id,
+            'name' => 'أستاذ الدوام الأول',
+        ]);
+        $student = Student::factory()->create([
+            'tenant_id' => $tenant->id,
+            'study_session_id' => $firstShift->id,
+            'name' => 'طالب الدوام الأول',
+        ]);
+
+        QuranRecitationSession::create([
+            'tenant_id' => $tenant->id,
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'new',
+            'date' => now()->toDateString(),
+            'amount' => 2,
+            'result' => 'good',
+        ]);
+
+        session(['study_session_id' => $secondShift->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.tasmee.index'))
+            ->assertOk()
+            ->assertSee('أستاذ الدوام الأول')
+            ->assertSee('طالب الدوام الأول');
     }
 }
