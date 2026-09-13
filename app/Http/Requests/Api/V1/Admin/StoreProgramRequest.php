@@ -2,14 +2,14 @@
 
 namespace App\Http\Requests\Api\V1\Admin;
 
-use App\Support\ScheduleRules;
+use App\Support\ProgramRules;
 use Illuminate\Foundation\Http\FormRequest;
 
-class ScheduleRequest extends FormRequest
+class StoreProgramRequest extends FormRequest
 {
     public function rules(): array
     {
-        return ScheduleRules::rules($this->user()?->tenant_id);
+        return ProgramRules::rules(config('app.current_tenant_id') ?? $this->user()->tenant_id);
     }
 
     public function authorize(): bool

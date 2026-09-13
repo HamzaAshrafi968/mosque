@@ -28,6 +28,8 @@
                     <thead>
                         <tr class="bg-gray-50 text-gray-600 text-sm">
                             <th class="px-4 py-3 text-right whitespace-nowrap">الوقت</th>
+                            <th class="px-4 py-3 text-right whitespace-nowrap">البرنامج</th>
+                            <th class="px-4 py-3 text-right whitespace-nowrap">الفترة</th>
                             <th class="px-4 py-3 text-right whitespace-nowrap">المادة</th>
                             <th class="px-4 py-3 text-right whitespace-nowrap">الصف</th>
                             <th class="px-4 py-3 text-right whitespace-nowrap">الشعبة</th>
@@ -36,8 +38,19 @@
                     <tbody>
                         @foreach($schedules[$num] as $schedule)
                             <tr>
-                                <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->starts_at }} - {{ $schedule->ends_at }}</td>
-                                <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->subject?->name }}</td>
+                                <td class="px-4 py-3 border-t whitespace-nowrap">{{ substr($schedule->starts_at, 0, 5) }} - {{ substr($schedule->ends_at, 0, 5) }}</td>
+                                <td class="px-4 py-3 border-t whitespace-nowrap">
+                                    @if($schedule->program)
+                                        <span class="inline-flex items-center gap-1.5">
+                                            <span class="w-2.5 h-2.5 rounded-full" style="background: {{ $schedule->program->color ?: '#475569' }}"></span>
+                                            {{ $schedule->program->name }}
+                                        </span>
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->programPeriod?->name ?? '—' }}</td>
+                                <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->subject?->name ?? '—' }}</td>
                                 <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->classroom?->name }}</td>
                                 <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->section?->name ?? 'كل الشعب' }}</td>
                             </tr>

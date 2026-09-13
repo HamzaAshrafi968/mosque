@@ -129,6 +129,9 @@
                 @if($can('schedule.view'))
                 <x-nav-link icon="calendar" :href="route('admin.schedules.index')" :active="request()->routeIs('admin.schedules.*')"><span>الجداول الدراسية</span></x-nav-link>
                 @endif
+                @if($can('programs.view'))
+                <x-nav-link icon="fields" :href="route('admin.programs.index')" :active="request()->routeIs('admin.programs.*')"><span>البرامج والتخصصات</span></x-nav-link>
+                @endif
                 @if($can('attendance.view'))
                 <x-nav-link icon="attendance" :href="route('admin.attendance.index')" :active="request()->routeIs('admin.attendance.*')"><span>الحضور والغياب</span></x-nav-link>
                 @endif

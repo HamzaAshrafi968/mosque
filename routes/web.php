@@ -92,7 +92,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::get('schedules', [Admin\ScheduleController::class, 'index'])->name('schedules.index')->middleware('permission:schedule.view');
     Route::post('schedules', [Admin\ScheduleController::class, 'store'])->name('schedules.store')->middleware('permission:schedule.create');
+    Route::post('schedules/generate', [Admin\ScheduleController::class, 'generate'])->name('schedules.generate')->middleware('permission:schedule.create');
     Route::delete('schedules/{schedule}', [Admin\ScheduleController::class, 'destroy'])->name('schedules.destroy')->middleware('permission:schedule.delete');
+
+    // ---- تخصصات الجداول (programs: التحفيظ، الإجازة، اختبارات الحفظ، الشرعية، القرآنية) ----
+    Route::get('programs', [Admin\ProgramController::class, 'index'])->name('programs.index')->middleware('permission:programs.view');
+    Route::get('programs/create', [Admin\ProgramController::class, 'create'])->name('programs.create')->middleware('permission:programs.create');
+    Route::post('programs', [Admin\ProgramController::class, 'store'])->name('programs.store')->middleware('permission:programs.create');
+    Route::get('programs/{program}/edit', [Admin\ProgramController::class, 'edit'])->name('programs.edit')->middleware('permission:programs.update');
+    Route::patch('programs/{program}', [Admin\ProgramController::class, 'update'])->name('programs.update')->middleware('permission:programs.update');
+    Route::delete('programs/{program}', [Admin\ProgramController::class, 'destroy'])->name('programs.destroy')->middleware('permission:programs.delete');
 
     Route::get('attendance', [Admin\AttendanceController::class, 'index'])->name('attendance.index')->middleware('permission:attendance.view');
     Route::post('attendance', [Admin\AttendanceController::class, 'store'])->name('attendance.store')->middleware('permission:attendance.create');
@@ -142,6 +151,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('sessions', [Admin\StudySessionController::class, 'index'])->name('sessions.index')->middleware('permission:sessions.view');
     Route::post('sessions', [Admin\StudySessionController::class, 'store'])->name('sessions.store')->middleware('permission:sessions.create');
     Route::post('sessions/switch', [Admin\StudySessionController::class, 'switch'])->name('sessions.switch')->middleware('permission:sessions.view');
+    Route::post('sessions/{session}/programs', [Admin\StudySessionController::class, 'syncPrograms'])->name('sessions.programs')->middleware('permission:sessions.update');
     Route::patch('sessions/{session}', [Admin\StudySessionController::class, 'update'])->name('sessions.update')->middleware('permission:sessions.update');
     Route::delete('sessions/{session}', [Admin\StudySessionController::class, 'destroy'])->name('sessions.destroy')->middleware('permission:sessions.delete');
     Route::post('sessions/assign-unassigned', [Admin\StudySessionController::class, 'assignUnassigned'])->name('sessions.assign-unassigned')->middleware('permission:sessions.update');

@@ -9,11 +9,13 @@ use App\Models\Guardian;
 use App\Models\IjazahMonthlyEvaluation;
 use App\Models\IjazahWeeklyEvaluation;
 use App\Models\ParentStudent;
-use App\Models\Permission;
+use App\Models\Program;
+use App\Models\ProgramAttribute;
 use App\Models\ProgramEnrollment;
+use App\Models\ProgramPeriod;
 use App\Models\QualifyingWeeklyEvaluation;
 use App\Models\QuranRecitationSession;
-use App\Models\Role;
+use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\SectionTeacher;
@@ -28,6 +30,7 @@ use App\Models\Teacher;
 use App\Models\TeacherWorkHour;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\ProgramService;
 use App\Services\QuranProgramService;
 use App\Services\RoleService;
 use App\Services\StudySessionService;
@@ -66,6 +69,7 @@ class DatabaseSeeder extends Seeder
         $roles->provisionTenantRoles($mosque1);
         $sessions = app(StudySessionService::class);
         $sessions->provisionTenantSessions($mosque1);
+        app(ProgramService::class)->provisionTenantPrograms($mosque1);
 
         [$firstSession, $secondSession] = StudySession::where('tenant_id', $mosque1->id)->orderBy('name')->get();
 
@@ -199,6 +203,122 @@ class DatabaseSeeder extends Seeder
             'name' => 'التجويد',
             'weekly_lessons' => 3,
         ]);
+
+        // ---- تخصصات الجداول: فترات وجداول أسبوعية تجريبية للبرامج الخمسة (demo) ----
+        $programs = Program::where('tenant_id', $mosque1->id)->get()->keyBy('code');
+
+        $tahfeez = $programs->get('tahfeez');
+
+        if ($tahfeez) {
+            ProgramAttribute::create([
+                'tenant_id' => $mosque1->id,
+                'program_id' => $tahfeez->id,
+                'name' => 'عدد الأجزاء الأسبوعية',
+                'field_key' => 'weekly_juz',
+                'field_type' => 'number',
+                'value' => '5',
+                'sort_order' => 0,
+            ]);
+
+            ProgramAttribute::create([
+                'tenant_id' => $mosque1->id,
+                'program_id' => $tahfeez->id,
+                'name' => 'المستوى',
+                'field_key' => 'level',
+                'field_type' => 'select',
+                'options' => ['مبتدئ', 'متوسط', 'متقدم'],
+                'value' => 'متوسط',
+                'sort_order' => 1,
+            ]);
+        }
+
+        $otherFirstSessionTeachers = Teacher::where('tenant_id', $mosque1->id)
+            ->where('study_session_id', $firstSession->id)
+            ->whereKeyNot($teacher->id)
+            ->orderBy('name')
+            ->get();
+
+        $secondSessionTeachers = Teacher::where('tenant_id', $mosque1->id)
+            ->where('study_session_id', $secondSession->id)
+            ->orderBy('name')
+            ->get();
+
+        $quranSubjectId = Subject::where('tenant_id', $mosque1->id)->where('name', 'القرآن الكريم')->value('id');
+
+        // كل برنامج بفترته وجدوله الأسبوعي: التحفيظ (الفترة الأولى والثانية)،
+        // الإجازة، اختبارات الحفظ، الدورات الشرعية، البرامج القرآنية.
+        $demoPrograms = [
+            'tahfeez' => [
+                'periods' => [['الفترة الأولى', '06:30', '07:30'], ['الفترة الثانية', '07:30', '08:30']],
+                'teacher' => $teacher,
+                'classroom' => $classrooms[0],
+                'session' => $firstSession,
+                'subject_id' => $quranSubjectId,
+            ],
+            'ijazah' => [
+                'periods' => [['الفترة الأولى', '09:00', '10:00']],
+                'teacher' => $otherFirstSessionTeachers->get(0) ?? $teacher,
+                'classroom' => $classrooms[1],
+                'session' => $firstSession,
+                'subject_id' => null,
+            ],
+            'hafiz_exams' => [
+                'periods' => [['الفترة الأولى', '10:00', '11:00']],
+                'teacher' => $otherFirstSessionTeachers->get(1) ?? $teacher,
+                'classroom' => $classrooms[2],
+                'session' => $firstSession,
+                'subject_id' => null,
+            ],
+            'sharia_courses' => [
+                'periods' => [['الفترة الأولى', '16:00', '17:00']],
+                'teacher' => $secondSessionTeachers->get(0) ?? $teacher,
+                'classroom' => $classrooms[0],
+                'session' => $secondSession,
+                'subject_id' => null,
+            ],
+            'quran' => [
+                'periods' => [['الفترة الأولى', '17:00', '18:00']],
+                'teacher' => $secondSessionTeachers->get(1) ?? $teacher,
+                'classroom' => $classrooms[1],
+                'session' => $secondSession,
+                'subject_id' => null,
+            ],
+        ];
+
+        foreach ($demoPrograms as $code => $definition) {
+            $program = $programs->get($code);
+
+            if (! $program) {
+                continue;
+            }
+
+            $periods = collect($definition['periods'])->map(fn (array $row, int $index) => ProgramPeriod::create([
+                'tenant_id' => $mosque1->id,
+                'program_id' => $program->id,
+                'name' => $row[0],
+                'starts_at' => $row[1],
+                'ends_at' => $row[2],
+                'sort_order' => $index,
+            ]));
+
+            $firstPeriod = $periods->first();
+
+            // جدول أسبوعي (الأحد–الخميس) للفترة الأولى من كل برنامج.
+            foreach (range(0, 4) as $day) {
+                Schedule::create([
+                    'tenant_id' => $mosque1->id,
+                    'classroom_id' => $definition['classroom']->id,
+                    'subject_id' => $definition['subject_id'],
+                    'teacher_id' => $definition['teacher']->id,
+                    'program_id' => $program->id,
+                    'program_period_id' => $firstPeriod->id,
+                    'study_session_id' => $definition['session']->id,
+                    'day_of_week' => $day,
+                    'starts_at' => $firstPeriod->starts_at,
+                    'ends_at' => $firstPeriod->ends_at,
+                ]);
+            }
+        }
 
         // ---- ساعات عمل المشرفين (spec: work_hours_sharia_courses_quran_pages.md §1) ----
         $workHourPeriods = [
@@ -356,20 +476,6 @@ class DatabaseSeeder extends Seeder
 
         $childA->update(['user_id' => $studentUser->id]);
 
-        // Grant the demo sheikh role finance permissions (own scope) so the
-        // teacher@mosque.test account can exercise the cash ledger (spec §32).
-        $teacherRole = Role::where('tenant_id', $mosque1->id)->where('code', 'teacher')->first();
-
-        if ($teacherRole) {
-            foreach (['finance.view', 'finance.create', 'finance.adjust', 'finance.transfer'] as $code) {
-                $permission = Permission::where('code', $code)->first();
-
-                if ($permission && ! $teacherRole->permissions()->where('permissions.code', $code)->exists()) {
-                    $teacherRole->permissions()->attach($permission->id, ['scope' => 'own']);
-                }
-            }
-        }
-
         // ---- Mosque 2: جامع الفرقان (isolation demo) ----
         $mosque2 = Tenant::factory()->create([
             'name' => 'جامع الفرقان',
@@ -381,6 +487,7 @@ class DatabaseSeeder extends Seeder
         config(['app.current_tenant_id' => $mosque2->id]);
         $roles->provisionTenantRoles($mosque2);
         $sessions->provisionTenantSessions($mosque2);
+        app(ProgramService::class)->provisionTenantPrograms($mosque2);
 
         [$firstSession2, $secondSession2] = StudySession::where('tenant_id', $mosque2->id)->orderBy('name')->get();
 

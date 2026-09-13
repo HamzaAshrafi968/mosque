@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Program;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\StudySession;
@@ -26,6 +27,7 @@ class StudySessionController extends Controller
     public function index(): View
     {
         $sessions = StudySession::query()
+            ->with(['programs:id,name,color'])
             ->withCount([
                 'students' => fn ($q) => $q->withoutGlobalScope('study_session'),
                 'teachers' => fn ($q) => $q->withoutGlobalScope('study_session'),
@@ -36,6 +38,11 @@ class StudySessionController extends Controller
 
         return view('admin.sessions.index', [
             'sessions' => $sessions,
+            'programs' => Program::query()
+                ->active()
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'color']),
             'currentSessionId' => config('app.current_study_session_id'),
             'unassigned' => [
                 'students' => Student::query()->withoutGlobalScope('study_session')->whereNull('study_session_id')->count(),
@@ -43,6 +50,31 @@ class StudySessionController extends Controller
                 'sections' => Section::query()->withoutGlobalScope('study_session')->whereNull('study_session_id')->count(),
             ],
         ]);
+    }
+
+    /**
+     * تخصيص البرامج/التخصصات المتاحة لكل دوام: مثال — الدوام الأول للتحفيظ
+     * والإجازة، والثاني للتسميع فقط. بلا تحديد = كل البرامج متاحة.
+     */
+    public function syncPrograms(Request $request, StudySession $session): RedirectResponse
+    {
+        $tenantId = config('app.current_tenant_id') ?? $request->user()->tenant_id;
+
+        $data = $request->validate([
+            'programs' => ['nullable', 'array'],
+            'programs.*' => ['uuid', Rule::exists('programs', 'id')->where('tenant_id', $tenantId)],
+        ]);
+
+        $session->programs()->sync($data['programs'] ?? []);
+
+        $this->audit->logModel('session.programs_updated', $session, actor: $request->user());
+
+        return back()->with(
+            'success',
+            $session->programs()->exists()
+                ? "تم تخصيص البرامج المتاحة لدوام \"{$session->name}\""
+                : "تم مسح التخصيص — كل البرامج متاحة لدوام \"{$session->name}\""
+        );
     }
 
     public function store(Request $request): RedirectResponse

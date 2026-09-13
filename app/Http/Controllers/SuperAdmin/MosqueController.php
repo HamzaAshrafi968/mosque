@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\ProgramService;
 use App\Services\RoleService;
 use App\Services\StudySessionService;
 use Illuminate\Http\RedirectResponse;
@@ -30,11 +31,11 @@ class MosqueController extends Controller
         return view('super-admin.mosques.form', ['mosque' => null]);
     }
 
-    public function store(Request $request, RoleService $roles, StudySessionService $sessions): RedirectResponse
+    public function store(Request $request, RoleService $roles, StudySessionService $sessions, ProgramService $programs): RedirectResponse
     {
         $data = $this->validated($request);
 
-        DB::transaction(function () use ($data, $roles, $sessions) {
+        DB::transaction(function () use ($data, $roles, $sessions, $programs) {
             $mosque = Tenant::create([
                 'name' => $data['name'],
                 'code' => $data['code'] ?? null,
@@ -47,6 +48,7 @@ class MosqueController extends Controller
 
             $roles->provisionTenantRoles($mosque);
             $sessions->provisionTenantSessions($mosque);
+            $programs->provisionTenantPrograms($mosque);
 
             if (! empty($data['manager_name']) && ! empty($data['manager_email'])) {
                 $manager = User::create([

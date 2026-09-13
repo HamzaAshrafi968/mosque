@@ -81,6 +81,34 @@
                     <div><div class="font-bold text-gray-700">{{ $session->teachers_count }}</div><div class="text-xs text-gray-500">أستاذ</div></div>
                     <div><div class="font-bold text-gray-700">{{ $session->sections_count }}</div><div class="text-xs text-gray-500">شعبة</div></div>
                 </div>
+                <div class="px-4 pb-3 text-xs text-gray-500">
+                    <div class="flex flex-wrap items-center gap-1">
+                        <span class="font-bold text-gray-600">البرامج:</span>
+                        @if($session->programs->isEmpty())
+                            <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">كل البرامج</span>
+                        @else
+                            @foreach($session->programs as $program)
+                                <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{{ $program->name }}</span>
+                            @endforeach
+                        @endif
+                    </div>
+                    <details class="mt-2">
+                        <summary class="cursor-pointer text-emerald-700 hover:underline">تخصيص البرامج المتاحة لهذا الدوام...</summary>
+                        <form method="POST" action="{{ route('admin.sessions.programs', $session) }}" class="mt-2 space-y-1 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                            @csrf
+                            @foreach($programs as $program)
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="programs[]" value="{{ $program->id }}"
+                                           @checked($session->programs->contains('id', $program->id))
+                                           class="rounded border-gray-300 text-emerald-700">
+                                    {{ $program->name }}
+                                </label>
+                            @endforeach
+                            <p class="text-[11px] text-gray-400">اترك الكل فارغاً ليظهر كل البرامج في هذا الدوام (مثال: الدوام الأول للتحفيظ والإجازة، والثاني للتسميع فقط).</p>
+                            <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg">حفظ البرامج</button>
+                        </form>
+                    </details>
+                </div>
                 <div class="px-4 pb-4 flex flex-wrap items-center gap-2">
                     <form method="POST" action="{{ route('admin.sessions.switch') }}">
                         @csrf

@@ -7,6 +7,7 @@ use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -46,6 +47,15 @@ class StudySession extends Model
     public function sections(): HasMany
     {
         return $this->hasMany(Section::class);
+    }
+
+    /**
+     * البرامج/التخصصات المتاحة في هذا الدوام. القائمة الفارغة تعني أن كل
+     * البرامج المفعّلة متاحة.
+     */
+    public function programs(): BelongsToMany
+    {
+        return $this->belongsToMany(Program::class, 'program_study_session')->withTimestamps();
     }
 
     public function scopeActive(Builder $query): Builder

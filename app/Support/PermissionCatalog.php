@@ -61,6 +61,11 @@ final class PermissionCatalog
         ['schedule', 'update', 'تعديل جدول'],
         ['schedule', 'delete', 'حذف جدول'],
         ['schedule', 'approve', 'اعتماد الجداول'],
+        // Schedule programs / specializations (تخصصات الجداول)
+        ['programs', 'view', 'مشاهدة البرامج والتخصصات'],
+        ['programs', 'create', 'إضافة برنامج/تخصص'],
+        ['programs', 'update', 'تعديل برنامج/تخصص'],
+        ['programs', 'delete', 'حذف برنامج/تخصص'],
         // Attendance
         ['attendance', 'view', 'مشاهدة الحضور'],
         ['attendance', 'create', 'تسجيل الحضور'],
@@ -127,9 +132,9 @@ final class PermissionCatalog
         ['quran', 'tasmee.update', 'تعديل تسميع'],
         ['quran', 'completion.view', 'مشاهدة إتمام الحفظ'],
         ['quran', 'completion.confirm', 'تأكيد إتمام الحفظ'],
-        // Quran review (مراجعة القرآن)
-        ['quran_review', 'view', 'مشاهدة مراجعة القرآن'],
-        ['quran_review', 'create', 'تسجيل مراجعة قرآن'],
+        // Quran listening with the teacher (الاستماع مع المعلم)
+        ['quran_review', 'view', 'مشاهدة الاستماع مع المعلم'],
+        ['quran_review', 'create', 'تسجيل الاستماع مع المعلم'],
         // Reward points (نقاط المكافآت)
         ['reward_points', 'view', 'مشاهدة نقاط المكافآت'],
         ['reward_points', 'create', 'منح نقاط مكافأة'],
@@ -173,6 +178,7 @@ final class PermissionCatalog
         'sections.view' => 'mosque', 'sections.create' => 'mosque', 'sections.update' => 'mosque', 'sections.delete' => 'mosque',
         'subjects.view' => 'mosque', 'subjects.create' => 'mosque', 'subjects.update' => 'mosque', 'subjects.delete' => 'mosque',
         'schedule.view' => 'mosque', 'schedule.create' => 'mosque', 'schedule.update' => 'mosque', 'schedule.delete' => 'mosque', 'schedule.approve' => 'mosque',
+        'programs.view' => 'mosque', 'programs.create' => 'mosque', 'programs.update' => 'mosque', 'programs.delete' => 'mosque',
         'attendance.view' => 'mosque', 'attendance.create' => 'mosque', 'attendance.update' => 'mosque', 'attendance.approve' => 'mosque',
         'exams.view' => 'mosque', 'exams.create' => 'mosque', 'exams.update' => 'mosque', 'exams.delete' => 'mosque',
         'grades.view' => 'mosque', 'grades.create' => 'mosque', 'grades.update' => 'mosque', 'grades.approve' => 'mosque',
@@ -214,6 +220,7 @@ final class PermissionCatalog
         'lessons.view' => 'own', 'lessons.create' => 'own', 'lessons.update' => 'own', 'lessons.delete' => 'own',
         'announcements.view' => 'mosque',
         'messages.view' => 'own', 'messages.create' => 'own',
+        'finance.view' => 'own', 'finance.create' => 'own', 'finance.adjust' => 'own', 'finance.transfer' => 'own',
         'users.view' => 'own',
         'quran.tasmee.view' => 'own', 'quran.tasmee.create' => 'own', 'quran.tasmee.update' => 'own',
         'quran.completion.view' => 'own',
@@ -293,5 +300,45 @@ final class PermissionCatalog
         }
 
         return $groups;
+    }
+
+    /** Arabic labels for each resource group, shared by the permission matrices. */
+    public static function resourceLabels(): array
+    {
+        return [
+            'mosques' => 'إدارة الجوامع',
+            'students' => 'الطلاب',
+            'teachers' => 'الأساتذة',
+            'parents' => 'أولياء الأمور',
+            'classes' => 'الصفوف',
+            'sections' => 'الشعب',
+            'subjects' => 'المواد',
+            'sessions' => 'الدوامات',
+            'schedule' => 'الجداول',
+            'attendance' => 'الحضور',
+            'exams' => 'الامتحانات',
+            'grades' => 'الدرجات',
+            'assignments' => 'الواجبات',
+            'lessons' => 'الدروس',
+            'announcements' => 'الإعلانات',
+            'messages' => 'الرسائل',
+            'reports' => 'التقارير',
+            'users' => 'المستخدمون',
+            'roles' => 'الأدوار',
+            'permissions' => 'الصلاحيات',
+            'custom_fields' => 'الحقول المخصصة',
+            'audit_logs' => 'سجل العمليات',
+            'finance' => 'العمليات المالية',
+            'quran' => 'القرآن (تسميع وإتمام)',
+            'quran_review' => 'الاستماع مع المعلم',
+            'reward_points' => 'نقاط المكافآت',
+            'qualifying' => 'البرنامج التأهيلي',
+            'ijazah' => 'برنامج الإجازة',
+            'hafiz_exams' => 'اختبارات الحفاظ الشهرية',
+            'hafiz_profile' => 'ملفات الحفاظ',
+            'faith_meetings' => 'اللقاءات الإيمانية',
+            'work_hours' => 'ساعات العمل',
+            'sharia_courses' => 'الدورات الشرعية',
+        ];
     }
 }
