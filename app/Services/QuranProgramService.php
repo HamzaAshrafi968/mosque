@@ -218,6 +218,44 @@ class QuranProgramService
     }
 
     /**
+     * Aggregate the 12 monthly exam summaries of a year from existing rows only
+     * (never creates rows). Optionally scoped to a supervisor.
+     *
+     * @return array<int, array{month: string, label: string, hafiz_count: int, evaluated: int, tested: int, not_tested: int, passed: int, failed: int}>
+     */
+    public function examYearSummaries(Collection|array $studentIds, int $year, ?string $supervisorId = null): array
+    {
+        $studentIds = collect($studentIds)->unique()->values();
+
+        $query = HafizMonthlyExam::query()
+            ->whereIn('student_id', $studentIds)
+            ->where('month', 'like', $year.'-%');
+
+        if ($supervisorId !== null) {
+            $query->where(fn ($q) => $q->whereNull('supervisor_id')->orWhere('supervisor_id', $supervisorId));
+        }
+
+        $byMonth = $query->get(['month', 'exam_status'])->groupBy('month');
+        $hafizCount = $studentIds->count();
+
+        return collect(range(1, 12))->map(function (int $month) use ($year, $byMonth, $hafizCount) {
+            $key = sprintf('%04d-%02d', $year, $month);
+            $rows = $byMonth->get($key, collect());
+
+            return [
+                'month' => $key,
+                'label' => QuranProgramSettings::monthLabel($key),
+                'hafiz_count' => $hafizCount,
+                'evaluated' => $rows->count(),
+                'tested' => $rows->filter(fn (HafizMonthlyExam $row) => $row->exam_status->wasTested())->count(),
+                'not_tested' => $rows->filter(fn (HafizMonthlyExam $row) => $row->exam_status->value === HafizExamStatus::NotTested->value)->count(),
+                'passed' => $rows->filter(fn (HafizMonthlyExam $row) => $row->exam_status->value === HafizExamStatus::Passed->value)->count(),
+                'failed' => $rows->filter(fn (HafizMonthlyExam $row) => $row->exam_status->value === HafizExamStatus::Failed->value)->count(),
+            ];
+        })->all();
+    }
+
+    /**
      * Record a monthly exam grade. The status is derived from the configured
      * pass mark: grade >= HAFIZ_EXAM_PASS_MARK → passed, otherwise failed.
      */

@@ -33,7 +33,7 @@
             <div class="text-3xl font-extrabold text-orange-600">{{ $stats['pendingCompletions'] }}</div>
             <div class="text-xs text-gray-500 mt-1 font-bold">بانتظار التأكيد</div>
         </a>
-        <a href="{{ route('admin.quran.exams.index', ['month' => $currentMonth]) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+        <a href="{{ route('admin.quran.exams.month', $currentMonth) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
             <div class="text-3xl font-extrabold text-sky-700">{{ $stats['untestedMonth'] }}</div>
             <div class="text-xs text-gray-500 mt-1 font-bold">لم يختبروا هذا الشهر</div>
         </a>

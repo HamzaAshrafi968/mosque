@@ -27,10 +27,32 @@ class HafizExamController extends BaseTeacherController
         private readonly AuditLogger $audit,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
+        if ($this->isValidMonth($request->input('month'))) {
+            return redirect()->route('teacher.quran.exams.month', $request->input('month'));
+        }
+
         $teacher = $this->currentTeacher($request);
-        $month = $this->validMonth($request->input('month'));
+        $year = $this->validYear($request->input('year'));
+
+        $ids = $this->scope->studentIdsFor($teacher);
+        $hafizIds = HafizProfile::query()->whereIn('student_id', $ids)->pluck('student_id');
+
+        return view('teacher.quran.exams.year', [
+            'year' => $year,
+            'months' => $this->programs->examYearSummaries($hafizIds, $year, $teacher->id),
+            'hafizCount' => $hafizIds->count(),
+        ]);
+    }
+
+    public function month(Request $request, string $month): View
+    {
+        if (! $this->isValidMonth($month)) {
+            abort(404);
+        }
+
+        $teacher = $this->currentTeacher($request);
 
         $ids = $this->scope->studentIdsFor($teacher);
 
@@ -46,7 +68,7 @@ class HafizExamController extends BaseTeacherController
             ->orderBy('student_id')
             ->get();
 
-        return view('teacher.quran.exams.index', [
+        return view('teacher.quran.exams.month', [
             'exams' => $exams,
             'month' => $month,
             'previousMonth' => QuranProgramSettings::previousMonth($month),
@@ -209,12 +231,19 @@ class HafizExamController extends BaseTeacherController
         ]);
     }
 
-    private function validMonth(?string $month): string
+    private function isValidMonth(?string $month): bool
     {
-        if ($month && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
-            return $month;
+        return is_string($month) && (bool) preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month);
+    }
+
+    private function validYear(mixed $year): int
+    {
+        $current = (int) now()->format('Y');
+
+        if (is_numeric($year) && (int) $year >= 2000 && (int) $year <= 2100) {
+            return (int) $year;
         }
 
-        return QuranProgramSettings::monthOf(now());
+        return $current;
     }
 }

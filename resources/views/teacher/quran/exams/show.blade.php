@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6">
-    <a href="{{ route('teacher.quran.exams.index', ['month' => $exam->month]) }}" class="text-sm text-emerald-700 hover:text-emerald-800">← اختبارات {{ $monthLabel($exam->month) }}</a>
+    <a href="{{ route('teacher.quran.exams.month', $exam->month) }}" class="text-sm text-emerald-700 hover:text-emerald-800">← اختبارات {{ $monthLabel($exam->month) }}</a>
 
     <div class="bg-gradient-to-l from-sky-700 to-emerald-700 text-white rounded-2xl p-6 shadow-lg flex flex-wrap items-center gap-4">
         <div class="flex-1 min-w-52">

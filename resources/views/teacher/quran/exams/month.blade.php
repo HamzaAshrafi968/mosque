@@ -1,20 +1,22 @@
 @extends('layouts.app')
 
-@section('title', 'اختبارات الحفاظ الشهرية')
+@section('title', 'اختبارات الحفاظ — ' . $monthLabel($month))
 
 @section('content')
 <div class="max-w-7xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-            <h2 class="text-2xl font-extrabold text-gray-800">✅ اختبارات الحفاظ الشهرية</h2>
-            <p class="text-sm text-gray-500 mt-1">{{ $monthLabel($month) }} — كل شهر له سجل مستقل؛ «لم يُختبر» لا تعني «راسب»</p>
+            <a href="{{ route('teacher.quran.exams.index', ['year' => substr($month, 0, 4)]) }}" class="text-sm text-emerald-700 hover:text-emerald-800">← العودة لشبكة الأشهر</a>
+            <h2 class="text-2xl font-extrabold text-gray-800 mt-1">✅ اختبارات الحفاظ — {{ $monthLabel($month) }}</h2>
+            <p class="text-sm text-gray-500 mt-1">كل شهر له سجل مستقل؛ «لم يُختبر» لا تعني «راسب»</p>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('admin.quran.exams.index', ['month' => $previousMonth]) }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-3 py-2 rounded-lg">الشهر السابق ←</a>
-            <form method="GET" action="{{ route('admin.quran.exams.index') }}" class="flex items-center gap-2">
-                <input type="month" name="month" value="{{ $month }}" onchange="this.form.submit()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <a href="{{ route('teacher.quran.exams.month', $previousMonth) }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-3 py-2 rounded-lg">الشهر السابق ←</a>
+            <form onsubmit="return false;">
+                <input type="month" value="{{ $month }}" onchange="window.location.href='{{ url('teacher/quran/exams/month') }}/' + this.value"
+                       class="border border-gray-300 rounded-lg px-3 py-2 text-sm" aria-label="الشهر">
             </form>
-            <a href="{{ route('admin.quran.exams.index', ['month' => $nextMonth]) }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-3 py-2 rounded-lg">→ الشهر التالي</a>
+            <a href="{{ route('teacher.quran.exams.month', $nextMonth) }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-3 py-2 rounded-lg">→ الشهر التالي</a>
         </div>
     </div>
 
@@ -36,7 +38,7 @@
                 @forelse($exams as $exam)
                     <tr class="border-t">
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <a href="{{ route('admin.quran.journey', $exam->student) }}" class="font-bold text-gray-800 hover:text-emerald-700">{{ $exam->student->name }}</a>
+                            <a href="{{ route('teacher.quran.students.journey', $exam->student) }}" class="font-bold text-gray-800 hover:text-emerald-700">{{ $exam->student->name }}</a>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $exam->student->classroom?->name ?? '—' }}</td>
                         <td class="px-4 py-3">
@@ -63,7 +65,7 @@
                             @else <span class="text-gray-300">—</span> @endif
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <a href="{{ route('admin.quran.exams.show', $exam) }}" class="text-xs text-emerald-700 hover:underline font-bold">
+                            <a href="{{ route('teacher.quran.exams.show', $exam) }}" class="text-xs text-emerald-700 hover:underline font-bold">
                                 {{ $exam->exam_status->value === 'not_tested' ? 'تسجيل نتيجة' : 'عرض / تعديل' }}
                             </a>
                         </td>

@@ -153,6 +153,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('quran/ijazah/enrollments/{enrollment}/complete', [Admin\IjazahController::class, 'complete'])->name('quran.ijazah.enrollments.complete')->middleware('permission:ijazah.complete');
 
     Route::get('quran/exams', [Admin\HafizExamController::class, 'index'])->name('quran.exams.index')->middleware('permission:hafiz_exams.view');
+    Route::get('quran/exams/month/{month}', [Admin\HafizExamController::class, 'month'])
+        ->where('month', '\d{4}-(0[1-9]|1[0-2])')->name('quran.exams.month')->middleware('permission:hafiz_exams.view');
     Route::get('quran/exams/{exam}', [Admin\HafizExamController::class, 'show'])->name('quran.exams.show')->middleware('permission:hafiz_exams.view');
     Route::post('quran/exams/{exam}/grade', [Admin\HafizExamController::class, 'grade'])->name('quran.exams.grade')->middleware('permission:hafiz_exams.grade');
     Route::post('quran/exams/{exam}/revisions', [Admin\HafizExamController::class, 'storeRevision'])->name('quran.exams.revisions.store')->middleware('permission:hafiz_exams.update');
@@ -247,6 +249,8 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::post('quran/ijazah/evaluations', [Teacher\IjazahController::class, 'store'])->name('quran.ijazah.evaluations.store')->middleware('permission:ijazah.create');
 
     Route::get('quran/exams', [Teacher\HafizExamController::class, 'index'])->name('quran.exams.index')->middleware('permission:hafiz_exams.view');
+    Route::get('quran/exams/month/{month}', [Teacher\HafizExamController::class, 'month'])
+        ->where('month', '\d{4}-(0[1-9]|1[0-2])')->name('quran.exams.month')->middleware('permission:hafiz_exams.view');
     Route::get('quran/exams/{exam}', [Teacher\HafizExamController::class, 'show'])->name('quran.exams.show')->middleware('permission:hafiz_exams.view');
     Route::post('quran/exams/{exam}/grade', [Teacher\HafizExamController::class, 'grade'])->name('quran.exams.grade')->middleware('permission:hafiz_exams.grade');
     Route::post('quran/exams/{exam}/revisions', [Teacher\HafizExamController::class, 'storeRevision'])->name('quran.exams.revisions.store')->middleware('permission:hafiz_exams.update');

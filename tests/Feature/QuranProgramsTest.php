@@ -510,8 +510,11 @@ class QuranProgramsTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'hafiz_exam.revision_approved']);
 
         // Month history is preserved: opening another month creates a separate row.
+        // Legacy ?month= query redirects to the new month route (year grid spec §2).
         $previous = QuranProgramSettings::previousMonth($month);
-        $this->actingAs($admin)->get(route('admin.quran.exams.index', ['month' => $previous]))->assertOk();
+        $this->actingAs($admin)->get(route('admin.quran.exams.index', ['month' => $previous]))
+            ->assertRedirect(route('admin.quran.exams.month', $previous));
+        $this->actingAs($admin)->get(route('admin.quran.exams.month', $previous))->assertOk();
         $this->assertDatabaseHas('hafiz_monthly_exams', ['student_id' => $student->id, 'month' => $previous, 'exam_status' => 'not_tested']);
     }
 

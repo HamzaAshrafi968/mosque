@@ -24,15 +24,34 @@ class HafizExamController extends Controller
         private readonly QuranProgramService $programs,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
-        $month = $this->validMonth($request->input('month'));
+        if ($this->isValidMonth($request->input('month'))) {
+            return redirect()->route('admin.quran.exams.month', $request->input('month'));
+        }
+
+        $year = $this->validYear($request->input('year'));
+
+        $hafizIds = HafizProfile::query()->pluck('student_id');
+
+        return view('admin.quran.exams.year', [
+            'year' => $year,
+            'months' => $this->programs->examYearSummaries($hafizIds, $year),
+            'hafizCount' => $hafizIds->count(),
+        ]);
+    }
+
+    public function month(Request $request, string $month): View
+    {
+        if (! $this->isValidMonth($month)) {
+            abort(404);
+        }
 
         $hafizIds = HafizProfile::query()->pluck('student_id');
 
         $exams = $this->programs->ensureMonthlyExamRows($hafizIds, $month, $request->user());
 
-        return view('admin.quran.exams.index', [
+        return view('admin.quran.exams.month', [
             'exams' => $exams,
             'month' => $month,
             'previousMonth' => QuranProgramSettings::previousMonth($month),
@@ -211,12 +230,19 @@ class HafizExamController extends Controller
         ]);
     }
 
-    private function validMonth(?string $month): string
+    private function isValidMonth(?string $month): bool
     {
-        if ($month && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
-            return $month;
+        return is_string($month) && (bool) preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month);
+    }
+
+    private function validYear(mixed $year): int
+    {
+        $current = (int) now()->format('Y');
+
+        if (is_numeric($year) && (int) $year >= 2000 && (int) $year <= 2100) {
+            return (int) $year;
         }
 
-        return QuranProgramSettings::monthOf(now());
+        return $current;
     }
 }
