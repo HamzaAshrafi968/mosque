@@ -30,17 +30,29 @@ Route::post('logout', [AuthController::class, 'logout'])->middleware('auth')->na
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('dashboard', [Admin\DashboardController::class, 'index'])->name('dashboard');
 
-    Route::patch('students/{student}/archive', [Admin\StudentController::class, 'archive'])->name('students.archive');
-    Route::resource('students', Admin\StudentController::class);
-    Route::post('students/{student}/transfer', [Admin\StudentController::class, 'transfer'])->name('students.transfer');
+    Route::patch('students/{student}/archive', [Admin\StudentController::class, 'archive'])->name('students.archive')->middleware('permission:students.archive');
+    Route::resource('students', Admin\StudentController::class)
+        ->middlewareFor(['index', 'create', 'show', 'edit'], 'permission:students.view')
+        ->middlewareFor('store', 'permission:students.create')
+        ->middlewareFor('update', 'permission:students.update')
+        ->middlewareFor('destroy', 'permission:students.delete');
+    Route::post('students/{student}/transfer', [Admin\StudentController::class, 'transfer'])->name('students.transfer')->middleware('permission:students.transfer');
 
-    Route::resource('parents', Admin\ParentController::class)->except(['show']);
+    Route::resource('parents', Admin\ParentController::class)->except(['show'])
+        ->middlewareFor(['index', 'create', 'edit'], 'permission:parents.view')
+        ->middlewareFor('store', 'permission:parents.create')
+        ->middlewareFor('update', 'permission:parents.update')
+        ->middlewareFor('destroy', 'permission:parents.delete');
 
-    Route::resource('teachers', Admin\TeacherController::class);
-    Route::post('teachers/{teacher}/ratings', [Admin\TeacherController::class, 'storeRating'])->name('teachers.ratings.store');
-    Route::delete('teachers/{teacher}/ratings/{rating}', [Admin\TeacherController::class, 'destroyRating'])->name('teachers.ratings.destroy');
-    Route::post('teachers/{teacher}/certificates', [Admin\TeacherController::class, 'storeCertificate'])->name('teachers.certificates.store');
-    Route::delete('teachers/{teacher}/certificates/{certificate}', [Admin\TeacherController::class, 'destroyCertificate'])->name('teachers.certificates.destroy');
+    Route::resource('teachers', Admin\TeacherController::class)
+        ->middlewareFor(['index', 'create', 'show', 'edit'], 'permission:teachers.view')
+        ->middlewareFor('store', 'permission:teachers.create')
+        ->middlewareFor('update', 'permission:teachers.update')
+        ->middlewareFor('destroy', 'permission:teachers.delete');
+    Route::post('teachers/{teacher}/ratings', [Admin\TeacherController::class, 'storeRating'])->name('teachers.ratings.store')->middleware('permission:teachers.update');
+    Route::delete('teachers/{teacher}/ratings/{rating}', [Admin\TeacherController::class, 'destroyRating'])->name('teachers.ratings.destroy')->middleware('permission:teachers.update');
+    Route::post('teachers/{teacher}/certificates', [Admin\TeacherController::class, 'storeCertificate'])->name('teachers.certificates.store')->middleware('permission:teachers.update');
+    Route::delete('teachers/{teacher}/certificates/{certificate}', [Admin\TeacherController::class, 'destroyCertificate'])->name('teachers.certificates.destroy')->middleware('permission:teachers.update');
 
     // ---- ساعات عمل المشرفين (spec: mosque_management_work_hours_sharia_courses_quran_pages.md) ----
     Route::get('work-hours', [Admin\TeacherWorkHourController::class, 'index'])->name('work-hours.index')->middleware('permission:work_hours.view');
@@ -49,34 +61,38 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('work-hours/{workHour}', [Admin\TeacherWorkHourController::class, 'update'])->name('work-hours.update')->middleware('permission:work_hours.manage');
     Route::delete('work-hours/{workHour}', [Admin\TeacherWorkHourController::class, 'destroy'])->name('work-hours.destroy')->middleware('permission:work_hours.manage');
 
-    Route::get('classrooms', [Admin\ClassroomController::class, 'index'])->name('classrooms.index');
+    Route::get('classrooms', [Admin\ClassroomController::class, 'index'])->name('classrooms.index')->middleware('permission:classes.view');
     Route::get('classrooms/create', [Admin\ClassroomController::class, 'create'])->name('classrooms.create')->middleware('permission:classes.create');
-    Route::post('classrooms', [Admin\ClassroomController::class, 'store'])->name('classrooms.store');
-    Route::get('classrooms/{classroom}', [Admin\ClassroomController::class, 'show'])->name('classrooms.show');
+    Route::post('classrooms', [Admin\ClassroomController::class, 'store'])->name('classrooms.store')->middleware('permission:classes.create');
+    Route::get('classrooms/{classroom}', [Admin\ClassroomController::class, 'show'])->name('classrooms.show')->middleware('permission:classes.view');
     Route::get('classrooms/{classroom}/edit', [Admin\ClassroomController::class, 'edit'])->name('classrooms.edit')->middleware('permission:classes.update');
-    Route::patch('classrooms/{classroom}', [Admin\ClassroomController::class, 'update'])->name('classrooms.update');
-    Route::delete('classrooms/{classroom}', [Admin\ClassroomController::class, 'destroy'])->name('classrooms.destroy');
+    Route::patch('classrooms/{classroom}', [Admin\ClassroomController::class, 'update'])->name('classrooms.update')->middleware('permission:classes.update');
+    Route::delete('classrooms/{classroom}', [Admin\ClassroomController::class, 'destroy'])->name('classrooms.destroy')->middleware('permission:classes.delete');
 
-    Route::get('sections/{section}', [Admin\ClassroomController::class, 'showSection'])->name('sections.show');
-    Route::post('classrooms/{classroom}/sections', [Admin\ClassroomController::class, 'storeSection'])->name('sections.store');
-    Route::patch('sections/{section}', [Admin\ClassroomController::class, 'updateSection'])->name('sections.update');
-    Route::delete('sections/{section}', [Admin\ClassroomController::class, 'destroySection'])->name('sections.destroy');
+    Route::get('sections/{section}', [Admin\ClassroomController::class, 'showSection'])->name('sections.show')->middleware('permission:sections.view');
+    Route::post('classrooms/{classroom}/sections', [Admin\ClassroomController::class, 'storeSection'])->name('sections.store')->middleware('permission:sections.create');
+    Route::patch('sections/{section}', [Admin\ClassroomController::class, 'updateSection'])->name('sections.update')->middleware('permission:sections.update');
+    Route::delete('sections/{section}', [Admin\ClassroomController::class, 'destroySection'])->name('sections.destroy')->middleware('permission:sections.delete');
 
-    Route::post('sections/{section}/students', [Admin\ClassroomController::class, 'enrollStudent'])->name('sections.students.store');
-    Route::delete('sections/{section}/students/{student}', [Admin\ClassroomController::class, 'removeStudent'])->name('sections.students.destroy');
-    Route::post('sections/{section}/teachers', [Admin\ClassroomController::class, 'assignTeacher'])->name('sections.teachers.store');
-    Route::delete('sections/{section}/teachers/{teacher}', [Admin\ClassroomController::class, 'removeTeacher'])->name('sections.teachers.destroy');
+    Route::post('sections/{section}/students', [Admin\ClassroomController::class, 'enrollStudent'])->name('sections.students.store')->middleware('permission:sections.update');
+    Route::delete('sections/{section}/students/{student}', [Admin\ClassroomController::class, 'removeStudent'])->name('sections.students.destroy')->middleware('permission:sections.update');
+    Route::post('sections/{section}/teachers', [Admin\ClassroomController::class, 'assignTeacher'])->name('sections.teachers.store')->middleware('permission:sections.update');
+    Route::delete('sections/{section}/teachers/{teacher}', [Admin\ClassroomController::class, 'removeTeacher'])->name('sections.teachers.destroy')->middleware('permission:sections.update');
 
     Route::get('custom-fields', [Admin\CustomFieldController::class, 'index'])->name('custom-fields.index')->middleware('permission:custom_fields.view');
     Route::post('custom-fields', [Admin\CustomFieldController::class, 'store'])->name('custom-fields.store')->middleware('permission:custom_fields.create');
     Route::patch('custom-fields/{customField}', [Admin\CustomFieldController::class, 'update'])->name('custom-fields.update')->middleware('permission:custom_fields.update');
     Route::delete('custom-fields/{customField}', [Admin\CustomFieldController::class, 'destroy'])->name('custom-fields.destroy')->middleware('permission:custom_fields.delete');
 
-    Route::resource('subjects', Admin\SubjectController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('subjects', Admin\SubjectController::class)->only(['index', 'store', 'update', 'destroy'])
+        ->middlewareFor('index', 'permission:subjects.view')
+        ->middlewareFor('store', 'permission:subjects.create')
+        ->middlewareFor('update', 'permission:subjects.update')
+        ->middlewareFor('destroy', 'permission:subjects.delete');
 
-    Route::get('schedules', [Admin\ScheduleController::class, 'index'])->name('schedules.index');
-    Route::post('schedules', [Admin\ScheduleController::class, 'store'])->name('schedules.store');
-    Route::delete('schedules/{schedule}', [Admin\ScheduleController::class, 'destroy'])->name('schedules.destroy');
+    Route::get('schedules', [Admin\ScheduleController::class, 'index'])->name('schedules.index')->middleware('permission:schedule.view');
+    Route::post('schedules', [Admin\ScheduleController::class, 'store'])->name('schedules.store')->middleware('permission:schedule.create');
+    Route::delete('schedules/{schedule}', [Admin\ScheduleController::class, 'destroy'])->name('schedules.destroy')->middleware('permission:schedule.delete');
 
     Route::get('attendance', [Admin\AttendanceController::class, 'index'])->name('attendance.index')->middleware('permission:attendance.view');
     Route::post('attendance', [Admin\AttendanceController::class, 'store'])->name('attendance.store')->middleware('permission:attendance.create');
@@ -94,26 +110,33 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::get('audit-logs', [Admin\AuditLogController::class, 'index'])->name('audit-logs.index')->middleware('permission:audit_logs.view');
 
-    Route::resource('exams', Admin\ExamController::class)->only(['index', 'create', 'store', 'destroy']);
+    Route::resource('exams', Admin\ExamController::class)->only(['index', 'create', 'store', 'destroy'])
+        ->middlewareFor(['index', 'create'], 'permission:exams.view')
+        ->middlewareFor('store', 'permission:exams.create')
+        ->middlewareFor('destroy', 'permission:exams.delete');
 
-    Route::get('grades', [Admin\GradeController::class, 'index'])->name('grades.index');
-    Route::get('grades/{exam}', [Admin\GradeController::class, 'show'])->name('grades.show');
-    Route::patch('grades/{exam}/approve', [Admin\GradeController::class, 'approve'])->name('grades.approve');
+    Route::get('grades', [Admin\GradeController::class, 'index'])->name('grades.index')->middleware('permission:grades.view');
+    Route::get('grades/{exam}', [Admin\GradeController::class, 'show'])->name('grades.show')->middleware('permission:grades.view');
+    Route::patch('grades/{exam}/approve', [Admin\GradeController::class, 'approve'])->name('grades.approve')->middleware('permission:grades.approve');
 
-    Route::get('reports', [Admin\ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports', [Admin\ReportController::class, 'index'])->name('reports.index')->middleware('permission:reports.view');
 
-    Route::get('announcements', [Admin\AnnouncementController::class, 'index'])->name('announcements.index');
-    Route::post('announcements', [Admin\AnnouncementController::class, 'store'])->name('announcements.store');
-    Route::delete('announcements/{announcement}', [Admin\AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+    Route::get('announcements', [Admin\AnnouncementController::class, 'index'])->name('announcements.index')->middleware('permission:announcements.view');
+    Route::post('announcements', [Admin\AnnouncementController::class, 'store'])->name('announcements.store')->middleware('permission:announcements.create');
+    Route::delete('announcements/{announcement}', [Admin\AnnouncementController::class, 'destroy'])->name('announcements.destroy')->middleware('permission:announcements.delete');
 
-    Route::get('quran-review', [Admin\QuranReviewController::class, 'index'])->name('quran-review.index');
-    Route::get('quran-review/statistics', [Admin\QuranReviewController::class, 'statistics'])->name('quran-review.statistics');
-    Route::get('quran-review/{id}', [Admin\QuranReviewController::class, 'show'])->name('quran-review.show');
-    Route::get('quran-review/student/{student}', [Admin\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report');
+    Route::get('quran-review', [Admin\QuranReviewController::class, 'index'])->name('quran-review.index')->middleware('permission:quran_review.view');
+    Route::get('quran-review/statistics', [Admin\QuranReviewController::class, 'statistics'])->name('quran-review.statistics')->middleware('permission:quran_review.view');
+    Route::get('quran-review/{id}', [Admin\QuranReviewController::class, 'show'])->name('quran-review.show')->middleware('permission:quran_review.view');
+    Route::get('quran-review/student/{student}', [Admin\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report')->middleware('permission:quran_review.view');
 
-    Route::get('reward-points', [Admin\RewardPointController::class, 'index'])->name('reward-points.index');
+    Route::get('reward-points', [Admin\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
 
-    Route::resource('users', Admin\UserController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('users', Admin\UserController::class)->only(['index', 'store', 'update', 'destroy'])
+        ->middlewareFor('index', 'permission:users.view')
+        ->middlewareFor('store', 'permission:users.create')
+        ->middlewareFor('update', 'permission:users.update')
+        ->middlewareFor('destroy', 'permission:users.delete');
 
     // ---- الدوامات (study sessions: الدورة الأولى / الثانية) ----
     Route::get('sessions', [Admin\StudySessionController::class, 'index'])->name('sessions.index')->middleware('permission:sessions.view');
@@ -215,44 +238,52 @@ Route::middleware(['auth', 'permission:quran.tasmee.view'])->prefix('quran/pages
 Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('dashboard', [Teacher\DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('schedule', [Teacher\ScheduleController::class, 'index'])->name('schedule');
+    Route::get('schedule', [Teacher\ScheduleController::class, 'index'])->name('schedule')->middleware('permission:schedule.view');
 
     Route::get('work-hours', [Teacher\WorkHourController::class, 'index'])->name('work-hours.index')->middleware('permission:work_hours.view');
 
-    Route::get('attendance', [Teacher\AttendanceController::class, 'create'])->name('attendance.create');
-    Route::post('attendance', [Teacher\AttendanceController::class, 'store'])->name('attendance.store');
-    Route::get('attendance/history', [Teacher\AttendanceController::class, 'history'])->name('attendance.history');
-    Route::get('attendance/sessions/{session}/edit', [Teacher\AttendanceController::class, 'edit'])->name('attendance.sessions.edit');
-    Route::patch('attendance/sessions/{session}', [Teacher\AttendanceController::class, 'update'])->name('attendance.sessions.update');
+    Route::get('attendance', [Teacher\AttendanceController::class, 'create'])->name('attendance.create')->middleware('permission:attendance.create');
+    Route::post('attendance', [Teacher\AttendanceController::class, 'store'])->name('attendance.store')->middleware('permission:attendance.create');
+    Route::get('attendance/history', [Teacher\AttendanceController::class, 'history'])->name('attendance.history')->middleware('permission:attendance.view');
+    Route::get('attendance/sessions/{session}/edit', [Teacher\AttendanceController::class, 'edit'])->name('attendance.sessions.edit')->middleware('permission:attendance.update');
+    Route::patch('attendance/sessions/{session}', [Teacher\AttendanceController::class, 'update'])->name('attendance.sessions.update')->middleware('permission:attendance.update');
 
-    Route::get('homeworks/{homework}/submissions', [Teacher\HomeworkController::class, 'submissions'])->name('homeworks.submissions');
-    Route::patch('submissions/{submission}', [Teacher\HomeworkController::class, 'updateSubmission'])->name('submissions.update');
-    Route::resource('homeworks', Teacher\HomeworkController::class)->only(['index', 'create', 'store', 'destroy']);
+    Route::get('homeworks/{homework}/submissions', [Teacher\HomeworkController::class, 'submissions'])->name('homeworks.submissions')->middleware('permission:assignments.grade');
+    Route::patch('submissions/{submission}', [Teacher\HomeworkController::class, 'updateSubmission'])->name('submissions.update')->middleware('permission:assignments.grade');
+    Route::resource('homeworks', Teacher\HomeworkController::class)->only(['index', 'create', 'store', 'destroy'])
+        ->middlewareFor('index', 'permission:assignments.view')
+        ->middlewareFor(['create', 'store'], 'permission:assignments.create')
+        ->middlewareFor('destroy', 'permission:assignments.delete');
 
-    Route::resource('exams', Teacher\ExamController::class)->only(['index', 'create', 'store']);
+    Route::resource('exams', Teacher\ExamController::class)->only(['index', 'create', 'store'])
+        ->middlewareFor('index', 'permission:exams.view')
+        ->middlewareFor(['create', 'store'], 'permission:exams.create');
 
-    Route::get('exams/{exam}/grades', [Teacher\GradeController::class, 'edit'])->name('grades.edit');
-    Route::post('exams/{exam}/grades', [Teacher\GradeController::class, 'store'])->name('grades.store');
+    Route::get('exams/{exam}/grades', [Teacher\GradeController::class, 'edit'])->name('grades.edit')->middleware('permission:grades.view');
+    Route::post('exams/{exam}/grades', [Teacher\GradeController::class, 'store'])->name('grades.store')->middleware('permission:grades.create,grades.update');
 
-    Route::resource('lessons', Teacher\LessonController::class)->only(['index', 'create', 'store', 'destroy']);
+    Route::resource('lessons', Teacher\LessonController::class)->only(['index', 'create', 'store', 'destroy'])
+        ->middlewareFor('index', 'permission:lessons.view')
+        ->middlewareFor(['create', 'store'], 'permission:lessons.create')
+        ->middlewareFor('destroy', 'permission:lessons.delete');
 
-    Route::get('messages', [Teacher\MessageController::class, 'index'])->name('messages.index');
-    Route::post('messages', [Teacher\MessageController::class, 'store'])->name('messages.store');
+    Route::get('messages', [Teacher\MessageController::class, 'index'])->name('messages.index')->middleware('permission:messages.view');
+    Route::post('messages', [Teacher\MessageController::class, 'store'])->name('messages.store')->middleware('permission:messages.create');
 
     Route::get('profile', [Teacher\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('profile', [Teacher\ProfileController::class, 'update'])->name('profile.update');
 
-    Route::get('quran-review', [Teacher\QuranReviewController::class, 'index'])->name('quran-review.index');
-    Route::get('quran-review/create', [Teacher\QuranReviewController::class, 'create'])->name('quran-review.create');
-    Route::post('quran-review', [Teacher\QuranReviewController::class, 'store'])->name('quran-review.store');
-    Route::get('quran-review/{id}', [Teacher\QuranReviewController::class, 'show'])->name('quran-review.show');
-    Route::get('quran-review/student/{student}', [Teacher\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report');
-    Route::get('quran-review/ayahs/json', [Teacher\QuranReviewController::class, 'getAyahs'])->name('quran-review.ayahs');
+    Route::get('quran-review', [Teacher\QuranReviewController::class, 'index'])->name('quran-review.index')->middleware('permission:quran_review.view');
+    Route::get('quran-review/create', [Teacher\QuranReviewController::class, 'create'])->name('quran-review.create')->middleware('permission:quran_review.create');
+    Route::post('quran-review', [Teacher\QuranReviewController::class, 'store'])->name('quran-review.store')->middleware('permission:quran_review.create');
+    Route::get('quran-review/{id}', [Teacher\QuranReviewController::class, 'show'])->name('quran-review.show')->middleware('permission:quran_review.view');
+    Route::get('quran-review/student/{student}', [Teacher\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report')->middleware('permission:quran_review.view');
+    Route::get('quran-review/ayahs/json', [Teacher\QuranReviewController::class, 'getAyahs'])->name('quran-review.ayahs')->middleware('permission:quran_review.view');
 
-    Route::get('reward-points', [Teacher\RewardPointController::class, 'index'])->name('reward-points.index');
-    Route::get('reward-points/create', [Teacher\RewardPointController::class, 'create'])->name('reward-points.create');
-    Route::post('reward-points', [Teacher\RewardPointController::class, 'store'])->name('reward-points.store');
-    Route::delete('reward-points/{id}', [Teacher\RewardPointController::class, 'destroy'])->name('reward-points.destroy');
+    Route::get('reward-points', [Teacher\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
+    Route::get('reward-points/create', [Teacher\RewardPointController::class, 'create'])->name('reward-points.create')->middleware('permission:reward_points.create');
+    Route::post('reward-points', [Teacher\RewardPointController::class, 'store'])->name('reward-points.store')->middleware('permission:reward_points.create');
+    Route::delete('reward-points/{id}', [Teacher\RewardPointController::class, 'destroy'])->name('reward-points.destroy')->middleware('permission:reward_points.delete');
 
     // ---- البرامج القرآنية للمعلم (spec: mosque_management_quran_programs.md) ----
     Route::get('quran', [Teacher\QuranProgramController::class, 'index'])->name('quran.index')->middleware('permission:quran.tasmee.view');
@@ -360,8 +391,8 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
 
 // ---- Sheikh portal additions: sections & finance ledger (spec §19-§32) ----
 Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
-    Route::get('sections', [Teacher\SectionController::class, 'index'])->name('sections.index');
-    Route::get('sections/{section}', [Teacher\SectionController::class, 'show'])->name('sections.show');
+    Route::get('sections', [Teacher\SectionController::class, 'index'])->name('sections.index')->middleware('permission:sections.view');
+    Route::get('sections/{section}', [Teacher\SectionController::class, 'show'])->name('sections.show')->middleware('permission:sections.view');
 
     Route::get('finance', [Teacher\FinanceController::class, 'index'])->name('finance.index')->middleware('permission:finance.view');
     Route::get('finance/receive', [Teacher\FinanceController::class, 'receiveForm'])->name('finance.receive')->middleware('permission:finance.create');

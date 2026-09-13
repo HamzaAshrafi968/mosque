@@ -31,6 +31,11 @@ final class PermissionCatalog
         ['students', 'delete', 'حذف طالب'],
         ['students', 'archive', 'أرشفة طالب'],
         ['students', 'transfer', 'نقل طالب'],
+        // Guardians (أولياء الأمور)
+        ['parents', 'view', 'مشاهدة أولياء الأمور'],
+        ['parents', 'create', 'إضافة ولي أمر'],
+        ['parents', 'update', 'تعديل ولي أمر'],
+        ['parents', 'delete', 'حذف ولي أمر'],
         // Teachers
         ['teachers', 'view', 'مشاهدة الأساتذة'],
         ['teachers', 'create', 'إضافة أستاذ'],
@@ -122,6 +127,13 @@ final class PermissionCatalog
         ['quran', 'tasmee.update', 'تعديل تسميع'],
         ['quran', 'completion.view', 'مشاهدة إتمام الحفظ'],
         ['quran', 'completion.confirm', 'تأكيد إتمام الحفظ'],
+        // Quran review (مراجعة القرآن)
+        ['quran_review', 'view', 'مشاهدة مراجعة القرآن'],
+        ['quran_review', 'create', 'تسجيل مراجعة قرآن'],
+        // Reward points (نقاط المكافآت)
+        ['reward_points', 'view', 'مشاهدة نقاط المكافآت'],
+        ['reward_points', 'create', 'منح نقاط مكافأة'],
+        ['reward_points', 'delete', 'حذف نقاط مكافأة'],
         ['qualifying', 'view', 'مشاهدة البرنامج التأهيلي'],
         ['qualifying', 'create', 'تسجيل تقييم أسبوعي'],
         ['qualifying', 'update', 'تعديل تقييم أسبوعي'],
@@ -154,6 +166,7 @@ final class PermissionCatalog
     /** Default grants for the per-mosque manager role: code => scope. */
     public const MOSQUE_MANAGER = [
         'students.view' => 'mosque', 'students.create' => 'mosque', 'students.update' => 'mosque', 'students.delete' => 'mosque', 'students.archive' => 'mosque', 'students.transfer' => 'mosque',
+        'parents.view' => 'mosque', 'parents.create' => 'mosque', 'parents.update' => 'mosque', 'parents.delete' => 'mosque',
         'teachers.view' => 'mosque', 'teachers.create' => 'mosque', 'teachers.update' => 'mosque', 'teachers.delete' => 'mosque',
         'sessions.view' => 'mosque', 'sessions.create' => 'mosque', 'sessions.update' => 'mosque', 'sessions.delete' => 'mosque',
         'classes.view' => 'mosque', 'classes.create' => 'mosque', 'classes.update' => 'mosque', 'classes.delete' => 'mosque',
@@ -175,6 +188,8 @@ final class PermissionCatalog
         'audit_logs.view' => 'mosque',
         'quran.tasmee.view' => 'mosque', 'quran.tasmee.create' => 'mosque', 'quran.tasmee.update' => 'mosque',
         'quran.completion.view' => 'mosque', 'quran.completion.confirm' => 'mosque',
+        'quran_review.view' => 'mosque', 'quran_review.create' => 'mosque',
+        'reward_points.view' => 'mosque', 'reward_points.create' => 'mosque', 'reward_points.delete' => 'mosque',
         'qualifying.view' => 'mosque', 'qualifying.create' => 'mosque', 'qualifying.update' => 'mosque', 'qualifying.complete' => 'mosque',
         'ijazah.view' => 'mosque', 'ijazah.create' => 'mosque', 'ijazah.update' => 'mosque', 'ijazah.complete' => 'mosque',
         'hafiz_exams.view' => 'mosque', 'hafiz_exams.create' => 'mosque', 'hafiz_exams.update' => 'mosque', 'hafiz_exams.grade' => 'mosque',
@@ -202,6 +217,8 @@ final class PermissionCatalog
         'users.view' => 'own',
         'quran.tasmee.view' => 'own', 'quran.tasmee.create' => 'own', 'quran.tasmee.update' => 'own',
         'quran.completion.view' => 'own',
+        'quran_review.view' => 'own', 'quran_review.create' => 'own',
+        'reward_points.view' => 'own', 'reward_points.create' => 'own', 'reward_points.delete' => 'own',
         'qualifying.view' => 'own', 'qualifying.create' => 'own', 'qualifying.update' => 'own',
         'ijazah.view' => 'own', 'ijazah.create' => 'own', 'ijazah.update' => 'own',
         'hafiz_exams.view' => 'own', 'hafiz_exams.create' => 'own', 'hafiz_exams.update' => 'own', 'hafiz_exams.grade' => 'own',
