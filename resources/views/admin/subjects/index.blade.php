@@ -44,28 +44,28 @@
                 @forelse($subjects as $subject)
                     <tr>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
-                            <form method="POST" action="{{ route('admin.subjects.update', $subject) }}" class="flex gap-2 items-center">
-                                @csrf
-                                @method('PUT')
-                                <input type="text" name="name" value="{{ $subject->name }}" required
-                                       class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
+                            <input type="text" name="name" value="{{ $subject->name }}" required form="subject-form-{{ $subject->id }}"
+                                   class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
-                                <input type="number" name="weekly_lessons" value="{{ $subject->weekly_lessons }}" min="1" required
-                                       class="border border-gray-300 rounded-lg px-3 py-1 w-20 text-sm">
+                            <input type="number" name="weekly_lessons" value="{{ $subject->weekly_lessons }}" min="1" required form="subject-form-{{ $subject->id }}"
+                                   class="border border-gray-300 rounded-lg px-3 py-1 w-20 text-sm">
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
-                                <select name="teacher_id" class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
-                                    <option value="">بدون معلم</option>
-                                    @foreach($teachers as $teacher)
-                                        <option value="{{ $teacher->id }}" @selected($subject->teacher_id == $teacher->id)>{{ $teacher->name }}</option>
-                                    @endforeach
-                                </select>
+                            <select name="teacher_id" form="subject-form-{{ $subject->id }}" class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
+                                <option value="">بدون معلم</option>
+                                @foreach($teachers as $teacher)
+                                    <option value="{{ $teacher->id }}" @selected($subject->teacher_id == $teacher->id)>{{ $teacher->name }}</option>
+                                @endforeach
+                            </select>
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
                             <div class="flex gap-2 items-center">
-                                <button type="submit" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
-                            </form>
+                                <button type="submit" form="subject-form-{{ $subject->id }}" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
+                                <form id="subject-form-{{ $subject->id }}" method="POST" action="{{ route('admin.subjects.update', $subject) }}" hidden>
+                                    @csrf
+                                    @method('PUT')
+                                </form>
                                 <form method="POST" action="{{ route('admin.subjects.destroy', $subject) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
                                     @csrf
                                     @method('DELETE')

@@ -68,46 +68,48 @@
                         <td class="px-4 py-3 border-t whitespace-nowrap">
                             <div class="flex items-center gap-3">
                                 <x-avatar :src="$user->avatarUrl()" :name="$user->name" size="sm" />
-                                <form method="POST" action="{{ route('admin.users.update', $user) }}" class="flex items-center gap-2">
+                                <input type="text" name="name" value="{{ $user->name }}" required form="user-form-{{ $user->id }}"
+                                       class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <input type="email" name="email" value="{{ $user->email }}" required form="user-form-{{ $user->id }}"
+                                   class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
+                        </td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <div class="flex gap-2 items-center">
+                                <select name="role" required form="user-form-{{ $user->id }}" class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
+                                    <option value="admin" @selected($user->role === 'admin')>مدير</option>
+                                    <option value="teacher" @selected($user->role === 'teacher')>معلم</option>
+                                </select>
+                                <input type="password" name="password" placeholder="كلمة مرور جديدة (اختياري)" form="user-form-{{ $user->id }}"
+                                       class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            <div class="flex gap-2 items-center">
+                                <label for="user-photo-{{ $user->id }}" class="cursor-pointer inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 text-xs font-bold" title="تغيير الصورة الشخصية">
+                                    <x-icon name="camera" class="w-4 h-4" />صورة
+                                </label>
+                                <input id="user-photo-{{ $user->id }}" type="file" name="photo" accept=".jpg,.jpeg,.png,.webp" form="user-form-{{ $user->id }}" class="sr-only">
+                                <label class="inline-flex items-center gap-1 text-xs font-semibold text-red-500 cursor-pointer" title="إزالة الصورة">
+                                    <input type="checkbox" name="remove_photo" value="1" form="user-form-{{ $user->id }}" class="rounded border-gray-300 text-red-500">
+                                    إزالة
+                                </label>
+                                <button type="submit" form="user-form-{{ $user->id }}" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
+                            </div>
+                            <form id="user-form-{{ $user->id }}" method="POST" action="{{ route('admin.users.update', $user) }}" enctype="multipart/form-data" hidden>
+                                @csrf
+                                @method('PUT')
+                            </form>
+                            @if(auth()->id() !== $user->id)
+                                <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
                                     @csrf
-                                    @method('PUT')
-                                    <input type="text" name="name" value="{{ $user->name }}" required
-                                           class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
-                                </td>
-                                <td class="px-4 py-3 border-t whitespace-nowrap">
-                                    <input type="email" name="email" value="{{ $user->email }}" required
-                                           class="border border-gray-300 rounded-lg px-3 py-1 w-full text-sm">
-                                </td>
-                                <td class="px-4 py-3 border-t whitespace-nowrap">
-                                    <div class="flex gap-2 items-center">
-                                        <select name="role" required class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
-                                            <option value="admin" @selected($user->role === 'admin')>مدير</option>
-                                            <option value="teacher" @selected($user->role === 'teacher')>معلم</option>
-                                        </select>
-                                        <input type="password" name="password" placeholder="كلمة مرور جديدة (اختياري)"
-                                               class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
-                                </td>
-                                <td class="px-4 py-3 border-t whitespace-nowrap">
-                                    <div class="flex gap-2 items-center">
-                                        <label for="user-photo-{{ $user->id }}" class="cursor-pointer inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 text-xs font-bold" title="تغيير الصورة الشخصية">
-                                            <x-icon name="camera" class="w-4 h-4" />صورة
-                                        </label>
-                                        <input id="user-photo-{{ $user->id }}" type="file" name="photo" accept=".jpg,.jpeg,.png,.webp" class="sr-only">
-                                        <label class="inline-flex items-center gap-1 text-xs font-semibold text-red-500 cursor-pointer" title="إزالة الصورة">
-                                            <input type="checkbox" name="remove_photo" value="1" class="rounded border-gray-300 text-red-500">
-                                            إزالة
-                                        </label>
-                                        <button type="submit" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
-                                    </div>
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
                                 </form>
-                                @if(auth()->id() !== $user->id)
-                                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
-                                    </form>
-                                @endif
-                                </td>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr>

@@ -40,19 +40,19 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 border-t">
-                            <form method="POST" action="{{ route('teacher.submissions.update', $submission) }}">
-                                @csrf
-                                @method('PATCH')
-                                <input type="hidden" name="status" value="graded">
-                                <input type="number" name="grade" value="{{ old('grade', $submission->grade) }}" step="0.5"
-                                       class="w-24 border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm" placeholder="الدرجة">
+                            <input type="hidden" name="status" value="graded" form="submission-form-{{ $submission->id }}">
+                            <input type="number" name="grade" value="{{ old('grade', $submission->grade) }}" step="0.5" form="submission-form-{{ $submission->id }}"
+                                   class="w-24 border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm" placeholder="الدرجة">
                         </td>
                         <td class="px-4 py-3 border-t">
-                                <input type="text" name="feedback" value="{{ $submission->feedback }}"
-                                       class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm" placeholder="ملاحظات">
+                            <input type="text" name="feedback" value="{{ $submission->feedback }}" form="submission-form-{{ $submission->id }}"
+                                   class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm" placeholder="ملاحظات">
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
-                                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-1 rounded-lg text-sm">حفظ التصحيح</button>
+                            <button type="submit" form="submission-form-{{ $submission->id }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-1 rounded-lg text-sm">حفظ التصحيح</button>
+                            <form id="submission-form-{{ $submission->id }}" method="POST" action="{{ route('teacher.submissions.update', $submission) }}" hidden>
+                                @csrf
+                                @method('PATCH')
                             </form>
                         </td>
                     </tr>
