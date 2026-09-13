@@ -28,14 +28,16 @@
         @php
             $resourceLabels = [
                 'mosques' => 'إدارة الجوامع', 'students' => 'الطلاب', 'teachers' => 'الأساتذة',
-                'classes' => 'الصفوف', 'sections' => 'الشعب', 'subjects' => 'المواد',
-                'schedule' => 'الجداول', 'attendance' => 'الحضور', 'exams' => 'الامتحانات',
+                'parents' => 'أولياء الأمور', 'classes' => 'الصفوف', 'sections' => 'الشعب', 'subjects' => 'المواد',
+                'sessions' => 'الدوامات', 'schedule' => 'الجداول', 'attendance' => 'الحضور', 'exams' => 'الامتحانات',
                 'grades' => 'الدرجات', 'assignments' => 'الواجبات', 'lessons' => 'الدروس',
                 'announcements' => 'الإعلانات', 'messages' => 'الرسائل', 'reports' => 'التقارير',
                 'users' => 'المستخدمون', 'roles' => 'الأدوار', 'permissions' => 'الصلاحيات',
                 'custom_fields' => 'الحقول المخصصة', 'audit_logs' => 'سجل العمليات', 'finance' => 'العمليات المالية',
-                'quran' => 'القرآن (تسميع وإتمام)', 'qualifying' => 'البرنامج التأهيلي', 'ijazah' => 'برنامج الإجازة',
+                'quran' => 'القرآن (تسميع وإتمام)', 'quran_review' => 'مراجعة القرآن', 'reward_points' => 'نقاط المكافآت',
+                'qualifying' => 'البرنامج التأهيلي', 'ijazah' => 'برنامج الإجازة',
                 'hafiz_exams' => 'اختبارات الحفاظ الشهرية', 'hafiz_profile' => 'ملفات الحفاظ', 'faith_meetings' => 'اللقاءات الإيمانية',
+                'work_hours' => 'ساعات العمل', 'sharia_courses' => 'الدورات الشرعية',
             ];
         @endphp
         @foreach(\App\Support\PermissionCatalog::grouped() as $resource => $permissions)

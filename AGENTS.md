@@ -29,8 +29,11 @@ npm run dev             # Vite dev server with HMR
 - Catalog = `app/Support/PermissionCatalog.php` (codes `resource.action` + Arabic labels + default grant maps for `mosque_manager`/`teacher`). Add new permissions there.
 - `app/Services/RoleService.php` — seeds catalog, global super-admin role, per-mosque default roles, role assignment; a User `created` hook auto-attaches default role from the legacy `users.role` string.
 - `app/Services/AuthorizationService.php` — `can($user, 'resource.action', $subject?, $owns?)` implements permission → scope → mosque isolation chain. Middleware alias `permission:`.
+- `EnsurePermission` now guards every admin/teacher web route and every `/api/v1/admin|teacher/*` endpoint (self-service dashboard/profile/logout/notifications stay open). It resolves the route-bound model and enforces `own` scope via owner columns (`user_id`, `awarded_by`, `created_by`, `recorded_by`, `teacher_id`, `supervisor_id`); subjects without owner columns fall back to tenant isolation.
 - Legacy route gating still uses the `users.role` string via `EnsureRole` (`role:admin` / `role:teacher` / `role:super_admin`).
-- Note: legacy Admin/Teacher user creation only updates `users.role`, not pivots, on edit; keep the string in sync with attached roles.
+- Permission changes (super-admin role matrix → `RoleService::syncRolePermissions`) take effect immediately: no permission cache, `scopesFor()` queries `permission_role` live. `tests/Feature/PermissionEnforcementTest.php` covers grant/revoke on web + API + matrix + sidebar.
+- `Admin\UserController` keeps `role_user` pivots in sync on role change (and guards the last mosque manager); `MosqueUserController` already did. `TeacherPermissionChange`-style role edits elsewhere must do the same.
+- New catalog codes `parents.*`, `quran_review.*`, `reward_points.*` are backfilled to existing system roles by migration `2026_09_13_000001_backfill_new_permission_grants.php`.
 
 ### Route structure
 | File / prefix | Auth | Purpose |
