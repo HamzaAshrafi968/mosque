@@ -94,10 +94,30 @@ class AuthorizationService
     /**
      * Scopes granted for a permission across all roles of the user.
      *
+     * Direct user overrides win over every role grant: an explicit deny
+     * revokes the permission, an allow replaces the role scopes.
+     *
      * @return array<int, string>
      */
     public function scopesFor(User $user, string $permission): array
     {
+        $overrides = $user->permissions()
+            ->where('permissions.code', $permission)
+            ->get();
+
+        if ($overrides->isNotEmpty()) {
+            if ($overrides->contains(fn ($override) => $override->pivot->effect === 'deny')) {
+                return [];
+            }
+
+            return $overrides
+                ->pluck('pivot.scope')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        }
+
         return $user->roles()
             ->join('permission_role', 'permission_role.role_id', '=', 'roles.id')
             ->join('permissions', 'permissions.id', '=', 'permission_role.permission_id')

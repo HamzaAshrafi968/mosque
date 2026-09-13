@@ -355,7 +355,11 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('su
 
     Route::get('mosques/{mosque}/users', [SuperAdmin\MosqueUserController::class, 'index'])->name('mosques.users.index');
     Route::post('mosques/{mosque}/users', [SuperAdmin\MosqueUserController::class, 'store'])->name('mosques.users.store');
+    Route::get('mosques/{mosque}/users/{user}/edit', [SuperAdmin\MosqueUserController::class, 'edit'])->name('mosques.users.edit');
+    Route::patch('mosques/{mosque}/users/{user}', [SuperAdmin\MosqueUserController::class, 'update'])->name('mosques.users.update');
     Route::patch('mosques/{mosque}/users/{user}/role', [SuperAdmin\MosqueUserController::class, 'updateRole'])->name('mosques.users.role');
+    Route::get('mosques/{mosque}/users/{user}/permissions', [SuperAdmin\MosqueUserController::class, 'permissions'])->name('mosques.users.permissions');
+    Route::patch('mosques/{mosque}/users/{user}/permissions', [SuperAdmin\MosqueUserController::class, 'updatePermissions'])->name('mosques.users.permissions.update');
     Route::delete('mosques/{mosque}/users/{user}', [SuperAdmin\MosqueUserController::class, 'destroy'])->name('mosques.users.destroy');
 
     Route::get('mosques/{mosque}/roles', [SuperAdmin\MosqueRoleController::class, 'index'])->name('mosques.roles.index');

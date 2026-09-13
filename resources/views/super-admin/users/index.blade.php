@@ -29,7 +29,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">الدور *</label>
-            <select name="role_code" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <select name="role_code" id="create-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
                 @foreach($roles as $role)
                     <option value="{{ $role->code }}" @selected(old('role_code', 'teacher') === $role->code)>{{ $role->name }} ({{ $role->code }})</option>
                 @endforeach
@@ -45,6 +45,19 @@
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
             <input type="text" name="phone" value="{{ old('phone') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+        </div>
+        <div id="create-teacher-specialty">
+            <label class="block text-sm font-medium text-gray-700 mb-1">التخصص <span class="text-gray-400 text-xs">(للمعلم)</span></label>
+            <input type="text" name="specialty" value="{{ old('specialty') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+        </div>
+        <div id="create-teacher-session">
+            <label class="block text-sm font-medium text-gray-700 mb-1">الدوام <span class="text-gray-400 text-xs">(للمعلم)</span></label>
+            <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">غير محدد (كل الدوامات)</option>
+                @foreach($studySessions as $session)
+                    <option value="{{ $session->id }}" @selected(old('study_session_id') == $session->id)>{{ $session->name }}</option>
+                @endforeach
+            </select>
         </div>
         <div class="md:col-span-2">
             <x-photo-input label="الصورة الشخصية" help="صورة مدير الجامع / المعلم (اختياري) — JPG, PNG أو WebP بحد أقصى 2MB" />
@@ -62,7 +75,6 @@
                 <th class="px-4 py-3 text-right">الاسم</th>
                 <th class="px-4 py-3 text-right">البريد</th>
                 <th class="px-4 py-3 text-right">الأدوار الحالية</th>
-                <th class="px-4 py-3 text-right">تغيير الدور</th>
                 <th class="px-4 py-3 text-right">إجراءات</th>
             </tr>
         </thead>
@@ -84,32 +96,53 @@
                         </div>
                     </td>
                     <td class="px-4 py-3">
-                        <form method="POST" action="{{ route('super-admin.mosques.users.role', [$mosque, $user]) }}" class="flex gap-2">
-                            @csrf
-                            @method('PATCH')
-                            <select name="role_code" class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
-                                @foreach($roles as $role)
-                                    <option value="{{ $role->code }}" @selected(($user->roles->first()->code ?? null) === $role->code)>{{ $role->name }}</option>
-                                @endforeach
-                            </select>
-                            <button type="submit" class="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs">حفظ</button>
-                        </form>
-                    </td>
-                    <td class="px-4 py-3">
-                        @if(!$user->isSuperAdmin())
-                            <form method="POST" action="{{ route('super-admin.mosques.users.destroy', [$mosque, $user]) }}" onsubmit="return confirm('حذف هذا المستخدم نهائياً؟')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="px-2.5 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs">حذف</button>
-                            </form>
-                        @endif
+                        <div class="flex items-center gap-2">
+                            <a href="{{ route('super-admin.mosques.users.edit', [$mosque, $user]) }}" class="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs">تعديل المستخدم والصلاحيات</a>
+                            @if(!$user->isSuperAdmin())
+                                <form method="POST" action="{{ route('super-admin.mosques.users.destroy', [$mosque, $user]) }}" onsubmit="return confirm('حذف هذا المستخدم نهائياً؟')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="px-2.5 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs">حذف</button>
+                                </form>
+                            @endif
+                        </div>
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">لا يوجد مستخدمون</td></tr>
+                <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">لا يوجد مستخدمون</td></tr>
             @endforelse
         </tbody>
     </table>
 </div>
 <div class="mt-4">{{ $users->links() }}</div>
+
+@php
+    $nonTeacherRoles = [
+        \App\Services\RoleService::ROLE_MOSQUE_MANAGER,
+        \App\Services\RoleService::ROLE_GUARDIAN,
+        \App\Services\RoleService::ROLE_STUDENT,
+    ];
+@endphp
+
+<script>
+    // حقول التخصص والدوام تخص المعلم/الأدوار المخصصة فقط.
+    const nonTeacherRoles = @json($nonTeacherRoles);
+
+    function toggleCreateTeacherFields() {
+        const role = document.getElementById('create-role');
+        const fields = [
+            document.getElementById('create-teacher-specialty'),
+            document.getElementById('create-teacher-session'),
+        ];
+
+        const show = role && !nonTeacherRoles.includes(role.value);
+
+        fields.forEach(function (field) {
+            if (field) { field.classList.toggle('hidden', !show); }
+        });
+    }
+
+    document.getElementById('create-role')?.addEventListener('change', toggleCreateTeacherFields);
+    toggleCreateTeacherFields();
+</script>
 @endsection

@@ -155,6 +155,49 @@ class RoleService
     }
 
     /**
+     * Replace all direct permission overrides of a user.
+     *
+     * Accepts a [code => 'deny'|scope] map: 'deny' blocks the permission even
+     * when a role grants it, any scope grants it at that scope and overrides
+     * the role. Codes left out fall back to the role grants.
+     */
+    public function syncUserPermissions(User $user, array $overrides): void
+    {
+        $rows = [];
+
+        foreach ($overrides as $code => $value) {
+            if (! in_array($value, ['deny', 'mosque', 'class', 'section', 'own'], true)) {
+                continue;
+            }
+
+            $permission = Permission::where('code', $code)->first();
+
+            if (! $permission) {
+                continue;
+            }
+
+            $rows[] = [
+                'permission_id' => $permission->id,
+                'user_id' => $user->id,
+                'scope' => $value === 'deny' ? null : $value,
+                'effect' => $value === 'deny' ? 'deny' : 'allow',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        DB::transaction(function () use ($user, $rows) {
+            $user->permissions()->detach();
+
+            $pivot = $user->permissions()->newPivotStatement();
+
+            foreach (array_chunk($rows, 200) as $chunk) {
+                $pivot->insert($chunk);
+            }
+        });
+    }
+
+    /**
      * Attach a role (by code) to a user. Lazily provisions the tenant default
      * roles & the global role when needed so the system always has valid roles.
      */

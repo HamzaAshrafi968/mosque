@@ -105,6 +105,14 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    /** Direct per-user permission overrides (grant/deny), winning over roles. */
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'permission_user')
+            ->withPivot('scope', 'effect')
+            ->withTimestamps();
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
