@@ -7,12 +7,14 @@ use App\Enums\FaithMeetingNoteType;
 use App\Models\FaithMeeting;
 use App\Models\FaithMeetingNote;
 use App\Models\FaithMeetingStudent;
+use App\Models\Student;
 use App\Services\AuditLogger;
 use App\Services\QuranScopeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -79,13 +81,21 @@ class FaithMeetingController extends BaseTeacherController
 
         $data = $request->validate([
             'statuses' => ['required', 'array', 'min:1'],
-            'statuses.*' => ['required', Rule::in(['attended', 'absent', 'excused'])],
+            'statuses.*' => ['nullable', Rule::in(['attended', 'absent', 'excused'])],
             'notes' => ['nullable', 'array'],
             'notes.*' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        DB::transaction(function () use ($meeting, $data) {
-            foreach ($data['statuses'] as $studentId => $status) {
+        $statuses = collect($data['statuses'])
+            ->filter(fn ($status) => $status !== null && $status !== '')
+            ->all();
+
+        if ($statuses === []) {
+            throw ValidationException::withMessages(['statuses' => 'حدد حالة طالب واحد على الأقل']);
+        }
+
+        DB::transaction(function () use ($meeting, $data, $statuses) {
+            foreach ($statuses as $studentId => $status) {
                 FaithMeetingStudent::query()
                     ->where('meeting_id', $meeting->id)
                     ->where('student_id', $studentId)
@@ -101,7 +111,7 @@ class FaithMeetingController extends BaseTeacherController
             'faith_meeting',
             $meeting->id,
             $meeting->tenant_id,
-            after: ['meeting_id' => $meeting->id, 'statuses' => $data['statuses']],
+            after: ['meeting_id' => $meeting->id, 'statuses' => $statuses],
             actor: $request->user()
         );
 
@@ -113,13 +123,19 @@ class FaithMeetingController extends BaseTeacherController
         $teacher = $this->currentTeacher($request);
         $this->assertManages($teacher, $meeting);
 
+        $tenantId = config('app.current_tenant_id') ?? $request->user()->tenant_id;
+
         $data = $request->validate([
             'note_type' => ['required', Rule::in(['note', 'suggestion', 'action_item'])],
             'content' => ['required', 'string', 'max:5000'],
-            'student_id' => ['nullable', 'uuid', 'exists:students,id'],
-            'assigned_to' => ['nullable', 'uuid', 'exists:users,id'],
+            'student_id' => ['nullable', 'uuid', Rule::exists('students', 'id')->where('tenant_id', $tenantId)],
+            'assigned_to' => ['nullable', 'uuid', Rule::exists('users', 'id')->where('tenant_id', $tenantId)],
             'due_date' => ['nullable', 'date'],
         ]);
+
+        if (! empty($data['student_id'])) {
+            $this->scope->assertCanManageStudent($teacher, Student::findOrFail($data['student_id']));
+        }
 
         $note = FaithMeetingNote::create([
             'meeting_id' => $meeting->id,

@@ -131,7 +131,7 @@ class QualifyingController extends Controller
 
     private function validated(Request $request): array
     {
-        $tenantId = $request->user()->tenant_id;
+        $tenantId = config('app.current_tenant_id') ?? $request->user()->tenant_id;
 
         return $request->validate([
             'student_id' => ['required', 'uuid', Rule::exists('students', 'id')->where('tenant_id', $tenantId)],

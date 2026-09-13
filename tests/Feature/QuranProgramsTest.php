@@ -671,6 +671,121 @@ class QuranProgramsTest extends TestCase
             ->assertSee('اللقاء الأسبوعي للتزكية');
     }
 
+    public function test_super_admin_inside_a_mosque_can_create_meetings_and_program_records(): void
+    {
+        [$mosque] = $this->mosque();
+        $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => User::ROLE_SUPER_ADMIN]);
+        app(RoleService::class)->assignRole($superAdmin, RoleService::ROLE_SUPER_ADMIN);
+
+        [, $teacher] = $this->makeTeacher($mosque->id);
+        $students = collect(range(1, 3))->map(fn () => $this->makeStudent($mosque->id));
+
+        $this->actingAs($superAdmin)->withSession(['super_admin_mosque_id' => $mosque->id]);
+
+        // Faith meeting: supervisor + explicitly selected students.
+        $this->post(route('admin.faith-meetings.store'), [
+            'title' => 'لقاء مدير الجوامع',
+            'date' => now()->addDay()->toDateString(),
+            'supervisor_id' => $teacher->id,
+            'student_ids' => $students->pluck('id')->all(),
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $meeting = FaithMeeting::firstOrFail();
+        $this->assertSame($teacher->id, $meeting->supervisor_id);
+        $this->assertSame(3, $meeting->studentAttendances()->count());
+
+        // Tasmee'.
+        $this->post(route('admin.quran.tasmee.store'), [
+            'student_id' => $students[0]->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'new',
+            'date' => now()->toDateString(),
+            'amount' => 2,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        // Qualifying weekly evaluation (hafiz is enrolled automatically).
+        $hafiz = $this->makeHafiz($mosque->id, $superAdmin);
+        $this->post(route('admin.quran.qualifying.evaluations.store'), [
+            'student_id' => $hafiz->id,
+            'week_start' => now()->startOfWeek()->toDateString(),
+            'week_end' => now()->startOfWeek()->addDays(6)->toDateString(),
+            'amount' => 5,
+            'result' => 'passed',
+            'evaluated_by' => $teacher->id,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        // Ijazah monthly evaluation (student enrolled after qualifying completion).
+        [, , $ijazahStudent] = $this->studentInIjazah($mosque->id, $superAdmin);
+        $this->post(route('admin.quran.ijazah.evaluations.store'), [
+            'student_id' => $ijazahStudent->id,
+            'month' => now()->format('Y-m'),
+            'amount' => 30,
+            'result' => 'passed',
+            'evaluated_by' => $teacher->id,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('quran_recitation_sessions', ['student_id' => $students[0]->id]);
+        $this->assertDatabaseHas('qualifying_weekly_evaluations', ['student_id' => $hafiz->id]);
+        $this->assertDatabaseHas('ijazah_monthly_evaluations', ['student_id' => $ijazahStudent->id]);
+    }
+
+    public function test_meeting_note_rejects_a_cross_tenant_student(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+
+        $meeting = FaithMeeting::create([
+            'tenant_id' => $mosque->id,
+            'title' => 'لقاء اختبار العزل',
+            'date' => now()->toDateString(),
+            'created_by' => $admin->id,
+        ]);
+
+        $otherMosque = Tenant::factory()->create();
+        $foreignStudent = Student::factory()->create(['tenant_id' => $otherMosque->id]);
+
+        $this->actingAs($admin)->post(route('admin.faith-meetings.notes.store', $meeting), [
+            'note_type' => 'note',
+            'content' => 'ملاحظة على طالب من جامع آخر',
+            'student_id' => $foreignStudent->id,
+        ])->assertSessionHasErrors('student_id');
+    }
+
+    public function test_meeting_attendance_can_be_saved_partially(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        [, $supervisor] = $this->makeTeacher($mosque->id);
+        $studentA = $this->makeStudent($mosque->id);
+        $studentB = $this->makeStudent($mosque->id);
+
+        $this->actingAs($admin)->post(route('admin.faith-meetings.store'), [
+            'title' => 'لقاء الحضور الجزئي',
+            'date' => now()->toDateString(),
+            'supervisor_id' => $supervisor->id,
+            'student_ids' => [$studentA->id, $studentB->id],
+        ])->assertRedirect();
+
+        $meeting = FaithMeeting::firstOrFail();
+
+        $this->actingAs($admin)->post(route('admin.faith-meetings.attendance', $meeting), [
+            'statuses' => [$studentA->id => 'attended', $studentB->id => ''],
+            'notes' => [$studentA->id => 'ملتزم', $studentB->id => ''],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('faith_meeting_students', [
+            'student_id' => $studentA->id,
+            'attendance_status' => 'attended',
+        ]);
+        $this->assertDatabaseHas('faith_meeting_students', [
+            'student_id' => $studentB->id,
+            'attendance_status' => null,
+        ]);
+
+        // A request with no status at all is rejected instead of silently saving nothing.
+        $this->actingAs($admin)->post(route('admin.faith-meetings.attendance', $meeting), [
+            'statuses' => [$studentA->id => '', $studentB->id => ''],
+        ])->assertSessionHasErrors('statuses');
+    }
+
     // ---------- Hafiz profile & custom fields ----------
 
     public function test_hafiz_profile_supports_spec_fields_and_custom_fields(): void

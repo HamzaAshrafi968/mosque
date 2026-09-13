@@ -73,7 +73,7 @@ class MosqueRoleController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:500'],
             'permissions' => ['nullable', 'array'],
-            'permissions.*' => ['in:global,mosque,class,section,own,'],
+            'permissions.*' => ['in:mosque,class,section,own,'],
         ]);
 
         $role->update([
@@ -81,9 +81,11 @@ class MosqueRoleController extends Controller
             'description' => $data['description'] ?? null,
         ]);
 
+        // The global scope is reserved for global roles (roles.tenant_id = NULL):
+        // granting it to a mosque role would bypass mosque isolation (spec §5.1).
         $scopes = array_filter(
             $data['permissions'] ?? [],
-            fn ($scope) => in_array($scope, ['global', 'mosque', 'class', 'section', 'own'], true)
+            fn ($scope) => in_array($scope, ['mosque', 'class', 'section', 'own'], true)
         );
 
         $roles->syncRolePermissions($role, $scopes);

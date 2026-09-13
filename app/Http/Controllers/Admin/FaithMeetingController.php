@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class FaithMeetingController extends Controller
@@ -195,15 +196,23 @@ class FaithMeetingController extends Controller
     {
         $data = $request->validate([
             'statuses' => ['required', 'array', 'min:1'],
-            'statuses.*' => ['required', Rule::in(['attended', 'absent', 'excused'])],
+            'statuses.*' => ['nullable', Rule::in(['attended', 'absent', 'excused'])],
             'notes' => ['nullable', 'array'],
             'notes.*' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        $statuses = collect($data['statuses'])
+            ->filter(fn ($status) => $status !== null && $status !== '')
+            ->all();
+
+        if ($statuses === []) {
+            throw ValidationException::withMessages(['statuses' => 'حدد حالة طالب واحد على الأقل']);
+        }
+
         $attached = $meeting->studentAttendances()->pluck('student_id');
 
-        DB::transaction(function () use ($meeting, $data) {
-            foreach ($data['statuses'] as $studentId => $status) {
+        DB::transaction(function () use ($meeting, $data, $statuses) {
+            foreach ($statuses as $studentId => $status) {
                 FaithMeetingStudent::query()
                     ->where('meeting_id', $meeting->id)
                     ->where('student_id', $studentId)
@@ -219,7 +228,7 @@ class FaithMeetingController extends Controller
             'faith_meeting',
             $meeting->id,
             $meeting->tenant_id,
-            after: ['meeting_id' => $meeting->id, 'students' => $attached->count(), 'statuses' => $data['statuses']],
+            after: ['meeting_id' => $meeting->id, 'students' => $attached->count(), 'statuses' => $statuses],
             actor: $request->user()
         );
 
@@ -311,7 +320,7 @@ class FaithMeetingController extends Controller
 
     private function meetingValidated(Request $request): array
     {
-        $tenantId = $request->user()->tenant_id;
+        $tenantId = config('app.current_tenant_id') ?? $request->user()->tenant_id;
 
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -331,11 +340,13 @@ class FaithMeetingController extends Controller
 
     private function noteValidated(Request $request): array
     {
+        $tenantId = config('app.current_tenant_id') ?? $request->user()->tenant_id;
+
         return $request->validate([
             'note_type' => ['required', Rule::in(['note', 'suggestion', 'action_item'])],
             'content' => ['required', 'string', 'max:5000'],
-            'student_id' => ['nullable', 'uuid', 'exists:students,id'],
-            'assigned_to' => ['nullable', 'uuid', 'exists:users,id'],
+            'student_id' => ['nullable', 'uuid', Rule::exists('students', 'id')->where('tenant_id', $tenantId)],
+            'assigned_to' => ['nullable', 'uuid', Rule::exists('users', 'id')->where('tenant_id', $tenantId)],
             'due_date' => ['nullable', 'date'],
         ]);
     }
