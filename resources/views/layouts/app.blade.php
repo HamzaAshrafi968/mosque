@@ -132,6 +132,7 @@
                 <x-nav-link icon="ijazah" :href="route('admin.quran.ijazah.index')" :active="request()->routeIs('admin.quran.ijazah.*')"><span>برنامج الإجازة</span></x-nav-link>
                 <x-nav-link icon="quran-exams" :href="route('admin.quran.exams.index')" :active="request()->routeIs('admin.quran.exams.*')"><span>اختبارات الحفاظ</span></x-nav-link>
                 <x-nav-link icon="faith" :href="route('admin.faith-meetings.index')" :active="request()->routeIs('admin.faith-meetings.*')"><span>اللقاءات الإيمانية</span></x-nav-link>
+                <x-nav-link icon="quran" :href="route('admin.sharia-courses.index')" :active="request()->routeIs('admin.sharia-courses.*')"><span>الدورات الشرعية</span></x-nav-link>
                 <x-nav-link icon="trophy" :href="route('admin.reward-points.index')" :active="request()->routeIs('admin.reward-points.*')"><span>نقاط المكافآت</span></x-nav-link>
 
                 <div class="mx-2 my-3 gold-hairline"></div>
@@ -212,6 +213,7 @@
                 <x-nav-link icon="ijazah" :href="route('teacher.quran.ijazah.index')" :active="request()->routeIs('teacher.quran.ijazah.*')"><span>برنامج الإجازة</span></x-nav-link>
                 <x-nav-link icon="quran-exams" :href="route('teacher.quran.exams.index')" :active="request()->routeIs('teacher.quran.exams.*')"><span>اختبارات الحفاظ</span></x-nav-link>
                 <x-nav-link icon="faith" :href="route('teacher.quran.faith-meetings.index')" :active="request()->routeIs('teacher.quran.faith-meetings.*')"><span>اللقاءات الإيمانية</span></x-nav-link>
+                <x-nav-link icon="quran" :href="route('teacher.sharia-courses.index')" :active="request()->routeIs('teacher.sharia-courses.*')"><span>الدورات الشرعية</span></x-nav-link>
                 <x-nav-link icon="trophy" :href="route('teacher.reward-points.index')" :active="request()->routeIs('teacher.reward-points.*')"><span>نقاط المكافآت</span></x-nav-link>
                 <x-nav-link icon="user" :href="route('teacher.profile.edit')" :active="request()->routeIs('teacher.profile.*')"><span>الملف الشخصي</span></x-nav-link>
                 <x-nav-link icon="bell" :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">

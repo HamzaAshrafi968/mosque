@@ -184,6 +184,25 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('faith-meeting-templates', [Admin\FaithMeetingTemplateController::class, 'store'])->name('faith-meetings.templates.store')->middleware('permission:faith_meetings.update');
     Route::patch('faith-meeting-templates/{template}', [Admin\FaithMeetingTemplateController::class, 'update'])->name('faith-meetings.templates.update')->middleware('permission:faith_meetings.update');
     Route::delete('faith-meeting-templates/{template}', [Admin\FaithMeetingTemplateController::class, 'destroy'])->name('faith-meetings.templates.destroy')->middleware('permission:faith_meetings.update');
+
+    // ---- الدورات الشرعية (spec: mosque_management_work_hours_sharia_courses_quran_pages.md) ----
+    Route::get('sharia-courses', [Admin\ShariaCourseController::class, 'index'])->name('sharia-courses.index')->middleware('permission:sharia_courses.view');
+    Route::get('sharia-courses/create', [Admin\ShariaCourseController::class, 'create'])->name('sharia-courses.create')->middleware('permission:sharia_courses.create');
+    Route::post('sharia-courses', [Admin\ShariaCourseController::class, 'store'])->name('sharia-courses.store')->middleware('permission:sharia_courses.create');
+    Route::get('sharia-courses/{course}', [Admin\ShariaCourseController::class, 'show'])->name('sharia-courses.show')->middleware('permission:sharia_courses.view');
+    Route::get('sharia-courses/{course}/edit', [Admin\ShariaCourseController::class, 'edit'])->name('sharia-courses.edit')->middleware('permission:sharia_courses.update');
+    Route::patch('sharia-courses/{course}', [Admin\ShariaCourseController::class, 'update'])->name('sharia-courses.update')->middleware('permission:sharia_courses.update');
+    Route::delete('sharia-courses/{course}', [Admin\ShariaCourseController::class, 'destroy'])->name('sharia-courses.destroy')->middleware('permission:sharia_courses.delete');
+
+    Route::post('sharia-courses/{course}/lessons', [Admin\ShariaCourseController::class, 'storeLesson'])->name('sharia-courses.lessons.store')->middleware('permission:sharia_courses.update');
+    Route::patch('sharia-courses/lessons/{lesson}', [Admin\ShariaCourseController::class, 'updateLesson'])->name('sharia-courses.lessons.update')->middleware('permission:sharia_courses.update');
+    Route::delete('sharia-courses/lessons/{lesson}', [Admin\ShariaCourseController::class, 'destroyLesson'])->name('sharia-courses.lessons.destroy')->middleware('permission:sharia_courses.update');
+
+    Route::post('sharia-courses/{course}/students', [Admin\ShariaCourseController::class, 'storeStudent'])->name('sharia-courses.students.store')->middleware('permission:sharia_courses.update');
+    Route::patch('sharia-courses/students/{student}', [Admin\ShariaCourseController::class, 'updateStudent'])->name('sharia-courses.students.update')->middleware('permission:sharia_courses.update');
+    Route::delete('sharia-courses/students/{student}', [Admin\ShariaCourseController::class, 'destroyStudent'])->name('sharia-courses.students.destroy')->middleware('permission:sharia_courses.update');
+
+    Route::post('sharia-courses/{course}/attendance', [Admin\ShariaCourseController::class, 'storeAttendance'])->name('sharia-courses.attendance.store')->middleware('permission:sharia_courses.attendance');
 });
 
 // ---- صفحات المصحف (المدير داخل الجامع + المعلم) ----
@@ -271,6 +290,11 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::post('quran/faith-meetings/{meeting}/notes', [Teacher\FaithMeetingController::class, 'storeNote'])->name('quran.faith-meetings.notes.store')->middleware('permission:faith_meetings.update');
     Route::post('quran/faith-meetings/notes/{note}/complete', [Teacher\FaithMeetingController::class, 'completeNote'])->name('quran.faith-meetings.notes.complete')->middleware('permission:faith_meetings.update');
     Route::post('quran/faith-meetings/{meeting}/complete', [Teacher\FaithMeetingController::class, 'complete'])->name('quran.faith-meetings.complete')->middleware('permission:faith_meetings.update');
+
+    // ---- الدورات الشرعية للمعلم (عرض + حضور فقط) ----
+    Route::get('sharia-courses', [Teacher\ShariaCourseController::class, 'index'])->name('sharia-courses.index')->middleware('permission:sharia_courses.view');
+    Route::get('sharia-courses/{course}', [Teacher\ShariaCourseController::class, 'show'])->name('sharia-courses.show')->middleware('permission:sharia_courses.view');
+    Route::post('sharia-courses/{course}/attendance', [Teacher\ShariaCourseController::class, 'storeAttendance'])->name('sharia-courses.attendance.store')->middleware('permission:sharia_courses.attendance');
 });
 
 Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('super-admin.')->group(function () {

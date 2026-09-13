@@ -17,6 +17,10 @@ use App\Models\Role;
 use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\SectionTeacher;
+use App\Models\ShariaCourse;
+use App\Models\ShariaCourseAttendance;
+use App\Models\ShariaCourseLesson;
+use App\Models\ShariaCourseStudent;
 use App\Models\Student;
 use App\Models\StudySession;
 use App\Models\Subject;
@@ -253,6 +257,55 @@ class DatabaseSeeder extends Seeder
                 'evaluated_by' => $teacher->id,
             ]);
         }
+
+        // ---- الدورة الشرعية (spec §4) ----
+        $shariaCourse = ShariaCourse::create([
+            'tenant_id' => $mosque1->id,
+            'name' => 'دورة أحكام الصلاة',
+            'description' => 'دورة شرعية أسبوعية في أحكام الصلاة والطهارة',
+            'supervisor_id' => $teacher->id,
+            'location' => 'القاعة الكبرى',
+            'start_date' => now()->startOfMonth()->toDateString(),
+            'status' => 'active',
+            'created_by' => $manager->id,
+        ]);
+
+        $shariaLessons = collect([
+            ['الطهارة وأحكام المياه', 'lesson', now()->toDateString(), '17:00', '18:00'],
+            ['محاضرة: فضل العلم وأهله', 'lecture', now()->addDays(7)->toDateString(), '19:00', '20:00'],
+        ])->map(fn ($row) => ShariaCourseLesson::create([
+            'tenant_id' => $mosque1->id,
+            'course_id' => $shariaCourse->id,
+            'title' => $row[0],
+            'type' => $row[1],
+            'date' => $row[2],
+            'start_time' => $row[3],
+            'end_time' => $row[4],
+            'teacher_id' => $teacher->id,
+        ]));
+
+        $shariaStudents = collect(['سعد بن أبي وقاص', 'عبد الرحمن بن عوف', 'معاذ بن جبل', 'أبو عبيدة'])
+            ->map(fn (string $name, int $index) => ShariaCourseStudent::create([
+                'tenant_id' => $mosque1->id,
+                'course_id' => $shariaCourse->id,
+                'name' => $name,
+                'phone' => '05500000'.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+                'gender' => 'male',
+                'status' => 'active',
+            ]));
+
+        $shariaStatuses = ['present', 'present', 'absent', 'late'];
+        $shariaStudents->each(function (ShariaCourseStudent $student, int $index) use ($mosque1, $shariaCourse, $shariaLessons, $teacher, $shariaStatuses) {
+            ShariaCourseAttendance::create([
+                'tenant_id' => $mosque1->id,
+                'course_id' => $shariaCourse->id,
+                'lesson_id' => $shariaLessons->first()->id,
+                'student_id' => $student->id,
+                'date' => $shariaLessons->first()->date->toDateString(),
+                'status' => $shariaStatuses[$index] ?? 'present',
+                'recorded_by' => $teacher->user_id,
+            ]);
+        });
 
         // ---- Portals demo data (parent + student accounts) ----
         $children = Student::where('tenant_id', $mosque1->id)->orderBy('name')->limit(2)->get();
