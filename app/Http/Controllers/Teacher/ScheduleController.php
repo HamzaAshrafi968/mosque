@@ -13,7 +13,7 @@ class ScheduleController extends BaseTeacherController
         $teacher = $this->currentTeacher($request);
 
         $schedules = Schedule::query()
-            ->with(['classroom:id,name', 'section:id,name', 'subject:id,name'])
+            ->with(['classroom:id,name', 'section:id,name', 'subject:id,name', 'program:id,name,color', 'programPeriod:id,name'])
             ->where('teacher_id', $teacher->id)
             ->orderBy('day_of_week')
             ->orderBy('starts_at')
