@@ -1,15 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'سجل مراجعات القرآن')
+@section('title', 'سجل الاستماع مع المعلم')
 
 @section('content')
 <div class="space-y-6 max-w-6xl mx-auto">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-fade-in-up">
         <div>
-            <p class="text-gray-500 text-sm">📖 سجل جميع جلسات مراجعة القرآن الكريم</p>
+            <p class="text-gray-500 text-sm">📖 سجل جميع جلسات الاستماع مع المعلم</p>
         </div>
         <a href="{{ route('teacher.quran-review.create') }}" class="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-3 rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition shadow-lg shadow-emerald-600/20 font-bold text-sm inline-flex items-center gap-2">
-            <span class="text-lg">✚</span> مراجعة جديدة
+            <span class="text-lg">✚</span> استماع جديد
         </a>
     </div>
 
@@ -19,10 +19,10 @@
                 <div class="w-20 h-20 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
                     <span class="text-5xl">📖</span>
                 </div>
-                <p class="text-xl font-bold text-gray-600 mb-2">لا توجد مراجعات بعد</p>
-                <p class="text-gray-400 mb-6">ابدأ أول مراجعة للقرآن الكريم الآن</p>
+                <p class="text-xl font-bold text-gray-600 mb-2">لا توجد جلسات استماع بعد</p>
+                <p class="text-gray-400 mb-6">ابدأ أول جلسة استماع الآن</p>
                 <a href="{{ route('teacher.quran-review.create') }}" class="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition font-medium">
-                    ✨ ابدأ المراجعة
+                    ✨ ابدأ الاستماع
                 </a>
             </div>
         @else
@@ -52,7 +52,13 @@
                                 <td class="px-5 py-4">
                                     <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">{{ $session->surah->name_arabic }}</span>
                                 </td>
-                                <td class="px-5 py-4 text-gray-500 text-xs font-mono">{{ $session->from_ayah }} — {{ $session->to_ayah }}</td>
+                                <td class="px-5 py-4 text-gray-500 text-xs font-mono">
+                                    @if($session->isPageBased())
+                                        <span class="px-3 py-1 bg-gold-100 text-pine-900 rounded-full font-sans font-medium">{{ $session->pagesLabel() }}</span>
+                                    @else
+                                        {{ $session->from_ayah }} — {{ $session->to_ayah }}
+                                    @endif
+                                </td>
                                 <td class="px-5 py-4">
                                     <div class="flex items-center gap-2">
                                         <div class="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">

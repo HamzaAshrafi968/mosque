@@ -157,7 +157,7 @@
                 <div class="mx-2 my-3 gold-hairline"></div>
 
                 @if($can('quran_review.view'))
-                <x-nav-link icon="quran" :href="route('admin.quran-review.index')" :active="request()->routeIs('admin.quran-review.*')"><span>مراجعة القرآن</span></x-nav-link>
+                <x-nav-link icon="quran" :href="route('admin.quran-review.index')" :active="request()->routeIs('admin.quran-review.*')"><span>الاستماع مع المعلم</span></x-nav-link>
                 @endif
                 @if($can('quran.tasmee.view'))
                 <x-nav-link icon="moon" :href="route('admin.quran.index')" :active="request()->routeIs('admin.quran.index') || request()->routeIs('admin.quran.journey')"><span>البرامج القرآنية</span></x-nav-link>
@@ -280,7 +280,7 @@
                 <div class="mx-2 my-3 gold-hairline"></div>
 
                 @if($can('quran_review.view'))
-                <x-nav-link icon="quran" :href="route('teacher.quran-review.index')" :active="request()->routeIs('teacher.quran-review.*')"><span>مراجعة القرآن</span></x-nav-link>
+                <x-nav-link icon="quran" :href="route('teacher.quran-review.index')" :active="request()->routeIs('teacher.quran-review.*')"><span>الاستماع مع المعلم</span></x-nav-link>
                 @endif
                 @if($can('quran.tasmee.view'))
                 <x-nav-link icon="moon" :href="route('teacher.quran.index')" :active="request()->routeIs('teacher.quran.*') && !request()->routeIs('teacher.quran-review.*')"><span>القرآن والبرامج</span></x-nav-link>

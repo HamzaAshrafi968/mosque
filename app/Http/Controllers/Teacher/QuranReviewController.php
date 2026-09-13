@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Actions\Teacher\QuranReview\CreatePageQuranReviewSessionAction;
 use App\Models\QuranAyah;
 use App\Models\QuranReviewSession;
 use App\Models\QuranReviewWord;
 use App\Models\QuranSurah;
-use App\Models\RewardPoint;
 use App\Models\Student;
+use App\Services\QuranPageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class QuranReviewController extends BaseTeacherController
@@ -38,47 +37,49 @@ class QuranReviewController extends BaseTeacherController
         ]);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request, QuranPageService $pages): View
     {
-        $surahId = $request->input('surah_id');
         $studentId = $request->input('student_id');
-        $fromAyah = (int) $request->input('from_ayah', 1);
-        $toAyah = (int) $request->input('to_ayah');
+        $fromPage = (int) $request->input('from_page');
+        $toPage = (int) $request->input('to_page');
 
         $students = Student::query()->active()->orderBy('name')->get(['id', 'name']);
-        $surahs = QuranSurah::orderBy('sort_order')->get(['id', 'name_arabic', 'num_ayahs']);
 
-        $ayahs = collect();
-        if ($surahId && $toAyah >= $fromAyah) {
-            $ayahs = QuranAyah::query()
-                ->with('surah:id,name_arabic')
-                ->where('surah_id', $surahId)
-                ->whereBetween('ayah_number', [$fromAyah, $toAyah])
-                ->orderBy('ayah_number')
-                ->get(['id', 'surah_id', 'ayah_number', 'text', 'text_simple']);
+        $pagesSeeded = $pages->pagesAreSeeded();
+        $pageData = collect();
+        $rangeError = null;
+
+        if ($fromPage || $toPage) {
+            if ($fromPage < 1 || $toPage > QuranPageService::MAX_PAGE || $toPage < $fromPage) {
+                $rangeError = 'نطاق الصفحات غير صحيح: يجب أن يكون بين ١ و ٦٠٤ وبترتيب صحيح';
+            } elseif (($toPage - $fromPage + 1) > QuranPageService::MAX_REVIEW_PAGES) {
+                $rangeError = 'الحد الأقصى لعدد صفحات الاستماع الواحدة هو '.QuranPageService::MAX_REVIEW_PAGES.' صفحات';
+            } elseif (! $pagesSeeded) {
+                $rangeError = 'بيانات الصفحات غير مهيأة — شغّل: php artisan quran:pages';
+            } else {
+                $pageData = $pages->pagesForRange($fromPage, $toPage);
+            }
         }
-
-        $surah = $surahId ? QuranSurah::find($surahId) : null;
 
         return view('teacher.quran-review.create', [
             'students' => $students,
-            'surahs' => $surahs,
-            'surah' => $surah,
-            'ayahs' => $ayahs,
-            'surahId' => $surahId,
+            'pages' => $pageData,
+            'pagesSeeded' => $pagesSeeded,
+            'rangeError' => $rangeError,
             'studentId' => $studentId,
-            'fromAyah' => $fromAyah,
-            'toAyah' => $toAyah ?: ($surah ? $surah->num_ayahs : 7),
+            'fromPage' => $fromPage ?: null,
+            'toPage' => $toPage ?: null,
+            'date' => $request->input('date', now()->toDateString()),
+            'notes' => $request->input('notes'),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, CreatePageQuranReviewSessionAction $action): RedirectResponse
     {
         $data = $request->validate([
-            'surah_id' => ['required', 'uuid', 'exists:quran_surahs,id'],
             'student_id' => ['required', 'uuid', 'exists:students,id'],
-            'from_ayah' => ['required', 'integer', 'min:1'],
-            'to_ayah' => ['required', 'integer', 'min:1'],
+            'from_page' => ['required', 'integer', 'min:1', 'max:'.QuranPageService::MAX_PAGE],
+            'to_page' => ['required', 'integer', 'min:1', 'max:'.QuranPageService::MAX_PAGE, 'gte:from_page'],
             'date' => ['required', 'date'],
             'notes' => ['nullable', 'string'],
             'word_statuses' => ['required', 'array'],
@@ -86,126 +87,21 @@ class QuranReviewController extends BaseTeacherController
             'word_notes' => ['nullable', 'array'],
         ]);
 
-        $surah = QuranSurah::find($data['surah_id']);
-
-        if (! $surah
-            || $data['from_ayah'] > $surah->num_ayahs
-            || $data['to_ayah'] > $surah->num_ayahs
-            || $data['to_ayah'] < $data['from_ayah']
-        ) {
-            return back()
-                ->withErrors(['to_ayah' => 'نطاق الآيات غير صحيح: يجب أن يكون ضمن حدود السورة وبترتيب صحيح'])
-                ->withInput();
-        }
-
         $teacher = $this->currentTeacher($request);
-        $tenantId = $request->user()->tenant_id;
-        $now = now();
 
-        $sessionId = (string) Str::uuid();
-
-        $ayahs = QuranAyah::query()
-            ->where('surah_id', $data['surah_id'])
-            ->whereBetween('ayah_number', [$data['from_ayah'], $data['to_ayah']])
-            ->orderBy('ayah_number')
-            ->get(['id', 'ayah_number', 'text_simple']);
-
-        if ($ayahs->isEmpty()) {
-            return back()
-                ->withErrors(['to_ayah' => 'لا توجد آيات في النطاق المحدد'])
-                ->withInput();
-        }
-
-        $wordRows = [];
-        $stats = [
-            'correct' => 0,
-            'incorrect' => 0,
-            'hesitation' => 0,
-            'tajweed_error' => 0,
-            'added' => 0,
-            'forgotten' => 0,
-        ];
-        $totalWords = 0;
-
-        $wordIndex = 0;
-        foreach ($ayahs as $ayah) {
-            $words = explode(' ', $ayah->text_simple);
-            foreach ($words as $pos => $word) {
-                if ($word === '') {
-                    continue;
-                }
-                $status = $data['word_statuses'][$wordIndex] ?? 'unreviewed';
-                $wordNotes = $data['word_notes'][$wordIndex] ?? null;
-                $errorType = null;
-
-                if (in_array($status, ['incorrect', 'hesitation', 'tajweed_error', 'added', 'forgotten'])) {
-                    $errorType = $status === 'incorrect' ? 'pronunciation'
-                        : ($status === 'tajweed_error' ? 'tajweed' : $status);
-                }
-
-                $wordRows[] = [
-                    'id' => (string) Str::uuid(),
-                    'tenant_id' => $tenantId,
-                    'review_session_id' => $sessionId,
-                    'ayah_id' => $ayah->id,
-                    'word_position' => $pos,
-                    'word_text' => $word,
-                    'status' => $status,
-                    'error_type' => $errorType,
-                    'notes' => $wordNotes,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-
-                if (isset($stats[$status])) {
-                    $stats[$status]++;
-                }
-                $totalWords++;
-                $wordIndex++;
-            }
-        }
-
-        $masteryPercentage = $totalWords > 0
-            ? round(($stats['correct'] / $totalWords) * 100, 2)
-            : 100;
-
-        DB::transaction(function () use (
-            $sessionId, $data, $teacher, $tenantId, $stats, $totalWords, $masteryPercentage, $wordRows
-        ) {
-            $session = new QuranReviewSession([
-                'tenant_id' => $tenantId,
-                'teacher_id' => $teacher->id,
-                'student_id' => $data['student_id'],
-                'surah_id' => $data['surah_id'],
-                'from_ayah' => $data['from_ayah'],
-                'to_ayah' => $data['to_ayah'],
-                'total_words' => $totalWords,
-                'correct_words' => $stats['correct'],
-                'incorrect_words' => $stats['incorrect'],
-                'hesitation_words' => $stats['hesitation'],
-                'tajweed_error_words' => $stats['tajweed_error'],
-                'added_words' => $stats['added'],
-                'forgotten_words' => $stats['forgotten'],
-                'mastery_percentage' => $masteryPercentage,
-                'date' => $data['date'],
-                'notes' => $data['notes'] ?? null,
-            ]);
-            $session->id = $sessionId;
-            $session->save();
-
-            foreach (array_chunk($wordRows, 500) as $chunk) {
-                QuranReviewWord::insert($chunk);
-            }
-        });
-
-        $this->awardPointsForSession($sessionId, $data['student_id'], $masteryPercentage, $request);
+        $result = $action->execute(
+            $data,
+            $teacher->id,
+            $request->user()->tenant_id,
+            $request
+        );
 
         return redirect()
-            ->route('teacher.quran-review.show', $sessionId)
-            ->with('success', 'تم حفظ المراجعة بنجاح');
+            ->route('teacher.quran-review.show', $result['session_id'])
+            ->with('success', 'تم حفظ الاستماع بنجاح');
     }
 
-    public function show(Request $request, string $id): View
+    public function show(Request $request, string $id, QuranPageService $pages): View
     {
         $teacher = $this->currentTeacher($request);
 
@@ -220,8 +116,21 @@ class QuranReviewController extends BaseTeacherController
             ->where('teacher_id', $teacher->id)
             ->findOrFail($id);
 
+        $pageData = collect();
+        $statuses = [];
+
+        if ($session->isPageBased() && $pages->pagesAreSeeded()) {
+            $pageData = $pages->pagesForRange($session->from_page, $session->to_page);
+
+            foreach ($session->words as $word) {
+                $statuses[$word->ayah_id.':'.$word->word_position] = $word->status;
+            }
+        }
+
         return view('teacher.quran-review.show', [
             'session' => $session,
+            'pages' => $pageData,
+            'statuses' => $statuses,
         ]);
     }
 
@@ -295,10 +204,10 @@ class QuranReviewController extends BaseTeacherController
             ->where('surah_id', $request->surah_id)
             ->whereBetween('ayah_number', [$request->from_ayah, $request->to_ayah])
             ->orderBy('ayah_number')
-            ->get(['id', 'ayah_number', 'text', 'text_simple']);
+            ->get(['id', 'ayah_number', 'text']);
 
         $result = $ayahs->map(function ($ayah) {
-            $words = explode(' ', $ayah->text_simple);
+            $words = explode(' ', $ayah->text);
 
             return [
                 'id' => $ayah->id,
@@ -309,26 +218,5 @@ class QuranReviewController extends BaseTeacherController
         });
 
         return response()->json($result);
-    }
-
-    private function awardPointsForSession(string $sessionId, string $studentId, float $masteryPercentage, Request $request): void
-    {
-        $points = match (true) {
-            $masteryPercentage >= 90 => 10,
-            $masteryPercentage >= 80 => 7,
-            $masteryPercentage >= 70 => 5,
-            $masteryPercentage >= 60 => 3,
-            $masteryPercentage < 60 => 1,
-        };
-
-        RewardPoint::create([
-            'student_id' => $studentId,
-            'awarded_by' => $request->user()->id,
-            'quran_review_session_id' => $sessionId,
-            'points' => $points,
-            'reason' => 'نقاط تلقائية من التسميع',
-            'type' => 'earned',
-            'notes' => 'تم احتساب النقاط تلقائياً بناءً على نسبة الإتقان: '.$masteryPercentage.'%',
-        ]);
     }
 }

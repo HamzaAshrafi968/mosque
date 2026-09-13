@@ -1,174 +1,30 @@
 @extends('layouts.app')
 
-@section('title', 'مراجعة القرآن الكريم')
+@section('title', 'الاستماع مع المعلم')
 
-@push('styles')
-<style>
-    .quran-word {
-        display: inline-block;
-        padding: 5px 10px;
-        margin: 2px;
-        border-radius: 10px;
-        cursor: pointer;
-        font-size: 1.6rem;
-        font-family: 'Amiri', 'Scheherazade New', 'Traditional Arabic', 'UthmanicHafs', serif;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        user-select: none;
-        line-height: 2.5;
-        position: relative;
-    }
-    .quran-word:hover {
-        transform: scale(1.08) translateY(-1px);
-        box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-    }
-    .quran-word.status-unreviewed  { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
-    .quran-word.status-correct     { background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #166534; border: 1px solid #86efac; }
-    .quran-word.status-incorrect   { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; border: 1px solid #fca5a5; }
-    .quran-word.status-hesitation  { background: linear-gradient(135deg, #fef9c3, #fef08a); color: #854d0e; border: 1px solid #fde047; }
-    .quran-word.status-tajweed_error { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; border: 1px solid #93c5fd; }
-    .quran-word.status-added       { background: linear-gradient(135deg, #fce7f3, #fbcfe8); color: #9d174d; border: 1px solid #f9a8d4; }
-    .quran-word.status-forgotten   { background: linear-gradient(135deg, #ffedd5, #fed7aa); color: #9a3412; border: 1px solid #fdba74; }
-    .quran-word.active-word {
-        outline: 3px solid #7c3aed;
-        outline-offset: 2px;
-        z-index: 30;
-        transform: scale(1.1);
-        box-shadow: 0 4px 18px rgba(124, 58, 237, 0.3);
-    }
-    .error-popup {
-        position: absolute;
-        z-index: 50;
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05);
-        padding: 14px;
-        min-width: 230px;
-        animation: scaleIn 0.2s ease-out;
-    }
-    .error-popup button {
-        transition: all 0.15s ease;
-    }
-    .error-popup button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    .status-legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        padding: 14px 18px;
-        background: white;
-        border-radius: 16px;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        font-size: 0.8rem;
-        color: #4b5563;
-    }
-    .legend-dot {
-        width: 16px;
-        height: 16px;
-        border-radius: 5px;
-        border: 1px solid rgba(0,0,0,0.1);
-    }
-    .ayah-container {
-        background: white;
-        border-radius: 16px;
-        padding: 20px 24px;
-        margin-bottom: 10px;
-        border: 1px solid #e5e7eb;
-        text-align: right;
-        direction: rtl;
-        line-height: 2.8;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-        transition: box-shadow 0.3s ease;
-    }
-    .ayah-container:hover {
-        box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-    }
-    .ayah-number {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-        background: linear-gradient(135deg, #10b981, #059669);
-        color: white;
-        border-radius: 50%;
-        font-size: 0.8rem;
-        font-weight: bold;
-        margin-left: 10px;
-        vertical-align: middle;
-        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
-    }
-    .review-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 10px;
-    }
-    .stat-card {
-        background: white;
-        border-radius: 14px;
-        padding: 14px 12px;
-        text-align: center;
-        border: 1px solid #e5e7eb;
-        transition: all 0.3s ease;
-    }
-    .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.06);
-    }
-    .stat-value {
-        font-size: 1.6rem;
-        font-weight: 800;
-    }
-    .mastery-bar {
-        height: 10px;
-        border-radius: 5px;
-        background: #e5e7eb;
-        overflow: hidden;
-        margin-top: 8px;
-    }
-    .mastery-fill {
-        height: 100%;
-        border-radius: 5px;
-        background: linear-gradient(90deg, #10b981, #34d399, #6ee7b7);
-        transition: width 0.4s ease;
-    }
-    .shortcut-key {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 24px;
-        height: 24px;
-        background: #f1f5f9;
-        border: 1px solid #cbd5e1;
-        border-radius: 5px;
-        font-size: 0.7rem;
-        font-weight: bold;
-        color: #64748b;
-        padding: 0 5px;
-    }
-    .surah-header {
-        background: linear-gradient(135deg, #064e3b, #065f46, #047857);
-        border-radius: 20px;
-        padding: 20px 28px;
-        color: white;
-        box-shadow: 0 4px 20px rgba(6, 78, 59, 0.2);
-    }
-</style>
-@endpush
+<x-quran-review-styles />
 
 @section('content')
 <div class="space-y-6 max-w-5xl mx-auto">
-    @if(!$ayahs->count())
+    @if($pages->isEmpty())
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 card-hover animate-scale-in">
         <div class="ornament-top"></div>
-        <h2 class="text-xl font-bold text-gray-800 mb-6 text-center">إعداد جلسة مراجعة جديدة</h2>
+        <h2 class="text-xl font-bold text-gray-800 mb-6 text-center">إعداد جلسة استماع جديدة</h2>
+
+        @if($rangeError)
+            <div class="mb-5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-medium px-4 py-3">
+                {{ $rangeError }}
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="mb-5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-medium px-4 py-3 space-y-1">
+                @foreach($errors->all() as $error)
+                    <div>{{ $error }}</div>
+                @endforeach
+            </div>
+        @endif
+
         <form method="GET" action="{{ route('teacher.quran-review.create') }}" class="space-y-5">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
@@ -183,36 +39,25 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">📖 اختر السورة</label>
-                    <select name="surah_id" required class="w-full rounded-xl border-gray-200 bg-gray-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition">
-                        <option value="">-- اختر السورة --</option>
-                        @foreach($surahs as $s)
-                            <option value="{{ $s->id }}" {{ $surahId == $s->id ? 'selected' : '' }}>
-                                {{ $s->name_arabic }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">📅 تاريخ الاستماع</label>
+                    <input type="date" name="date" value="{{ $date }}" class="w-full rounded-xl border-gray-200 bg-gray-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition">
                 </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">🔢 من آية</label>
-                    <input type="number" name="from_ayah" value="{{ $fromAyah }}" min="1" class="w-full rounded-xl border-gray-200 bg-gray-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition">
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">🔢 إلى آية</label>
-                    <input type="number" name="to_ayah" value="{{ $toAyah }}" min="1" class="w-full rounded-xl border-gray-200 bg-gray-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition">
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">📅 تاريخ المراجعة</label>
-                    <input type="date" name="date" value="{{ now()->toDateString() }}" class="w-full rounded-xl border-gray-200 bg-gray-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition">
-                </div>
+
+                <x-quran-page-range
+                    :from="$fromPage"
+                    :to="$toPage"
+                    label="📖 نطاق الصفحات (من صفحة → إلى صفحة)"
+                    hint="يتم الاستماع إلى آيات الصفحات المحددة صفحةً صفحة (حتى 20 صفحة لكل جلسة)، ويمكن أن يمتد النطاق بين سورتين."
+                    required />
+
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">📝 ملاحظات</label>
-                    <input type="text" name="notes" class="w-full rounded-xl border-gray-200 bg-gray-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition" placeholder="ملاحظات عامة...">
+                    <input type="text" name="notes" value="{{ $notes }}" class="w-full rounded-xl border-gray-200 bg-gray-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition" placeholder="ملاحظات عامة...">
                 </div>
             </div>
             <div class="flex justify-center pt-2">
                 <button type="submit" class="bg-gradient-to-r from-emerald-700 to-emerald-600 text-white px-10 py-3 rounded-xl hover:from-emerald-800 hover:to-emerald-700 transition text-lg font-bold shadow-lg shadow-emerald-700/25">
-                    ✨ بدء المراجعة
+                    ✨ بدء الاستماع
                 </button>
             </div>
         </form>
@@ -220,20 +65,29 @@
     @else
     <div class="flex items-center gap-3 mb-2 animate-slide-right">
         <a href="{{ route('teacher.quran-review.index') }}" class="text-emerald-600 hover:text-emerald-800 text-sm font-medium transition">
-            ← العودة إلى المراجعات
+            ← العودة إلى جلسات الاستماع
         </a>
         <span class="text-gray-300">|</span>
-        <span class="text-gray-500 text-sm">جلسة مراجعة جديدة</span>
+        <span class="text-gray-500 text-sm">
+            جلسة استماع جديدة — {{ $fromPage === $toPage ? 'صفحة '.$fromPage : 'صفحة '.$fromPage.' → صفحة '.$toPage }}
+        </span>
     </div>
+
+    @if($errors->any())
+        <div class="rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-medium px-4 py-3 space-y-1">
+            @foreach($errors->all() as $error)
+                <div>{{ $error }}</div>
+            @endforeach
+        </div>
+    @endif
 
     <form id="review-form" method="POST" action="{{ route('teacher.quran-review.store') }}">
         @csrf
-        <input type="hidden" name="surah_id" value="{{ $surahId }}">
         <input type="hidden" name="student_id" value="{{ $studentId }}">
-        <input type="hidden" name="from_ayah" value="{{ $fromAyah }}">
-        <input type="hidden" name="to_ayah" value="{{ $toAyah }}">
-        <input type="hidden" name="date" value="{{ request('date', now()->toDateString()) }}">
-        <input type="hidden" name="notes" value="{{ request('notes') }}">
+        <input type="hidden" name="from_page" value="{{ $fromPage }}">
+        <input type="hidden" name="to_page" value="{{ $toPage }}">
+        <input type="hidden" name="date" value="{{ $date }}">
+        <input type="hidden" name="notes" value="{{ $notes }}">
 
         {{-- Legend --}}
         <div class="status-legend mb-4 animate-fade-in-up">
@@ -247,30 +101,48 @@
             <span class="legend-item"><span class="legend-dot status-forgotten"></span> <span class="shortcut-key">6</span> نسيان</span>
         </div>
 
-        {{-- Ayahs --}}
+        {{-- Page navigation --}}
+        @php
+            $toArabicDigits = static fn (int $number): string => strtr((string) $number, ['0' => '٠', '1' => '١', '2' => '٢', '3' => '٣', '4' => '٤', '5' => '٥', '6' => '٦', '7' => '٧', '8' => '٨', '9' => '٩']);
+        @endphp
+        @if($pages->count() > 1)
+        <div id="page-nav" class="sticky top-2 z-40 bg-white/95 backdrop-blur rounded-2xl shadow-sm border border-gray-200 px-4 py-3 mb-4 animate-fade-in-up">
+            <div class="flex items-center justify-between gap-3">
+                <button type="button" id="page-prev" onclick="goToReviewPage(currentReviewPage - 1)"
+                        class="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-sm transition disabled:opacity-40 disabled:cursor-not-allowed">
+                    → السابقة
+                </button>
+                <div class="text-center">
+                    <div class="text-sm font-bold text-gray-700">
+                        صفحة الاستماع <span id="page-current" class="text-emerald-700">١</span> من <span id="page-total">{{ $toArabicDigits($pages->count()) }}</span>
+                    </div>
+                    <div class="text-[11px] text-gray-400">صفحة المصحف <span id="page-mushaf">{{ $toArabicDigits($pages->first()['page']) }}</span></div>
+                </div>
+                <button type="button" id="page-next" onclick="goToReviewPage(currentReviewPage + 1)"
+                        class="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-sm transition disabled:opacity-40 disabled:cursor-not-allowed">
+                    التالية ←
+                </button>
+            </div>
+            <div id="page-dots" class="flex flex-wrap justify-center gap-1.5 mt-3">
+                @foreach($pages as $i => $pageData)
+                    <button type="button" data-page-target="{{ $i }}" onclick="goToReviewPage({{ $i }})"
+                            class="w-8 h-8 rounded-lg text-xs font-bold transition {{ $i === 0 ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-emerald-50' }}">
+                        {{ $toArabicDigits($pageData['page']) }}
+                    </button>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        {{-- Mushaf pages (one page at a time) --}}
         <div id="ayahs-container" class="space-y-4 animate-fade-in-up">
-            @foreach($ayahs as $ayah)
-                <div class="ayah-container" data-ayah-id="{{ $ayah->id }}">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="ayah-number">{{ $ayah->ayah_number }}</span>
-                        <span class="text-xs text-gray-400">{{ optional($ayah->surah)->name_arabic }} — الآية {{ $ayah->ayah_number }}</span>
-                    </div>
-                    <div class="quran-text leading-loose">
-                        @php $words = explode(' ', $ayah->text_simple); @endphp
-                        @foreach($words as $pos => $word)
-                            @if($word !== '')
-                                <span class="quran-word status-correct"
-                                      data-ayah-id="{{ $ayah->id }}"
-                                      data-word-index="{{ $loop->index }}"
-                                      data-word="{{ $word }}"
-                                      data-status="correct"
-                                      onclick="toggleWordError(this, event)"
-                                      oncontextmenu="toggleWordError(this, event); return false;">
-                                    {{ $word }}
-                                </span>
-                            @endif
-                        @endforeach
-                    </div>
+            @foreach($pages as $i => $pageData)
+                <div data-review-step="{{ $i }}" data-page="{{ $pageData['page'] }}" class="{{ $i === 0 ? '' : 'hidden' }}">
+                    <x-quran-review-page
+                        :page="$pageData['page']"
+                        :ayahs="$pageData['ayahs']"
+                        :surah-starts="$pageData['surahStarts']"
+                        interactive />
                 </div>
             @endforeach
         </div>
@@ -278,7 +150,7 @@
         {{-- Stats Summary --}}
         <div class="mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-8 card-hover animate-fade-in-up">
             <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                📊 ملخص المراجعة
+                📊 ملخص الاستماع
             </h3>
             <div class="review-stats mb-4">
                 <div class="stat-card">
@@ -311,7 +183,7 @@
             </div>
             <div class="flex justify-center">
                 <button type="submit" class="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-10 py-3.5 rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition text-lg font-bold shadow-lg shadow-emerald-600/30">
-                    💾 حفظ المراجعة
+                    💾 حفظ الاستماع
                 </button>
             </div>
         </div>
@@ -349,11 +221,52 @@
 @push('scripts')
 <script>
     let currentWordElement = null;
-    let wordCounter = 0;
+    let currentReviewPage = 0;
 
     document.querySelectorAll('.quran-word').forEach((el, index) => {
         el.dataset.globalIndex = index;
     });
+
+    function toArabicDigits(value) {
+        return String(value).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+    }
+
+    function goToReviewPage(index, scroll = true) {
+        const steps = document.querySelectorAll('[data-review-step]');
+        if (!steps.length || index < 0 || index >= steps.length) return;
+
+        currentReviewPage = index;
+        steps.forEach((step, i) => step.classList.toggle('hidden', i !== index));
+
+        const current = document.getElementById('page-current');
+        if (current) current.textContent = toArabicDigits(index + 1);
+
+        const mushaf = document.getElementById('page-mushaf');
+        if (mushaf) mushaf.textContent = toArabicDigits(steps[index].dataset.page);
+
+        const total = document.getElementById('page-total');
+        if (total) total.textContent = toArabicDigits(steps.length);
+
+        const prev = document.getElementById('page-prev');
+        const next = document.getElementById('page-next');
+        if (prev) prev.disabled = index === 0;
+        if (next) next.disabled = index === steps.length - 1;
+
+        document.querySelectorAll('#page-dots [data-page-target]').forEach(dot => {
+            const active = parseInt(dot.dataset.pageTarget, 10) === index;
+            dot.className = 'w-8 h-8 rounded-lg text-xs font-bold transition ' +
+                (active ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-emerald-50');
+        });
+
+        if (scroll) {
+            const nav = document.getElementById('page-nav');
+            if (nav) {
+                window.scrollTo({ top: nav.getBoundingClientRect().top + window.scrollY - 12, behavior: 'smooth' });
+            }
+        }
+
+        updateStats();
+    }
 
     function toggleWordError(el, event) {
         event.preventDefault();
@@ -416,7 +329,9 @@
     }
 
     function hidePopup() {
-        document.getElementById('error-popup').classList.add('hidden');
+        const popup = document.getElementById('error-popup');
+        if (!popup) return;
+        popup.classList.add('hidden');
         document.querySelectorAll('.quran-word').forEach(w => w.classList.remove('active-word'));
         currentWordElement = null;
     }
@@ -459,7 +374,11 @@
     });
 
     document.addEventListener('keydown', function(e) {
-        if (!currentWordElement) return;
+        if (!currentWordElement) {
+            if (e.key === 'PageDown') { e.preventDefault(); goToReviewPage(currentReviewPage + 1); }
+            if (e.key === 'PageUp') { e.preventDefault(); goToReviewPage(currentReviewPage - 1); }
+            return;
+        }
         const keys = {
             '1': 'correct',
             '2': 'incorrect',
@@ -495,6 +414,11 @@
         inputs.forEach(inp => this.appendChild(inp));
     });
 
-    updateStats();
+    if (document.getElementById('review-form')) {
+        updateStats();
+        if (document.querySelector('[data-review-step]')) {
+            goToReviewPage(0, false);
+        }
+    }
 </script>
 @endpush

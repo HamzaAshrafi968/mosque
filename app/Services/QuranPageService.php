@@ -10,6 +10,8 @@ class QuranPageService
 {
     public const MAX_PAGE = 604;
 
+    public const MAX_REVIEW_PAGES = 20;
+
     public function maxPage(): int
     {
         return self::MAX_PAGE;
@@ -24,6 +26,24 @@ class QuranPageService
             ->with('surah:id,name_arabic,sort_order,num_ayahs')
             ->join('quran_surahs', 'quran_surahs.id', '=', 'quran_ayahs.surah_id')
             ->where('quran_ayahs.page', $page)
+            ->orderBy('quran_surahs.sort_order')
+            ->orderBy('quran_ayahs.ayah_number')
+            ->select('quran_ayahs.*')
+            ->get();
+    }
+
+    /**
+     * All ayahs between two pages (inclusive), ordered by mushaf order.
+     */
+    public function ayahsForRange(int $from, int $to): Collection
+    {
+        $from = max(1, min($from, $to));
+        $to = min(self::MAX_PAGE, max($from, $to));
+
+        return QuranAyah::query()
+            ->with('surah:id,name_arabic,sort_order,num_ayahs')
+            ->join('quran_surahs', 'quran_surahs.id', '=', 'quran_ayahs.surah_id')
+            ->whereBetween('quran_ayahs.page', [$from, $to])
             ->orderBy('quran_surahs.sort_order')
             ->orderBy('quran_ayahs.ayah_number')
             ->select('quran_ayahs.*')

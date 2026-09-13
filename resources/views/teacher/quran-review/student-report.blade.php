@@ -19,7 +19,7 @@
 @section('content')
 <div class="space-y-6 max-w-5xl mx-auto">
     <a href="{{ route('teacher.quran-review.index') }}" class="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 text-sm font-medium transition animate-fade-in-up">
-        ← العودة إلى المراجعات
+        ← العودة إلى جلسات الاستماع
     </a>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 animate-scale-in">
@@ -29,7 +29,7 @@
             </div>
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">{{ $student->name }}</h2>
-                <p class="text-gray-500 text-sm">عدد جلسات المراجعة: <span class="font-bold text-emerald-600">{{ $sessions->count() }}</span></p>
+                <p class="text-gray-500 text-sm">عدد جلسات الاستماع: <span class="font-bold text-emerald-600">{{ $sessions->count() }}</span></p>
             </div>
         </div>
     </div>
@@ -82,7 +82,7 @@
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in-up">
         <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-            <h3 class="text-lg font-bold text-gray-800">📋 سجل المراجعات</h3>
+            <h3 class="text-lg font-bold text-gray-800">📋 سجل جلسات الاستماع</h3>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -100,7 +100,13 @@
                             <td class="px-5 py-3.5">
                                 <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">{{ $session->surah->name_arabic }}</span>
                             </td>
-                            <td class="px-5 py-3.5 text-gray-500 text-xs">{{ $session->from_ayah }} — {{ $session->to_ayah }}</td>
+                            <td class="px-5 py-3.5 text-gray-500 text-xs">
+                                @if($session->isPageBased())
+                                    <span class="px-3 py-1 bg-gold-100 text-pine-900 rounded-full font-medium">{{ $session->pagesLabel() }}</span>
+                                @else
+                                    {{ $session->from_ayah }} — {{ $session->to_ayah }}
+                                @endif
+                            </td>
                             <td class="px-5 py-3.5">
                                 <div class="flex items-center gap-2">
                                     <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -164,7 +170,7 @@
 
     <div class="flex justify-center animate-fade-in-up">
         <a href="{{ route('teacher.quran-review.create', ['student_id' => $student->id]) }}" class="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-8 py-3 rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition font-bold shadow-lg shadow-emerald-600/20 inline-flex items-center gap-2">
-            ✨ مراجعة جديدة لهذا الطالب
+            ✨ استماع جديد لهذا الطالب
         </a>
     </div>
 </div>

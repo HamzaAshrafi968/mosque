@@ -46,7 +46,7 @@
                             @endif
                         </td>
                         <td class="px-4 py-3">
-                            <a href="{{ route('teacher.quran-review.create', ['student_id' => $stats['student']->id]) }}" class="text-xs text-emerald-700 hover:underline">مراجعة</a>
+                            <a href="{{ route('teacher.quran-review.create', ['student_id' => $stats['student']->id]) }}" class="text-xs text-emerald-700 hover:underline">استماع</a>
                             <span class="text-gray-200 mx-1">|</span>
                             <a href="{{ route('teacher.reward-points.create', ['student_id' => $stats['student']->id]) }}" class="text-xs text-amber-600 hover:underline">نقاط</a>
                         </td>

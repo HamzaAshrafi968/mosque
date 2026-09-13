@@ -2,31 +2,44 @@
 
 namespace App\Actions\Teacher\QuranReview;
 
-use App\Models\QuranAyah;
 use App\Models\QuranReviewSession;
 use App\Models\QuranReviewWord;
 use App\Models\RewardPoint;
+use App\Services\QuranPageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
-class CreateQuranReviewSessionAction
+class CreatePageQuranReviewSessionAction
 {
+    public function __construct(private readonly QuranPageService $pages) {}
+
     public function execute(array $data, string $teacherId, string $tenantId, Request $request): array
     {
+        $fromPage = (int) $data['from_page'];
+        $toPage = (int) $data['to_page'];
+
+        if ($fromPage < 1 || $toPage > QuranPageService::MAX_PAGE || $toPage < $fromPage) {
+            throw ValidationException::withMessages([
+                'from_page' => 'نطاق الصفحات غير صحيح: يجب أن يكون بين ١ و ٦٠٤ وبترتيب صحيح',
+            ]);
+        }
+
+        if (($toPage - $fromPage + 1) > QuranPageService::MAX_REVIEW_PAGES) {
+            throw ValidationException::withMessages([
+                'to_page' => 'الحد الأقصى لعدد صفحات الاستماع الواحدة هو '.QuranPageService::MAX_REVIEW_PAGES.' صفحات',
+            ]);
+        }
+
         $now = now();
         $sessionId = (string) Str::uuid();
 
-        $ayahs = QuranAyah::query()
-            ->where('surah_id', $data['surah_id'])
-            ->whereBetween('ayah_number', [$data['from_ayah'], $data['to_ayah']])
-            ->orderBy('ayah_number')
-            ->get(['id', 'ayah_number', 'text_simple']);
+        $ayahs = $this->pages->ayahsForRange($fromPage, $toPage);
 
         if ($ayahs->isEmpty()) {
             throw ValidationException::withMessages([
-                'to_ayah' => 'لا توجد آيات في النطاق المحدد',
+                'from_page' => 'لا توجد آيات في الصفحات المحددة — تأكد من تهيئة بيانات الصفحات',
             ]);
         }
 
@@ -39,7 +52,7 @@ class CreateQuranReviewSessionAction
         $wordIndex = 0;
 
         foreach ($ayahs as $ayah) {
-            $words = explode(' ', $ayah->text_simple);
+            $words = explode(' ', $ayah->text);
             foreach ($words as $pos => $word) {
                 if ($word === '') {
                     continue;
@@ -79,16 +92,24 @@ class CreateQuranReviewSessionAction
             ? round(($stats['correct'] / $totalWords) * 100, 2)
             : 100;
 
+        $firstAyah = $ayahs->first();
+        $lastAyahOfFirstSurah = $ayahs
+            ->where('surah_id', $firstAyah->surah_id)
+            ->last();
+
         DB::transaction(function () use (
-            $sessionId, $data, $teacherId, $tenantId, $stats, $totalWords, $masteryPercentage, $wordRows
+            $sessionId, $data, $teacherId, $tenantId, $stats, $totalWords,
+            $masteryPercentage, $wordRows, $fromPage, $toPage, $firstAyah, $lastAyahOfFirstSurah
         ) {
             $session = new QuranReviewSession([
                 'tenant_id' => $tenantId,
                 'teacher_id' => $teacherId,
                 'student_id' => $data['student_id'],
-                'surah_id' => $data['surah_id'],
-                'from_ayah' => $data['from_ayah'],
-                'to_ayah' => $data['to_ayah'],
+                'surah_id' => $firstAyah->surah_id,
+                'from_ayah' => $firstAyah->ayah_number,
+                'to_ayah' => $lastAyahOfFirstSurah->ayah_number,
+                'from_page' => $fromPage,
+                'to_page' => $toPage,
                 'total_words' => $totalWords,
                 'correct_words' => $stats['correct'],
                 'incorrect_words' => $stats['incorrect'],

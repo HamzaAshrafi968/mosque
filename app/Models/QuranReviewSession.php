@@ -20,6 +20,8 @@ class QuranReviewSession extends Model
         'surah_id',
         'from_ayah',
         'to_ayah',
+        'from_page',
+        'to_page',
         'total_words',
         'correct_words',
         'incorrect_words',
@@ -37,6 +39,8 @@ class QuranReviewSession extends Model
         return [
             'from_ayah' => 'integer',
             'to_ayah' => 'integer',
+            'from_page' => 'integer',
+            'to_page' => 'integer',
             'total_words' => 'integer',
             'correct_words' => 'integer',
             'incorrect_words' => 'integer',
@@ -72,5 +76,21 @@ class QuranReviewSession extends Model
     public function rewardPoints(): HasMany
     {
         return $this->hasMany(RewardPoint::class);
+    }
+
+    public function isPageBased(): bool
+    {
+        return $this->from_page !== null;
+    }
+
+    public function pagesLabel(): string
+    {
+        if (! $this->isPageBased()) {
+            return $this->from_ayah.' — '.$this->to_ayah;
+        }
+
+        return $this->from_page === $this->to_page
+            ? 'صفحة '.$this->from_page
+            : 'صفحة '.$this->from_page.' → صفحة '.$this->to_page;
     }
 }

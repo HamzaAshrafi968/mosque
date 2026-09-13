@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'نتيجة المراجعة')
+@section('title', 'نتيجة الاستماع')
 
 @push('styles')
 <style>
@@ -41,7 +41,7 @@
 @section('content')
 <div class="space-y-6 max-w-5xl mx-auto">
     <a href="{{ route('admin.quran-review.index') }}" class="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 text-sm font-medium transition animate-fade-in-up">
-        ← العودة إلى المراجعات
+        ← العودة إلى جلسات الاستماع
     </a>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 animate-scale-in">
@@ -67,8 +67,10 @@
             </div>
             <div class="w-px h-10 bg-gray-200 hidden sm:block"></div>
             <div>
-                <div class="text-xs text-gray-400">الآيات</div>
-                <div class="font-bold text-gray-800">{{ $session->from_ayah }} — {{ $session->to_ayah }}</div>
+                <div class="text-xs text-gray-400">{{ $session->isPageBased() ? 'الصفحات' : 'الآيات' }}</div>
+                <div class="font-bold text-gray-800">
+                    {{ $session->isPageBased() ? $session->pagesLabel() : $session->from_ayah.' — '.$session->to_ayah }}
+                </div>
             </div>
             <div class="w-px h-10 bg-gray-200 hidden sm:block"></div>
             <div>
@@ -105,7 +107,7 @@
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 animate-fade-in-up">
         <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            📝 تفاصيل التسميع
+            📝 تفاصيل الاستماع
         </h3>
         <div class="space-y-5 text-right quran-font" style="direction: rtl; line-height: 3; font-size: 1.6rem;">
             @php $currentAyahId = null; $ayahOpen = false; @endphp

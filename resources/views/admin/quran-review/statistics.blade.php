@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'إحصائيات مراجعة القرآن')
+@section('title', 'إحصائيات الاستماع مع المعلم')
 
 @push('styles')
 <style>
@@ -50,7 +50,7 @@
 @section('content')
 <div class="space-y-6 max-w-6xl mx-auto">
     <a href="{{ route('admin.quran-review.index') }}" class="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 text-sm font-medium transition animate-fade-in-up">
-        ← العودة إلى المراجعات
+        ← العودة إلى جلسات الاستماع
     </a>
 
     <div class="stat-hero animate-scale-in">
@@ -58,11 +58,11 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center border border-white/10">
                 <div class="text-4xl font-extrabold mb-1">{{ $totalSessions }}</div>
-                <div class="text-emerald-200 text-sm">إجمالي المراجعات</div>
+                <div class="text-emerald-200 text-sm">إجمالي جلسات الاستماع</div>
             </div>
             <div class="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center border border-white/10">
                 <div class="text-4xl font-extrabold mb-1">{{ $totalStudents }}</div>
-                <div class="text-emerald-200 text-sm">عدد الطلاب المراجَعين</div>
+                <div class="text-emerald-200 text-sm">عدد الطلاب المستمع إليهم</div>
             </div>
             <div class="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center border border-white/10">
                 <div class="text-4xl font-extrabold mb-1">{{ $avgMastery }}%</div>
@@ -116,7 +116,7 @@
                                 {{ $index + 1 }}
                             </span>
                             <div class="flex-1 font-semibold text-gray-800">{{ $student->name }}</div>
-                            <div class="text-xs text-gray-400 bg-gray-100 rounded-full px-3 py-1">{{ $student->session_count }} مراجعة</div>
+                            <div class="text-xs text-gray-400 bg-gray-100 rounded-full px-3 py-1">{{ $student->session_count }} جلسة استماع</div>
                             <div class="flex items-center gap-2 min-w-[120px]">
                                 <div class="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                                     <div class="h-full rounded-full {{ $student->avg_mastery >= 90 ? 'bg-emerald-500' : ($student->avg_mastery >= 70 ? 'bg-yellow-500' : 'bg-red-500') }}" style="width: {{ $student->avg_mastery }}%"></div>
@@ -134,7 +134,7 @@
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in-up">
         <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-            <h3 class="text-lg font-bold text-gray-800">📖 السور الأكثر مراجعة</h3>
+            <h3 class="text-lg font-bold text-gray-800">📖 السور الأكثر استماعاً</h3>
         </div>
         <div class="p-6">
             @if($topSurahs->isEmpty())
@@ -145,7 +145,7 @@
                         <thead class="bg-gray-50/80">
                             <tr>
                                 <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase">السورة</th>
-                                <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase">عدد المراجعات</th>
+                                <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase">عدد الجلسات</th>
                                 <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase">متوسط الإتقان</th>
                             </tr>
                         </thead>

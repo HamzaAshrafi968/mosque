@@ -256,7 +256,7 @@
                         <tr>
                             <td class="px-4 py-2 border-t font-bold whitespace-nowrap {{ $rp->type === 'earned' ? 'text-emerald-600' : 'text-red-600' }}">{{ $rp->type === 'earned' ? '+' : '-' }}{{ $rp->points }}</td>
                             <td class="px-4 py-2 border-t whitespace-nowrap"><span @class(['px-2 py-0.5 rounded-full text-xs font-bold', 'bg-emerald-100 text-emerald-800' => $rp->type === 'earned', 'bg-red-100 text-red-800' => $rp->type === 'deducted'])>{{ $rp->type === 'earned' ? 'ربح' : 'خصم' }}</span></td>
-                            <td class="px-4 py-2 border-t text-sm text-gray-600">@if($rp->quranReviewSession)📖 تسميع {{ $rp->quranReviewSession->surah?->name_arabic }} @else {{ $rp->reason ?? '—' }} @endif</td>
+                            <td class="px-4 py-2 border-t text-sm text-gray-600">@if($rp->quranReviewSession)🎧 استماع {{ $rp->quranReviewSession->surah?->name_arabic }} @else {{ $rp->reason ?? '—' }} @endif</td>
                             <td class="px-4 py-2 border-t text-xs text-gray-500 whitespace-nowrap">{{ $rp->created_at->format('Y-m-d') }}</td>
                         </tr>
                     @endforeach

@@ -65,7 +65,7 @@
                                 </td>
                                 <td class="px-5 py-4 text-gray-600">
                                     @if($point->quranReviewSession)
-                                        <span class="text-xs">📖 تسميع {{ $point->quranReviewSession->surah?->name_arabic }} ({{ $point->quranReviewSession->from_ayah }}-{{ $point->quranReviewSession->to_ayah }})</span>
+                                        <span class="text-xs">🎧 استماع {{ $point->quranReviewSession->surah?->name_arabic }} ({{ $point->quranReviewSession->from_ayah }}-{{ $point->quranReviewSession->to_ayah }})</span>
                                     @else
                                         <span>{{ $point->reason ?? '—' }}</span>
                                     @endif

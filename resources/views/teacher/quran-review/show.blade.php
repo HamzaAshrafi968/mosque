@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'نتيجة المراجعة')
+@section('title', 'نتيجة الاستماع')
 
 @push('styles')
 <style>
@@ -41,7 +41,7 @@
 @section('content')
 <div class="space-y-6 max-w-5xl mx-auto">
     <a href="{{ route('teacher.quran-review.index') }}" class="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 text-sm font-medium transition animate-fade-in-up">
-        ← العودة إلى المراجعات
+        ← العودة إلى جلسات الاستماع
     </a>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 animate-scale-in">
@@ -62,8 +62,10 @@
             </div>
             <div class="w-px h-10 bg-gray-200 hidden sm:block"></div>
             <div>
-                <div class="text-xs text-gray-400">الآيات</div>
-                <div class="font-bold text-gray-800">{{ $session->from_ayah }} — {{ $session->to_ayah }}</div>
+                <div class="text-xs text-gray-400">{{ $session->isPageBased() ? 'الصفحات' : 'الآيات' }}</div>
+                <div class="font-bold text-gray-800">
+                    {{ $session->isPageBased() ? $session->pagesLabel() : $session->from_ayah.' — '.$session->to_ayah }}
+                </div>
             </div>
             <div class="w-px h-10 bg-gray-200 hidden sm:block"></div>
             <div>
@@ -123,8 +125,20 @@
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 animate-fade-in-up">
         <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            📝 تفاصيل التسميع
+            📝 تفاصيل الاستماع
         </h3>
+
+        @if($pages->isNotEmpty())
+            <div class="space-y-4">
+                @foreach($pages as $pageData)
+                    <x-quran-review-page
+                        :page="$pageData['page']"
+                        :ayahs="$pageData['ayahs']"
+                        :surah-starts="$pageData['surahStarts']"
+                        :statuses="$statuses" />
+                @endforeach
+            </div>
+        @else
         <div class="space-y-5 text-right quran-font" style="direction: rtl; line-height: 3; font-size: 1.6rem;">
             @php $currentAyahId = null; $ayahOpen = false; @endphp
             @foreach($session->words as $word)
@@ -154,14 +168,17 @@
                 <div class="text-center py-6 text-gray-400">لا توجد كلمات مسجلة لهذه الجلسة</div>
             @endif
         </div>
+        @endif
     </div>
 
     <div class="flex flex-wrap gap-3 animate-fade-in-up">
         <a href="{{ route('teacher.quran-review.student-report', $session->student_id) }}" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition font-medium shadow-lg shadow-blue-600/20 text-sm inline-flex items-center gap-2">
             📊 تقرير الطالب
         </a>
-        <a href="{{ route('teacher.quran-review.create', ['surah_id' => $session->surah_id, 'student_id' => $session->student_id, 'from_ayah' => $session->from_ayah, 'to_ayah' => $session->to_ayah]) }}" class="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-5 py-2.5 rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition font-medium shadow-lg shadow-emerald-600/20 text-sm inline-flex items-center gap-2">
-            🔄 إعادة المراجعة
+        <a href="{{ route('teacher.quran-review.create', $session->isPageBased()
+                ? ['student_id' => $session->student_id, 'from_page' => $session->from_page, 'to_page' => $session->to_page]
+                : ['surah_id' => $session->surah_id, 'student_id' => $session->student_id, 'from_ayah' => $session->from_ayah, 'to_ayah' => $session->to_ayah]) }}" class="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-5 py-2.5 rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition font-medium shadow-lg shadow-emerald-600/20 text-sm inline-flex items-center gap-2">
+            🔄 إعادة الاستماع
         </a>
     </div>
 </div>
