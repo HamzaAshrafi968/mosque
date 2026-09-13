@@ -50,6 +50,23 @@
     </div>
 </div>
 
+<div class="bg-white rounded-xl shadow overflow-hidden mb-6">
+    <div class="px-4 py-3 bg-emerald-700 text-white font-bold flex justify-between items-center">
+        <span>سجل الحفظ القرآني</span>
+        <a href="{{ route('admin.quran.journey', $student) }}" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">الرحلة القرآنية</a>
+    </div>
+    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+            <span class="text-sm text-gray-500">مقدار الحفظ:</span>
+            <span class="font-bold mr-2">{{ $student->memorized_juz !== null ? (float) $student->memorized_juz.' جزء' : '—' }}</span>
+        </div>
+        <div>
+            <span class="text-sm text-gray-500">نطاق الحفظ (ما وصل إليه):</span>
+            <span class="font-bold mr-2">{{ $student->memorizedRangeLabel() ?? '—' }}</span>
+        </div>
+    </div>
+</div>
+
 @if($student->status === 'active')
     <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
         <div class="px-4 py-3 bg-emerald-700 text-white font-bold">نقل إلى شعبة أخرى (مع حفظ تاريخ الشعب السابقة)</div>

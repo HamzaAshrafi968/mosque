@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Concerns\HandlesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
+use App\Models\QuranSurah;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\StudySession;
@@ -14,6 +15,7 @@ use App\Services\AuditLogger;
 use App\Services\CustomFieldService;
 use App\Services\EnrollmentService;
 use App\Services\FinanceService;
+use App\Support\QuranMemorizationRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -57,6 +59,7 @@ class StudentController extends Controller
             'classrooms' => $this->classroomsTree(),
             'customFields' => $this->customFields->definitions(Student::CUSTOM_FIELD_ENTITY),
             'sessions' => StudySession::orderBy('name')->get(),
+            'surahs' => $this->surahs(),
         ]);
     }
 
@@ -98,6 +101,8 @@ class StudentController extends Controller
             'classroom:id,name',
             'section:id,name',
             'studySession:id,name',
+            'memorizedFromSurah:id,name_arabic',
+            'memorizedToSurah:id,name_arabic',
             'grades' => fn ($q) => $q->with('exam:id,title,exam_date,total_marks,subject_id', 'exam.subject:id,name')->latest(),
             'enrollments.section.classroom:id,name',
         ]);
@@ -132,6 +137,7 @@ class StudentController extends Controller
             'customFields' => $this->customFields->definitions(Student::CUSTOM_FIELD_ENTITY),
             'customValues' => $values,
             'sessions' => StudySession::orderBy('name')->get(),
+            'surahs' => $this->surahs(),
         ]);
     }
 
@@ -228,6 +234,11 @@ class StudentController extends Controller
         return Classroom::with('sections:id,classroom_id,name,status')->orderBy('name')->get();
     }
 
+    private function surahs()
+    {
+        return QuranSurah::orderBy('sort_order')->get(['id', 'name_arabic', 'num_ayahs']);
+    }
+
     private function validated(Request $request): array
     {
         $tenantId = config('app.current_tenant_id');
@@ -245,7 +256,7 @@ class StudentController extends Controller
             'portal_email' => ['nullable', 'email', 'max:255'],
             'portal_password' => ['nullable', 'string', 'min:6', 'max:255'],
             'custom_fields' => ['nullable', 'array'],
-        ], $this->profilePhotoRules()));
+        ], QuranMemorizationRules::rules($request), $this->profilePhotoRules()));
     }
 
     /** Merge the resolved avatar (new file / removal) into the payload. */

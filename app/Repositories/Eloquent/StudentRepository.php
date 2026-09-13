@@ -16,7 +16,7 @@ class StudentRepository extends BaseRepository implements StudentRepositoryInter
     public function paginateWithFilters(array $filters, int $perPage = 20): LengthAwarePaginator
     {
         return $this->model
-            ->with(['classroom:id,name', 'section:id,name'])
+            ->with(['classroom:id,name', 'section:id,name', 'memorizedFromSurah:id,name_arabic', 'memorizedToSurah:id,name_arabic'])
             ->search($filters['q'] ?? null)
             ->when(! empty($filters['classroom_id']), fn ($q) => $q->where('classroom_id', $filters['classroom_id']))
             ->when(! empty($filters['gender']), fn ($q) => $q->where('gender', $filters['gender']))
@@ -31,6 +31,8 @@ class StudentRepository extends BaseRepository implements StudentRepositoryInter
             ->with([
                 'classroom:id,name',
                 'section:id,name',
+                'memorizedFromSurah:id,name_arabic',
+                'memorizedToSurah:id,name_arabic',
                 'grades' => fn ($q) => $q->with('exam:id,title,exam_date,total_marks,subject_id', 'exam.subject:id,name')->latest(),
             ])
             ->find($id);

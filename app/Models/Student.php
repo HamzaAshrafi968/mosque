@@ -36,12 +36,20 @@ class Student extends Model
         'status',
         'notes',
         'photo',
+        'memorized_juz',
+        'memorized_from_surah_id',
+        'memorized_from_ayah',
+        'memorized_to_surah_id',
+        'memorized_to_ayah',
     ];
 
     protected function casts(): array
     {
         return [
             'birth_date' => 'date',
+            'memorized_juz' => 'decimal:1',
+            'memorized_from_ayah' => 'integer',
+            'memorized_to_ayah' => 'integer',
         ];
     }
 
@@ -127,6 +135,18 @@ class Student extends Model
         return $this->hasMany(QuranReviewSession::class);
     }
 
+    /** سورة بداية ما حفظه الطالب قبل الالتحاق. */
+    public function memorizedFromSurah(): BelongsTo
+    {
+        return $this->belongsTo(QuranSurah::class, 'memorized_from_surah_id');
+    }
+
+    /** السورة التي وصل إليها حفظ الطالب. */
+    public function memorizedToSurah(): BelongsTo
+    {
+        return $this->belongsTo(QuranSurah::class, 'memorized_to_surah_id');
+    }
+
     /** التسميع — historical recitation records (new & revision). */
     public function quranRecitationSessions(): HasMany
     {
@@ -184,6 +204,29 @@ class Student extends Model
         return $this->belongsToMany(FaithMeeting::class, 'faith_meeting_students', 'student_id', 'meeting_id')
             ->withPivot(['attendance_status', 'note'])
             ->withTimestamps();
+    }
+
+    /** Arabic label for the memorized range, e.g. "من سورة البقرة (آية 1) إلى سورة الكهف (آية 20)". */
+    public function memorizedRangeLabel(): ?string
+    {
+        $from = $this->memorizedFromSurah;
+        $to = $this->memorizedToSurah;
+
+        if (! $from && ! $to) {
+            return null;
+        }
+
+        $parts = [];
+
+        if ($from) {
+            $parts[] = 'من سورة '.$from->name_arabic.($this->memorized_from_ayah ? ' (آية '.$this->memorized_from_ayah.')' : '');
+        }
+
+        if ($to) {
+            $parts[] = 'إلى سورة '.$to->name_arabic.($this->memorized_to_ayah ? ' (آية '.$this->memorized_to_ayah.')' : '');
+        }
+
+        return implode(' ', $parts);
     }
 
     public function totalPoints(): int

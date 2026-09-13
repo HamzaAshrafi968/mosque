@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Api\V1\Admin;
 
+use App\Support\QuranMemorizationRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateStudentRequest extends FormRequest
 {
     public function rules(): array
     {
-        return [
+        return array_merge([
             'name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
             'birth_date' => ['nullable', 'date'],
@@ -18,7 +19,7 @@ class UpdateStudentRequest extends FormRequest
             'guardian_phone' => ['nullable', 'string', 'max:30'],
             'notes' => ['nullable', 'string'],
             'custom_fields' => ['nullable', 'array'],
-        ];
+        ], QuranMemorizationRules::rules($this));
     }
 
     public function authorize(): bool

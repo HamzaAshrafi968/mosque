@@ -17,6 +17,12 @@ class StudentResource extends JsonResource
             'guardian_phone' => $this->guardian_phone,
             'status' => $this->status,
             'notes' => $this->notes,
+            'memorized_juz' => $this->memorized_juz !== null ? (float) $this->memorized_juz : null,
+            'memorized_from_surah_id' => $this->memorized_from_surah_id,
+            'memorized_from_ayah' => $this->memorized_from_ayah,
+            'memorized_to_surah_id' => $this->memorized_to_surah_id,
+            'memorized_to_ayah' => $this->memorized_to_ayah,
+            'memorized_range' => $this->memorizedRangeLabel(),
             'classroom' => $this->whenLoaded('classroom', fn () => [
                 'id' => $this->classroom->id,
                 'name' => $this->classroom->name,
