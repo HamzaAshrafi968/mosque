@@ -51,47 +51,7 @@
                 <textarea name="notes" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2">{{ old('notes', $exam->notes) }}</textarea>
             </div>
         </div>
-        <div class="pt-3 border-t border-gray-100 grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">جزء (1-30)</label>
-                <input type="number" min="1" max="30" name="revisions[0][juz]" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">من سورة</label>
-                <select name="revisions[0][from_surah]" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="">—</option>
-                    @foreach($surahs as $surah)
-                        <option value="{{ $surah->id }}">{{ $surah->name_arabic }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">من آية</label>
-                <input type="number" min="1" name="revisions[0][from_ayah]" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">إلى سورة</label>
-                <select name="revisions[0][to_surah]" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="">—</option>
-                    @foreach($surahs as $surah)
-                        <option value="{{ $surah->id }}">{{ $surah->name_arabic }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">إلى آية</label>
-                <input type="number" min="1" name="revisions[0][to_ayah]" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">مقدار</label>
-                <input type="number" step="0.01" min="0" name="revisions[0][amount]" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div class="col-span-2 md:col-span-6">
-                <label class="block text-xs font-bold text-gray-600 mb-1">ملاحظات إعادة (اختياري عند الرسوب)</label>
-                <input type="text" name="revisions[0][notes]" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            </div>
-        </div>
-        <p class="text-xs text-gray-400">عند تسجيل نتيجة راسبة يُشترط تحديد الجزء/المقدار المطلوب إعادته أعلاه أو في قائمة المراجعات.</p>
+        <p class="text-xs text-gray-400">يمكن إضافة الأجزاء المطلوب إعادتها بعد تسجيل النتيجة الراسبة من النموذج أسفل الصفحة.</p>
         <div class="flex items-center gap-3 pt-2">
             <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-8 py-2.5 rounded-xl">حفظ النتيجة</button>
         </div>

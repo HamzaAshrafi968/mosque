@@ -12,6 +12,9 @@
         <div>
             <h1 class="text-xl font-bold">{{ $classroom->name }}</h1>
             <p class="text-sm text-emerald-100 mt-1">{{ $classroom->description ?: '—' }}</p>
+            <span class="inline-flex mt-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-white/20">
+                {{ $classroom->studySession?->name ?: 'كل الدوامات (صف مشترك)' }}
+            </span>
         </div>
         <div class="flex items-center gap-3 text-sm">
             <a href="{{ route('admin.classrooms.edit', $classroom) }}" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تعديل الصف</a>
@@ -49,12 +52,19 @@
         @csrf
         <input type="text" name="name" required placeholder="اسم الشعبة (مثال: أ)"
                class="w-full border border-gray-300 rounded-lg px-3 py-2">
-        <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-            <option value="">بدون دوام</option>
-            @foreach($sessions as $session)
-                <option value="{{ $session->id }}" @selected(old('study_session_id', config('app.current_study_session_id')) == $session->id)>{{ $session->name }}</option>
-            @endforeach
-        </select>
+        @if($classroom->study_session_id)
+            <div class="w-full border border-dashed border-teal-300 bg-teal-50 rounded-lg px-3 py-2 text-sm text-teal-800">
+                الدوام: <span class="font-bold">{{ $classroom->studySession?->name }}</span>
+                <span class="text-[11px] block text-teal-600">شعب الصف تتبع دوامه تلقائياً</span>
+            </div>
+        @else
+            <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">بدون دوام</option>
+                @foreach($sessions as $session)
+                    <option value="{{ $session->id }}" @selected(old('study_session_id', config('app.current_study_session_id')) == $session->id)>{{ $session->name }}</option>
+                @endforeach
+            </select>
+        @endif
         <input type="text" name="description" placeholder="وصف اختياري"
                class="w-full border border-gray-300 rounded-lg px-3 py-2 md:col-span-2">
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إنشاء الشعبة</button>

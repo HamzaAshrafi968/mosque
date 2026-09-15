@@ -9,6 +9,7 @@ use App\Models\FinancialTransaction;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\FinanceService;
+use App\Services\PayrollService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -27,8 +28,15 @@ use Illuminate\View\View;
  */
 class FinanceController extends BaseTeacherController
 {
-    public function __construct(private readonly FinanceService $finance) {}
+    public function __construct(
+        private readonly FinanceService $finance,
+        private readonly PayrollService $payroll,
+    ) {}
 
+    /**
+     * صفحة الأستاذ المالية: يعرض ما نزل له فقط — الراتب الشهري، ساعات الشهر،
+     * عدّاد الساعات منذ آخر دفعة، وسجل الدفعات الواردة (المدير هو من يسجلها).
+     */
     public function index(Request $request): View
     {
         $teacher = $this->currentTeacher($request);
@@ -44,12 +52,7 @@ class FinanceController extends BaseTeacherController
         $received = (float) ($totals->received ?? 0);
         $handed = (float) ($totals->handed ?? 0);
 
-        $transactions = FinancialTransaction::query()
-            ->forPerson('teacher', $teacher->id)
-            ->with(['creator:id,name', 'relatedPerson'])
-            ->latest()
-            ->paginate(50)
-            ->withQueryString();
+        $payroll = $this->payroll->summaries(collect([$teacher]))[$teacher->id];
 
         $mySections = $this->manageableSections($request);
 
@@ -57,7 +60,12 @@ class FinanceController extends BaseTeacherController
             'received' => $received,
             'handed' => $handed,
             'remaining' => round($received - $handed, 2),
-            'transactions' => $transactions,
+            'deposits' => $this->payroll->payments($teacher),
+            'salary' => $teacher->monthly_salary !== null ? (float) $teacher->monthly_salary : null,
+            'monthlyHours' => $payroll['monthly_hours'],
+            'hoursSinceLastPayment' => $payroll['hours_since_last_payment'],
+            'lastPayment' => $payroll['last_payment'],
+            'paidInMonth' => $payroll['paid_in_month'],
             'sectionIds' => $mySections->pluck('id'),
         ]);
     }

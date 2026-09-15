@@ -38,6 +38,8 @@ class UserPermissionOverrideTest extends TestCase
         'quran.tasmee.view' => 'own', 'quran.tasmee.create' => 'own', 'quran.tasmee.update' => 'own',
         'quran.completion.view' => 'own',
         'quran_review.view' => 'own', 'quran_review.create' => 'own',
+        'quran_khamsa.view' => 'own', 'quran_khamsa.create' => 'own', 'quran_khamsa.update' => 'own', 'quran_khamsa.complete' => 'own',
+        'quran.memorization.manage' => 'own',
         'reward_points.view' => 'own', 'reward_points.create' => 'own', 'reward_points.delete' => 'own',
         'qualifying.view' => 'own', 'qualifying.create' => 'own', 'qualifying.update' => 'own',
         'ijazah.view' => 'own', 'ijazah.create' => 'own', 'ijazah.update' => 'own',
@@ -270,7 +272,7 @@ class UserPermissionOverrideTest extends TestCase
                 'gender' => 'male',
                 'phone' => '07700000000',
                 'specialty' => 'تحفيظ',
-                'study_session_id' => $session->id,
+                'study_session_ids' => [$session->id],
                 'permissions' => [
                     'finance.view' => 'deny',
                     'programs.view' => 'mosque',
@@ -288,6 +290,7 @@ class UserPermissionOverrideTest extends TestCase
         $teacherProfile->refresh();
         $this->assertSame('تحفيظ', $teacherProfile->specialty);
         $this->assertSame($session->id, $teacherProfile->study_session_id);
+        $this->assertTrue($teacherProfile->studySessions()->whereKey($session->id)->exists());
 
         $this->assertDatabaseHas('permission_user', [
             'user_id' => $user->id,
@@ -312,9 +315,9 @@ class UserPermissionOverrideTest extends TestCase
                 'email' => $user->email,
                 'role_code' => RoleService::ROLE_TEACHER,
                 'gender' => 'male',
-                'study_session_id' => $foreignSession->id,
+                'study_session_ids' => [$foreignSession->id],
             ])
-            ->assertSessionHasErrors('study_session_id');
+            ->assertSessionHasErrors('study_session_ids.0');
     }
 
     public function test_edit_page_is_protected_like_the_matrix_page(): void

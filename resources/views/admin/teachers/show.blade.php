@@ -26,6 +26,7 @@
                 <div>الجنس: {{ $teacher->gender === 'male' ? 'ذكر' : 'أنثى' }}</div>
                 <div>الهاتف: {{ $teacher->phone ?? '—' }} &bull; البريد: {{ $teacher->email ?? '—' }}</div>
                 <div>تاريخ التعيين: {{ $teacher->hired_at?->format('Y-m-d') ?? '—' }}</div>
+                <div>الدوامات: {{ $teacher->studySessions->pluck('name')->join('، ') ?: 'كل الدوامات' }}</div>
                 <div>المواد: {{ $teacher->subjects->pluck('name')->join('، ') ?: '—' }}</div>
             </div>
         </div>
@@ -100,8 +101,8 @@
                     <input type="text" name="issuer" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">السنة</label>
-                    <input type="text" name="year" maxlength="10" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">تاريخ المنح</label>
+                    <input type="date" name="granted_at" value="{{ old('granted_at') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg w-full">إضافة الشهادة</button>
             </form>
@@ -112,7 +113,7 @@
                     <div>
                         <div class="font-bold text-gray-800">🎓 {{ $certificate->title }}</div>
                         <div class="text-xs text-gray-500 mt-0.5">
-                            {{ $certificate->issuer ? $certificate->issuer . ' — ' : '' }}{{ $certificate->year ?? '' }}
+                            {{ $certificate->issuer ? $certificate->issuer . ' — ' : '' }}{{ $certificate->granted_at?->format('Y-m-d') ?? '' }}
                         </div>
                     </div>
                     <form method="POST" action="{{ route('admin.teachers.certificates.destroy', [$teacher, $certificate]) }}" onsubmit="return confirm('هل أنت متأكد من حذف الشهادة؟')">
@@ -177,11 +178,20 @@
 
     <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="px-4 py-3 bg-emerald-700 text-white font-bold">💰 الملف المالي</div>
-        <div class="p-4 flex items-center justify-between">
-            <div>
-                <div class="text-sm text-gray-500">رصيد الحساب المالي للمعلم</div>
+        <div class="p-4 space-y-2">
+            <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-500">الراتب الشهري</span>
+                @if($teacher->monthly_salary !== null)
+                    <span class="font-black text-gray-800" dir="ltr">{{ number_format((float) $teacher->monthly_salary, 2) }} {{ \App\Services\FinanceService::DEFAULT_CURRENCY }}</span>
+                @else
+                    <span class="text-sm text-gray-300">غير محدد</span>
+                @endif
+            </div>
+            <div class="flex flex-wrap gap-4">
                 <a href="{{ route('admin.finance.show', ['personType' => 'teacher', 'person' => $teacher]) }}"
-                   class="text-emerald-700 font-bold hover:underline text-sm mt-1 inline-block">عرض السجل المالي ←</a>
+                   class="text-emerald-700 font-bold hover:underline text-sm">عرض السجل المالي ←</a>
+                <a href="{{ route('admin.payroll.index', ['q' => $teacher->name]) }}"
+                   class="text-emerald-700 font-bold hover:underline text-sm">الراتب والدفعات ←</a>
             </div>
         </div>
     </div>
@@ -212,7 +222,11 @@
                 </div>
             @endforeach
         </div>
-        <div class="px-4 pb-4 text-sm text-gray-500">الإجمالي الأسبوعي: <span class="font-bold text-emerald-700">{{ $workHoursTotal }} ساعة</span></div>
+        <div class="px-4 pb-4 text-sm text-gray-500">
+            الإجمالي الأسبوعي: <span class="font-bold text-emerald-700">{{ $workHoursTotal }} ساعة</span>
+            <span class="mx-2 text-gray-300">|</span>
+            إجمالي {{ \App\Support\QuranProgramSettings::monthLabel(now()->format('Y-m')) }}: <span class="font-bold text-pine-800">{{ $monthlyWorkHoursTotal }} ساعة</span>
+        </div>
     @endif
 </div>
 

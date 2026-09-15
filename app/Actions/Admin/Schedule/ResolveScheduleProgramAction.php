@@ -2,7 +2,9 @@
 
 namespace App\Actions\Admin\Schedule;
 
+use App\Models\Classroom;
 use App\Models\ProgramPeriod;
+use App\Models\Section;
 use App\Services\ProgramService;
 use Illuminate\Validation\ValidationException;
 
@@ -23,6 +25,7 @@ class ResolveScheduleProgramAction
     {
         if (empty($data['program_period_id'])) {
             $this->assertValidRange($data);
+            $this->assertClassroomSession($data);
             $this->assertProgramAllowed($data);
 
             return $data;
@@ -47,9 +50,51 @@ class ResolveScheduleProgramAction
         }
 
         $this->assertValidRange($data);
+        $this->assertClassroomSession($data);
         $this->assertProgramAllowed($data);
 
         return $data;
+    }
+
+    /**
+     * دوام الحصة يجب أن يطابق دوام الصف/الشعبة: يُورَّث تلقائياً إن كان
+     * الصف/الشعبة مرتبطاً بدوام، ويُرفض إن اختلف الدوام المختار.
+     *
+     * @throws ValidationException
+     */
+    private function assertClassroomSession(array &$data): void
+    {
+        if (empty($data['classroom_id'])) {
+            return;
+        }
+
+        $classroom = Classroom::withoutGlobalScope('study_session')->find($data['classroom_id']);
+
+        if (! $classroom) {
+            return;
+        }
+
+        $section = ! empty($data['section_id'])
+            ? Section::withoutGlobalScope('study_session')->find($data['section_id'])
+            : null;
+
+        $expected = $section?->study_session_id ?: $classroom->study_session_id;
+
+        if ($expected === null) {
+            return;
+        }
+
+        if (empty($data['study_session_id'])) {
+            $data['study_session_id'] = $expected;
+
+            return;
+        }
+
+        if ($data['study_session_id'] !== $expected) {
+            throw ValidationException::withMessages([
+                'study_session_id' => 'دوام الحصة يجب أن يطابق دوام الصف/الشعبة المختارة',
+            ]);
+        }
     }
 
     /** @throws ValidationException */

@@ -300,7 +300,7 @@ class ShariaCourseController extends Controller
 
     private function validatedCourse(Request $request): array
     {
-        $tenantId = $request->user()->tenant_id;
+        $tenantId = config('app.current_tenant_id') ?? $request->user()->tenant_id;
 
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],

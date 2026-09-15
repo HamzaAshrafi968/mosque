@@ -6,9 +6,17 @@
 <div class="max-w-6xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-            <h2 class="text-2xl font-extrabold text-gray-800">ساعات عملي الأسبوعية</h2>
-            <p class="text-sm text-gray-500 mt-1">يحددها مدير الجامع — الإجمالي الأسبوعي: <span class="font-bold text-emerald-700">{{ $weeklyTotal }} ساعة</span></p>
+            <h2 class="text-2xl font-extrabold text-gray-800">ساعات عملي</h2>
+            <p class="text-sm text-gray-500 mt-1">
+                يحددها مدير الجامع — الإجمالي الأسبوعي: <span class="font-bold text-emerald-700">{{ $weeklyTotal }} ساعة</span>
+                <span class="mx-2 text-gray-300">|</span>
+                إجمالي {{ \App\Support\QuranProgramSettings::monthLabel($month->format('Y-m')) }}: <span class="font-bold text-pine-800">{{ $monthlyTotal }} ساعة</span>
+            </p>
         </div>
+        <form method="GET" action="{{ route('teacher.work-hours.index') }}" class="flex items-center gap-2">
+            <input type="month" name="month" value="{{ $monthInput }}" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+            <button class="text-xs font-bold text-gray-600 hover:text-gray-800">عرض الشهر</button>
+        </form>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">

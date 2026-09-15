@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Teacher;
 use App\Models\TeacherWorkHour;
 use App\Services\AuditLogger;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +21,7 @@ class TeacherWorkHourController extends Controller
     {
         $search = $request->input('search');
         $day = $request->filled('day') ? (int) $request->input('day') : null;
+        [$month, $monthInput] = $this->resolveMonth($request);
 
         $teachers = Teacher::query()
             ->with(['workHours' => fn ($query) => $query->orderBy('day_of_week')->orderBy('start_time')])
@@ -29,21 +31,27 @@ class TeacherWorkHourController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $periods = TeacherWorkHour::query()
+            ->whereIn('teacher_id', $teachers->pluck('id'))
+            ->get()
+            ->groupBy('teacher_id');
+
         return view('admin.work-hours.index', [
             'teachers' => $teachers,
             'days' => WorkDay::cases(),
             'search' => $search,
             'day' => $day,
-            'totals' => TeacherWorkHour::query()
-                ->whereIn('teacher_id', $teachers->pluck('id'))
-                ->get()
-                ->groupBy('teacher_id')
-                ->map(fn ($rows) => round($rows->sum(fn (TeacherWorkHour $hour) => $hour->durationHours()), 2)),
+            'month' => $month,
+            'monthInput' => $monthInput,
+            'totals' => $periods->map(fn ($rows) => round($rows->sum(fn (TeacherWorkHour $hour) => $hour->durationHours()), 2)),
+            'monthlyTotals' => $periods->map(fn ($rows) => TeacherWorkHour::monthlyHoursFromPeriods($rows, $month)),
         ]);
     }
 
-    public function teacherIndex(Teacher $teacher): View
+    public function teacherIndex(Teacher $teacher, Request $request): View
     {
+        [$month, $monthInput] = $this->resolveMonth($request);
+
         $hours = $teacher->workHours()
             ->orderBy('day_of_week')
             ->orderBy('start_time')
@@ -55,6 +63,9 @@ class TeacherWorkHourController extends Controller
             'hours' => $hours,
             'days' => WorkDay::cases(),
             'weeklyTotal' => TeacherWorkHour::weeklyTotalHours($teacher->id),
+            'monthlyTotal' => TeacherWorkHour::monthlyHours($teacher->id, $month),
+            'month' => $month,
+            'monthInput' => $monthInput,
         ]);
     }
 
@@ -110,6 +121,17 @@ class TeacherWorkHourController extends Controller
         return redirect()
             ->route('admin.teachers.work-hours.index', $teacherId)
             ->with('success', 'تم حذف فترة العمل');
+    }
+
+    /** الشهر المعروض (افتراضياً الشهر الحالي) لحساب الإجمالي الشهري. */
+    private function resolveMonth(Request $request): array
+    {
+        $input = $request->validate(['month' => ['nullable', 'date_format:Y-m']])['month'] ?? null;
+        $month = $input
+            ? CarbonImmutable::createFromFormat('Y-m', $input)->startOfMonth()
+            : CarbonImmutable::now()->startOfMonth();
+
+        return [$month, $month->format('Y-m')];
     }
 
     private function validated(Request $request): array

@@ -18,12 +18,13 @@
             <span class="font-bold">{{ $currentSession?->name ?: 'كل الدوامات' }}</span>
         </div>
     </div>
-    @if($unassigned['students'] > 0 || $unassigned['teachers'] > 0 || $unassigned['sections'] > 0)
+    @if($unassigned['students'] > 0 || $unassigned['teachers'] > 0 || $unassigned['sections'] > 0 || $unassigned['classrooms'] > 0)
         <div class="px-4 py-3 bg-amber-50 border-t border-amber-200 text-sm text-amber-800 flex flex-wrap items-center gap-x-4 gap-y-2">
             <span class="font-bold">بيانات غير مرتبطة بدوام:</span>
             <span>الطلاب: {{ $unassigned['students'] }}</span>
             <span>الأساتذة: {{ $unassigned['teachers'] }}</span>
             <span>الشعب: {{ $unassigned['sections'] }}</span>
+            <span>الصفوف: {{ $unassigned['classrooms'] }}</span>
             <details class="ms-auto">
                 <summary class="cursor-pointer text-amber-700 hover:underline">توزيعهم على دوام...</summary>
                 <form method="POST" action="{{ route('admin.sessions.assign-unassigned') }}" class="flex flex-wrap gap-2 mt-2">
@@ -32,6 +33,7 @@
                         <option value="students">الطلاب</option>
                         <option value="teachers">الأساتذة</option>
                         <option value="sections">الشعب</option>
+                        <option value="classrooms">الصفوف (مع شعبها وطلابها)</option>
                     </select>
                     <select name="study_session_id" class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm" required>
                         @foreach($sessions as $session)
@@ -76,9 +78,10 @@
                         <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">موقوف</span>
                     @endif
                 </div>
-                <div class="p-4 grid grid-cols-3 gap-2 text-center text-sm">
+                <div class="p-4 grid grid-cols-4 gap-2 text-center text-sm">
                     <div><div class="font-bold text-emerald-700">{{ $session->students_count }}</div><div class="text-xs text-gray-500">طالب</div></div>
                     <div><div class="font-bold text-gray-700">{{ $session->teachers_count }}</div><div class="text-xs text-gray-500">أستاذ</div></div>
+                    <div><div class="font-bold text-gray-700">{{ $session->classrooms_count }}</div><div class="text-xs text-gray-500">صف</div></div>
                     <div><div class="font-bold text-gray-700">{{ $session->sections_count }}</div><div class="text-xs text-gray-500">شعبة</div></div>
                 </div>
                 <div class="px-4 pb-3 text-xs text-gray-500">

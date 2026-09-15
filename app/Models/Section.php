@@ -25,6 +25,25 @@ class Section extends Model
         'status',
     ];
 
+    /**
+     * كل شعب الصف تتبع دوام الصف نفسه: عند ربط الصف بدوام تُضبط شعبته عليه
+     * تلقائياً (الصف المشترك بدون دوام يبقى قابلاً لتوزيع شعبه على الدوامات).
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Section $section): void {
+            if ($section->classroom_id === null) {
+                return;
+            }
+
+            $classroom = Classroom::withoutGlobalScope('study_session')->find($section->classroom_id);
+
+            if ($classroom?->study_session_id !== null) {
+                $section->study_session_id = $classroom->study_session_id;
+            }
+        });
+    }
+
     public function classroom(): BelongsTo
     {
         return $this->belongsTo(Classroom::class);

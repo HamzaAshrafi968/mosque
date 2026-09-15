@@ -7,6 +7,7 @@ use App\Contracts\Repositories\ClassroomRepositoryInterface;
 use App\Http\Controllers\Api\BaseApiController;
 use App\Http\Requests\Api\V1\Admin\StoreAnnouncementRequest;
 use App\Http\Resources\Api\V1\AnnouncementResource;
+use App\Support\AudioUpload;
 use Illuminate\Http\JsonResponse;
 
 class AnnouncementController extends BaseApiController
@@ -28,15 +29,31 @@ class AnnouncementController extends BaseApiController
 
     public function store(StoreAnnouncementRequest $request): JsonResponse
     {
+        $data = $request->validated();
+        $audio = $request->file('audio');
+        unset($data['audio']);
+
+        if ($audio) {
+            $data['audio_path'] = AudioUpload::store($audio);
+            $data['audio_original_name'] = $audio->getClientOriginalName();
+            // Audio announcements are removed automatically after one week
+            // unless the client explicitly disabled the auto-delete.
+            $data['expires_at'] = $request->boolean('auto_delete', true)
+                ? now()->addWeek()
+                : null;
+        }
+
+        unset($data['auto_delete']);
+
         $announcement = $this->announcementRepository->create([
-            ...$request->validated(),
+            ...$data,
             'user_id' => $request->user()->id,
             'published_at' => now(),
         ]);
 
         return $this->created(
             AnnouncementResource::make($announcement),
-            'تم نشر الإعلان'
+            $audio ? 'تم نشر الإعلان الصوتي' : 'تم نشر الإعلان'
         );
     }
 

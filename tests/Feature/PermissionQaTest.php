@@ -187,6 +187,7 @@ class PermissionQaTest extends TestCase
             'subjects' => ['admin.subjects.index', 'subjects.view'],
             'schedules' => ['admin.schedules.index', 'schedule.view'],
             'attendance' => ['admin.attendance.index', 'attendance.view'],
+            'attendance summary' => ['admin.attendance.summary', 'attendance.view'],
             'finance' => ['admin.finance.index', 'finance.view'],
             'audit logs' => ['admin.audit-logs.index', 'audit_logs.view'],
             'exams' => ['admin.exams.index', 'exams.view'],

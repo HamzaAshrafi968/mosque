@@ -3,7 +3,7 @@
 @section('title', 'العمليات المالية')
 
 @section('content')
-<div class="mb-4 flex gap-2">
+<div class="mb-4 flex flex-wrap items-center gap-2">
     @foreach(\App\Enums\FinancePersonType::cases() as $type)
         <a href="{{ route('admin.finance.index', ['type' => $type->value]) }}"
            @class([
@@ -14,6 +14,9 @@
             {{ $type->value === 'student' ? 'الطلاب' : 'الأساتذة' }}
         </a>
     @endforeach
+    <a href="{{ route('admin.payroll.index') }}" class="ms-auto px-4 py-2 rounded-lg text-sm font-bold bg-gold-50 text-gold-700 border border-gold-300 hover:bg-gold-100">
+        رواتب المعلمين والدفعات ←
+    </a>
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6 p-4">

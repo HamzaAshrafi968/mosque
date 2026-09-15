@@ -141,18 +141,81 @@ class StudySessionsTest extends TestCase
             ->assertSee('طالب الدوام الثاني');
     }
 
+    public function test_teacher_can_belong_to_multiple_sessions_and_shows_in_each(): void
+    {
+        [$mosque, $manager, $first, $second] = $this->mosqueWithSessions();
+
+        $third = StudySession::create(['tenant_id' => $mosque->id, 'name' => 'الدوام الثالث']);
+
+        $teacher = Teacher::factory()->create([
+            'tenant_id' => $mosque->id,
+            'study_session_id' => $first->id,
+            'name' => 'أستاذ الأول والثالث',
+        ]);
+        $teacher->studySessions()->sync([$first->id, $third->id]);
+
+        // يظهر في الدوام الأول والثالث...
+        session(['study_session_id' => $first->id]);
+        $this->actingAs($manager)->get(route('admin.teachers.index'))
+            ->assertOk()
+            ->assertSee('أستاذ الأول والثالث');
+
+        session(['study_session_id' => $third->id]);
+        $this->actingAs($manager)->get(route('admin.teachers.index'))
+            ->assertOk()
+            ->assertSee('أستاذ الأول والثالث');
+
+        // ...ولا يظهر في الدوام الثاني.
+        session(['study_session_id' => $second->id]);
+        $this->actingAs($manager)->get(route('admin.teachers.index'))
+            ->assertOk()
+            ->assertDontSee('أستاذ الأول والثالث');
+    }
+
+    public function test_teacher_form_saves_multiple_sessions(): void
+    {
+        [$mosque, $manager, $first] = $this->mosqueWithSessions();
+
+        $third = StudySession::create(['tenant_id' => $mosque->id, 'name' => 'الدوام الثالث']);
+
+        $this->actingAs($manager)
+            ->post(route('admin.teachers.store'), [
+                'name' => 'أستاذ دوامات متعددة',
+                'gender' => 'male',
+                'study_session_ids' => [$first->id, $third->id],
+            ])
+            ->assertRedirect(route('admin.teachers.index'));
+
+        $teacher = Teacher::withoutGlobalScopes()->where('name', 'أستاذ دوامات متعددة')->firstOrFail();
+
+        // الدوام الأساسي = أول اختيار، والجدول الوسيط يحفظ الاثنين.
+        $this->assertSame($first->id, $teacher->study_session_id);
+        $this->assertEqualsCanonicalizing(
+            [$first->id, $third->id],
+            $teacher->studySessions()->pluck('study_sessions.id')->all()
+        );
+    }
+
     public function test_sections_follow_the_selected_session(): void
     {
         [$mosque, $manager, $first, $second] = $this->mosqueWithSessions();
 
-        $classroom = Classroom::create(['tenant_id' => $mosque->id, 'name' => 'الصف الأول']);
-        Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroom->id, 'name' => 'أ', 'study_session_id' => $first->id]);
-        Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroom->id, 'name' => 'ب', 'study_session_id' => $second->id]);
+        $classroomA = Classroom::create(['tenant_id' => $mosque->id, 'name' => 'الصف الأول', 'study_session_id' => $first->id]);
+        $classroomB = Classroom::create(['tenant_id' => $mosque->id, 'name' => 'الصف الثاني', 'study_session_id' => $second->id]);
+        Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroomA->id, 'name' => 'أ', 'study_session_id' => $first->id]);
+        Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroomB->id, 'name' => 'ب', 'study_session_id' => $second->id]);
 
         session(['study_session_id' => $first->id]);
 
+        // الصفوف تتبع الدوام المختار: صف الثاني لا يظهر في الدوام الأول.
         $this->actingAs($manager)
-            ->get(route('admin.classrooms.show', $classroom))
+            ->get(route('admin.classrooms.index'))
+            ->assertOk()
+            ->assertSee('الصف الأول')
+            ->assertDontSee('الصف الثاني');
+
+        $this->actingAs($manager)
+            ->get(route('admin.classrooms.show', $classroomA))
             ->assertOk()
             ->assertSee('>الدوام الأول</span>', false)
             ->assertDontSee('>الدوام الثاني</span>', false);

@@ -66,6 +66,31 @@ class AttendanceMetricService
     }
 
     /**
+     * Per-student stats for an arbitrary set of students across sections
+     * (the admin summary page), keyed by student id.
+     *
+     * @param  Collection<int, Student>  $students
+     * @return Collection<string, array>
+     */
+    public function studentStats(Collection $students, ?string $from = null, ?string $to = null): Collection
+    {
+        $records = AttendanceRecord::query()
+            ->whereIn('student_id', $students->pluck('id'))
+            ->when($from || $to, fn ($q) => $q->whereHas('session', function ($s) use ($from, $to) {
+                $s->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
+                    ->when($to, fn ($q) => $q->whereDate('date', '<=', $to));
+            }))
+            ->get()
+            ->groupBy('student_id');
+
+        return $students->mapWithKeys(function (Student $student) use ($records) {
+            $stats = $this->summarise($records->get($student->id, collect()));
+
+            return [$student->id => ['student' => $student, ...$stats]];
+        });
+    }
+
+    /**
      * The grid used by the attendance table UI (spec §11): students × sessions
      * with the status cell per session plus the per-student percentage.
      */

@@ -13,8 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * دوام (study session/shift) inside a mosque — e.g. الدوام الأول / الثاني.
  *
- * Teachers, students and sections belong to one session; mosque managers
- * switch the active session from the top header to filter their whole panel.
+ * Teachers can belong to several sessions (e.g. الأول والثالث); students and
+ * sections belong to one session. Mosque managers switch the active session
+ * from the top header to filter their whole panel.
  */
 class StudySession extends Model
 {
@@ -39,14 +40,19 @@ class StudySession extends Model
         return $this->hasMany(Student::class);
     }
 
-    public function teachers(): HasMany
+    public function teachers(): BelongsToMany
     {
-        return $this->hasMany(Teacher::class);
+        return $this->belongsToMany(Teacher::class, 'study_session_teacher')->withTimestamps();
     }
 
     public function sections(): HasMany
     {
         return $this->hasMany(Section::class);
+    }
+
+    public function classrooms(): HasMany
+    {
+        return $this->hasMany(Classroom::class);
     }
 
     /**

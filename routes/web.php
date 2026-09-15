@@ -104,6 +104,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('programs/{program}', [Admin\ProgramController::class, 'destroy'])->name('programs.destroy')->middleware('permission:programs.delete');
 
     Route::get('attendance', [Admin\AttendanceController::class, 'index'])->name('attendance.index')->middleware('permission:attendance.view');
+    Route::get('attendance/summary', [Admin\AttendanceController::class, 'summary'])->name('attendance.summary')->middleware('permission:attendance.view');
     Route::post('attendance', [Admin\AttendanceController::class, 'store'])->name('attendance.store')->middleware('permission:attendance.create');
     Route::get('attendance/create', [Admin\AttendanceController::class, 'create'])->name('attendance.create')->middleware('permission:attendance.create');
     Route::post('attendance/students', [Admin\AttendanceController::class, 'storeStudents'])->name('attendance.students.store')->middleware('permission:attendance.create');
@@ -116,6 +117,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('finance/transactions', [Admin\FinanceController::class, 'storeTransaction'])->name('finance.transactions.store')->middleware('permission:finance.create');
     Route::post('finance/transfers', [Admin\FinanceController::class, 'storeTransfer'])->name('finance.transfers.store')->middleware('permission:finance.create');
     Route::post('finance/transactions/{transaction}/reverse', [Admin\FinanceController::class, 'reverse'])->name('finance.reverse')->middleware('permission:finance.update');
+
+    // ---- رواتب المعلمين: الراتب الشهري + عدّاد الساعات + الدفعات ----
+    Route::get('payroll', [Admin\PayrollController::class, 'index'])->name('payroll.index')->middleware('permission:finance.view');
+    Route::post('payroll/{teacher}/pay', [Admin\PayrollController::class, 'pay'])->name('payroll.pay')->middleware('permission:finance.create');
+    Route::post('payroll/{teacher}/salary', [Admin\PayrollController::class, 'updateSalary'])->name('payroll.salary')->middleware('permission:finance.create');
 
     Route::get('audit-logs', [Admin\AuditLogController::class, 'index'])->name('audit-logs.index')->middleware('permission:audit_logs.view');
 
@@ -138,6 +144,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('quran-review/statistics', [Admin\QuranReviewController::class, 'statistics'])->name('quran-review.statistics')->middleware('permission:quran_review.view');
     Route::get('quran-review/{id}', [Admin\QuranReviewController::class, 'show'])->name('quran-review.show')->middleware('permission:quran_review.view');
     Route::get('quran-review/student/{student}', [Admin\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report')->middleware('permission:quran_review.view');
+
+    // ---- «مراجعة 5» (الخمسات): كل جزء ٤ خمسات × ٥ صفحات ----
+    Route::get('quran/khamsa', [Admin\QuranKhamsaController::class, 'index'])->name('quran.khamsa.index')->middleware('permission:quran_khamsa.view');
+    Route::get('quran/khamsa/create', [Admin\QuranKhamsaController::class, 'create'])->name('quran.khamsa.create')->middleware('permission:quran_khamsa.create');
+    Route::post('quran/khamsa', [Admin\QuranKhamsaController::class, 'store'])->name('quran.khamsa.store')->middleware('permission:quran_khamsa.create');
+    Route::post('quran/khamsa/memorization', [Admin\QuranKhamsaController::class, 'storeMemorization'])->name('quran.khamsa.memorization.store')->middleware('permission:quran.memorization.manage');
+    Route::delete('quran/khamsa/memorization', [Admin\QuranKhamsaController::class, 'destroyMemorization'])->name('quran.khamsa.memorization.destroy')->middleware('permission:quran.memorization.manage');
+    Route::post('quran/khamsa/items/{item}/complete', [Admin\QuranKhamsaController::class, 'complete'])->name('quran.khamsa.items.complete')->middleware('permission:quran_khamsa.complete');
+    Route::get('quran/khamsa/{review}', [Admin\QuranKhamsaController::class, 'show'])->name('quran.khamsa.show')->middleware('permission:quran_khamsa.view');
+    Route::post('quran/khamsa/{review}/cancel', [Admin\QuranKhamsaController::class, 'cancel'])->name('quran.khamsa.cancel')->middleware('permission:quran_khamsa.update');
 
     Route::get('reward-points', [Admin\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
 
@@ -291,6 +307,16 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('quran-review/student/{student}', [Teacher\QuranReviewController::class, 'studentReport'])->name('quran-review.student-report')->middleware('permission:quran_review.view');
     Route::get('quran-review/ayahs/json', [Teacher\QuranReviewController::class, 'getAyahs'])->name('quran-review.ayahs')->middleware('permission:quran_review.view');
 
+    // ---- «مراجعة 5» (الخمسات) للمعلم ----
+    Route::get('quran/khamsa', [Teacher\QuranKhamsaController::class, 'index'])->name('quran.khamsa.index')->middleware('permission:quran_khamsa.view');
+    Route::get('quran/khamsa/create', [Teacher\QuranKhamsaController::class, 'create'])->name('quran.khamsa.create')->middleware('permission:quran_khamsa.create');
+    Route::post('quran/khamsa', [Teacher\QuranKhamsaController::class, 'store'])->name('quran.khamsa.store')->middleware('permission:quran_khamsa.create');
+    Route::post('quran/khamsa/memorization', [Teacher\QuranKhamsaController::class, 'storeMemorization'])->name('quran.khamsa.memorization.store')->middleware('permission:quran.memorization.manage');
+    Route::delete('quran/khamsa/memorization', [Teacher\QuranKhamsaController::class, 'destroyMemorization'])->name('quran.khamsa.memorization.destroy')->middleware('permission:quran.memorization.manage');
+    Route::post('quran/khamsa/items/{item}/complete', [Teacher\QuranKhamsaController::class, 'complete'])->name('quran.khamsa.items.complete')->middleware('permission:quran_khamsa.complete');
+    Route::get('quran/khamsa/{review}', [Teacher\QuranKhamsaController::class, 'show'])->name('quran.khamsa.show')->middleware('permission:quran_khamsa.view');
+    Route::post('quran/khamsa/{review}/cancel', [Teacher\QuranKhamsaController::class, 'cancel'])->name('quran.khamsa.cancel')->middleware('permission:quran_khamsa.update');
+
     Route::get('reward-points', [Teacher\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
     Route::get('reward-points/create', [Teacher\RewardPointController::class, 'create'])->name('reward-points.create')->middleware('permission:reward_points.create');
     Route::post('reward-points', [Teacher\RewardPointController::class, 'store'])->name('reward-points.store')->middleware('permission:reward_points.create');
@@ -403,6 +429,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::get('homeworks', [StudentPortal\PortalController::class, 'homeworks'])->name('homeworks');
     Route::post('homeworks/{homework}/submit', [StudentPortal\PortalController::class, 'submitHomework'])->name('homeworks.submit');
     Route::get('announcements', [StudentPortal\PortalController::class, 'announcements'])->name('announcements');
+    Route::get('quran-khamsa', [StudentPortal\KhamsaController::class, 'index'])->name('quran-khamsa');
 });
 
 // ---- Sheikh portal additions: sections & finance ledger (spec §19-§32) ----

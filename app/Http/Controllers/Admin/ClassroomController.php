@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Admin\Classroom\SyncClassroomShiftAction;
 use App\Enums\SectionTeacherRole;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
@@ -24,12 +25,13 @@ class ClassroomController extends Controller
         private readonly EnrollmentService $enrollment,
         private readonly AttendanceMetricService $attendanceMetrics,
         private readonly AuditLogger $audit,
+        private readonly SyncClassroomShiftAction $syncShift,
     ) {}
 
     public function index(): View
     {
         $classrooms = Classroom::query()
-            ->with(['sections:id,classroom_id,name,status'])
+            ->with(['studySession:id,name', 'sections:id,classroom_id,name,status'])
             ->withCount(['students' => fn ($q) => $q->active()])
             ->orderBy('name')
             ->get();
@@ -41,7 +43,10 @@ class ClassroomController extends Controller
 
     public function create(): View
     {
-        return view('admin.classrooms.form', ['classroom' => null]);
+        return view('admin.classrooms.form', [
+            'classroom' => null,
+            'sessions' => StudySession::orderBy('name')->get(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -76,13 +81,24 @@ class ClassroomController extends Controller
 
     public function edit(Classroom $classroom): View
     {
-        return view('admin.classrooms.form', ['classroom' => $classroom]);
+        return view('admin.classrooms.form', [
+            'classroom' => $classroom,
+            'sessions' => StudySession::orderBy('name')->get(),
+        ]);
     }
 
     public function update(Request $request, Classroom $classroom): RedirectResponse
     {
+        $data = $this->validatedClassroom($request);
         $before = $classroom->getAttributes();
-        $classroom->update($this->validatedClassroom($request));
+
+        $classroom->fill(collect($data)->except('study_session_id')->all())->save();
+
+        // تغيير دوام الصف ينقل شعبه وطلابها وجداولها معه.
+        if (($before['study_session_id'] ?? null) !== ($data['study_session_id'] ?? null)) {
+            $this->syncShift->execute($classroom, $data['study_session_id'] ?? null);
+        }
+
         $this->audit->logModel('class.updated', $classroom, $before, actor: $request->user());
 
         return redirect()->route('admin.classrooms.show', $classroom)->with('success', 'تم تحديث بيانات الصف');
@@ -104,6 +120,11 @@ class ClassroomController extends Controller
     {
         $data = $request->validate($this->sectionRules());
 
+        // شعبة الصف المرتبط بدوام تتبع دوامه حتماً.
+        if ($classroom->study_session_id !== null) {
+            $data['study_session_id'] = $classroom->study_session_id;
+        }
+
         $section = $classroom->sections()->create([...$data, 'tenant_id' => $classroom->tenant_id]);
         $this->audit->logModel('section.created', $section, actor: $request->user());
 
@@ -113,7 +134,17 @@ class ClassroomController extends Controller
     public function updateSection(Request $request, Section $section): RedirectResponse
     {
         $before = $section->getAttributes();
-        $section->update($request->validate($this->sectionRules()));
+        $data = $request->validate($this->sectionRules());
+
+        if ($section->classroom?->study_session_id !== null) {
+            $data['study_session_id'] = $section->classroom->study_session_id;
+        }
+
+        $section->update($data);
+
+        if (($before['study_session_id'] ?? null) !== $section->study_session_id) {
+            $this->enrollment->syncSectionShift($section);
+        }
 
         $this->audit->logModel('section.updated', $section, $before, actor: $request->user());
 
@@ -123,7 +154,7 @@ class ClassroomController extends Controller
     /** Section dashboard: roster with percentages, teachers, actions (spec §8.2/§9). */
     public function showSection(Section $section): View
     {
-        $section->load(['classroom:id,name', 'studySession:id,name', 'teacherAssignments.teacher:id,name,phone', 'classroom.sections:id,classroom_id,name']);
+        $section->load(['classroom:id,name,study_session_id', 'classroom.studySession:id,name', 'studySession:id,name', 'teacherAssignments.teacher:id,name,phone']);
 
         $roster = $this->attendanceMetrics->rosterStats($section);
 
@@ -246,6 +277,7 @@ class ClassroomController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'study_session_id' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', config('app.current_tenant_id'))],
         ]);
     }
 

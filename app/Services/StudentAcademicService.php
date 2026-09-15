@@ -148,6 +148,7 @@ class StudentAcademicService
     {
         return Announcement::query()
             ->whereNotNull('published_at')
+            ->notExpired()
             ->where(function ($q) use ($student, $guardianMode) {
                 $q->where('audience', AnnouncementAudience::All);
 

@@ -82,8 +82,8 @@
                                 <span class="text-xs text-gray-400">—</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->guardian_name }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->guardian_phone }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->guardian_name ?? $student->guardians->first()?->name ?? '—' }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->guardian_phone ?? $student->guardians->first()?->phone ?? '—' }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
                             <span @class([
                                 'px-2 py-1 rounded-full text-xs font-bold',

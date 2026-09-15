@@ -131,6 +131,14 @@
                                         الدخول للجامع
                                     </button>
                                 </form>
+                                <form method="POST" action="{{ route('super-admin.mosques.enter', $mosque) }}">
+                                    @csrf
+                                    <input type="hidden" name="to" value="attendance">
+                                    <button type="submit" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-bold transition">
+                                        <x-icon name="attendance" class="w-3.5 h-3.5" />
+                                        الحضور والغياب
+                                    </button>
+                                </form>
                                 <a href="{{ route('super-admin.mosques.users.index', $mosque) }}" class="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-bold transition">المستخدمون</a>
                                 <a href="{{ route('super-admin.mosques.roles.index', $mosque) }}" class="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg text-xs font-bold transition">الأدوار</a>
                                 <a href="{{ route('super-admin.mosques.edit', $mosque) }}" class="px-2.5 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg text-xs font-bold transition">تعديل</a>

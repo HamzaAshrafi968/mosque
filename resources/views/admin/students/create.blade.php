@@ -57,14 +57,28 @@
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">اسم ولي الأمر</label>
-            <input type="text" name="guardian_name" value="{{ old('guardian_name') }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">هاتف ولي الأمر</label>
-            <input type="text" name="guardian_phone" value="{{ old('guardian_phone') }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <label class="block text-sm font-medium text-gray-700 mb-1">أولياء الأمور (اختياري)</label>
+            @if($guardians->isEmpty())
+                <p class="text-sm text-gray-400 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                    لا يوجد أولياء أمور مسجّلون بعد — أضفهم من صفحة
+                    <a href="{{ route('admin.parents.index') }}" class="text-emerald-700 hover:underline">أولياء الأمور</a>.
+                </p>
+            @else
+                <div class="max-h-52 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                    @foreach($guardians as $guardian)
+                        <label class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-emerald-50/40">
+                            <input type="checkbox" name="guardian_ids[]" value="{{ $guardian->id }}" @checked(in_array($guardian->id, old('guardian_ids', [])))
+                                   class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                            <span class="text-sm font-medium text-gray-800">{{ $guardian->name }}</span>
+                            @if($guardian->phone)
+                                <span class="ms-auto text-xs text-gray-400" dir="ltr">{{ $guardian->phone }}</span>
+                            @endif
+                        </label>
+                    @endforeach
+                </div>
+                <p class="text-xs text-gray-400 mt-1">يمكنك اختيار أكثر من ولي أمر. تُدار القائمة من صفحة
+                    <a href="{{ route('admin.parents.index') }}" class="text-emerald-700 hover:underline">أولياء الأمور</a>.</p>
+            @endif
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
@@ -74,43 +88,30 @@
 
         <div class="border-t border-gray-100 pt-4">
             <h3 class="font-bold text-gray-800 mb-1">سجل الحفظ القرآني (اختياري)</h3>
-            <p class="text-xs text-gray-400 mb-3">ما حفظه الطالب من القرآن قبل الالتحاق وما وصل إليه.</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">مقدار الحفظ (بالأجزاء)</label>
-                    <input type="number" name="memorized_juz" value="{{ old('memorized_juz') }}" min="0" max="30" step="0.5"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <p class="text-xs text-gray-400 mb-3">ما حفظه الطالب من القرآن قبل الالتحاق — تُفتح خمسات «مراجعة 5» للأجزاء المحددة فقط.</p>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">مقدار الحفظ (بالأجزاء)</label>
+                <input type="number" id="memorized_juz_input" name="memorized_juz" value="{{ old('memorized_juz') }}" min="0" max="30" step="0.5"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            </div>
+            <input type="hidden" name="memorized_juz_numbers_present" value="1">
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">الأجزاء المحفوظة</label>
+                <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    @for($juz = 1; $juz <= 30; $juz++)
+                        <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-2 py-1.5 text-sm cursor-pointer">
+                            <input type="checkbox" name="memorized_juz_numbers[]" value="{{ $juz }}"
+                                   @checked(in_array($juz, array_map('intval', old('memorized_juz_numbers', []))))
+                                   data-juz-checkbox="{{ $juz }}"
+                                   class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                            الجزء {{ $juz }}
+                        </label>
+                    @endfor
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">من سورة</label>
-                    <select name="memorized_from_surah_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                        <option value="">اختر السورة</option>
-                        @foreach($surahs as $surah)
-                            <option value="{{ $surah->id }}" @selected(old('memorized_from_surah_id') == $surah->id)>{{ $surah->name_arabic }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">من آية</label>
-                    <input type="number" name="memorized_from_ayah" value="{{ old('memorized_from_ayah') }}" min="1"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">إلى سورة (ما وصل إليه)</label>
-                    <select name="memorized_to_surah_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                        <option value="">اختر السورة</option>
-                        @foreach($surahs as $surah)
-                            <option value="{{ $surah->id }}" @selected(old('memorized_to_surah_id') == $surah->id)>{{ $surah->name_arabic }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">إلى آية</label>
-                    <input type="number" name="memorized_to_ayah" value="{{ old('memorized_to_ayah') }}" min="1"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
+                <p class="text-xs text-gray-400 mt-2">عند تغيير مقدار الحفظ تُحدَّد الأجزاء تلقائياً — يمكنك تعديل التحديد يدوياً.</p>
             </div>
         </div>
+        <x-memorized-juz-script />
 
         <div class="border-t border-gray-100 pt-4">
             <h3 class="font-bold text-gray-800 mb-1">حساب بوابة الطالب (اختياري)</h3>

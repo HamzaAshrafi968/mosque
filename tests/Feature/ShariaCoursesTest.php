@@ -82,6 +82,31 @@ class ShariaCoursesTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'sharia_course.created']);
     }
 
+    public function test_super_admin_inside_a_mosque_can_create_course_with_supervisor(): void
+    {
+        [$mosque] = $this->mosque();
+        $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => User::ROLE_SUPER_ADMIN]);
+        app(RoleService::class)->assignRole($superAdmin, RoleService::ROLE_SUPER_ADMIN);
+
+        [, $teacher] = $this->makeTeacher($mosque->id);
+
+        $this->actingAs($superAdmin)
+            ->withSession(['super_admin_mosque_id' => $mosque->id])
+            ->post(route('admin.sharia-courses.store'), [
+                'name' => 'دورة العقيدة',
+                'supervisor_id' => $teacher->id,
+                'status' => 'active',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('sharia_courses', [
+            'tenant_id' => $mosque->id,
+            'name' => 'دورة العقيدة',
+            'supervisor_id' => $teacher->id,
+        ]);
+    }
+
     public function test_course_students_are_fully_independent_from_school_students(): void
     {
         [$mosque, $admin] = $this->mosque();

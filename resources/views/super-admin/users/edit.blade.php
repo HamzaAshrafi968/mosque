@@ -51,14 +51,22 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">التخصص <span class="text-gray-400 text-xs">(للمعلم)</span></label>
                 <input type="text" name="specialty" value="{{ old('specialty', $teacher->specialty ?? '') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
             </div>
+            @php
+                $selectedSessions = old('study_session_ids', $teacher?->studySessions->pluck('id')->all() ?? []);
+            @endphp
             <div id="teacher-session-field">
-                <label class="block text-sm font-medium text-gray-700 mb-1">الدوام <span class="text-gray-400 text-xs">(للمعلم)</span></label>
-                <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">غير محدد (كل الدوامات)</option>
+                <label class="block text-sm font-medium text-gray-700 mb-1">الدوامات <span class="text-gray-400 text-xs">(للمعلم)</span></label>
+                <div class="grid grid-cols-2 gap-2">
                     @foreach($studySessions as $session)
-                        <option value="{{ $session->id }}" @selected(old('study_session_id', $teacher->study_session_id ?? null) == $session->id)>{{ $session->name }}</option>
+                        <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" name="study_session_ids[]" value="{{ $session->id }}" @checked(in_array($session->id, $selectedSessions))
+                                   class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-500">
+                            <span class="text-sm text-gray-700">{{ $session->name }}</span>
+                        </label>
                     @endforeach
-                </select>
+                </div>
+                <input type="hidden" name="study_session_ids[]" value="">
+                <p class="text-xs text-gray-400 mt-1">يمكن تحديد أكثر من دوام.</p>
             </div>
             <div class="md:col-span-2">
                 <x-photo-input

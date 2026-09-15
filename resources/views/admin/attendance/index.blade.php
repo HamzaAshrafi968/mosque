@@ -124,6 +124,7 @@
         </div>
     </div>
     <div class="mt-4 flex gap-3 flex-wrap">
+        <a href="{{ route('admin.attendance.summary') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">حضور وغياب الطلاب (ملخص)</a>
         <a href="{{ route('admin.attendance.history') }}" class="bg-gray-700 hover:bg-gray-800 text-white text-sm font-bold px-4 py-2 rounded-lg">جدول الحضور التفصيلي (نسب)</a>
     </div>
 @else

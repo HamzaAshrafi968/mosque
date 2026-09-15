@@ -37,6 +37,7 @@ class DashboardController extends BaseTeacherController
                 ->orderBy('start_time')
                 ->get(),
             'weeklyWorkHours' => TeacherWorkHour::weeklyTotalHours($teacher->id),
+            'monthlyWorkHours' => TeacherWorkHour::monthlyHours($teacher->id),
         ]);
     }
 }

@@ -88,12 +88,16 @@ class MosqueController extends Controller
     }
 
     /** Switch into the mosque to operate its panel as its manager. */
-    public function enter(Tenant $mosque): RedirectResponse
+    public function enter(Request $request, Tenant $mosque): RedirectResponse
     {
         session(['super_admin_mosque_id' => $mosque->id]);
         session()->forget('study_session_id');
 
-        return redirect()->route('admin.dashboard')->with('success', "تم الدخول إلى {$mosque->name}");
+        $destination = $request->input('to') === 'attendance'
+            ? route('admin.attendance.summary')
+            : route('admin.dashboard');
+
+        return redirect($destination)->with('success', "تم الدخول إلى {$mosque->name}");
     }
 
     /** Leave mosque context and return to the central dashboard. */

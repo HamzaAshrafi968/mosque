@@ -8,9 +8,19 @@
         <div>
             <a href="{{ route('admin.teachers.show', $teacher) }}" class="text-sm text-emerald-700 hover:text-emerald-800">← ملف المعلم</a>
             <h2 class="text-2xl font-extrabold text-gray-800 mt-1">ساعات العمل — {{ $teacher->name }}</h2>
-            <p class="text-sm text-gray-500 mt-1">الإجمالي الأسبوعي: <span class="font-bold text-emerald-700">{{ $weeklyTotal }} ساعة</span></p>
+            <p class="text-sm text-gray-500 mt-1">
+                الإجمالي الأسبوعي: <span class="font-bold text-emerald-700">{{ $weeklyTotal }} ساعة</span>
+                <span class="mx-2 text-gray-300">|</span>
+                إجمالي {{ \App\Support\QuranProgramSettings::monthLabel($month->format('Y-m')) }}: <span class="font-bold text-pine-800">{{ $monthlyTotal }} ساعة</span>
+            </p>
         </div>
-        <a href="{{ route('admin.work-hours.index') }}" class="text-sm text-gray-500 hover:underline">نظرة عامة على الجميع</a>
+        <div class="flex items-center gap-3">
+            <form method="GET" action="{{ route('admin.teachers.work-hours.index', $teacher) }}" class="flex items-center gap-2">
+                <input type="month" name="month" value="{{ $monthInput }}" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+                <button class="text-xs font-bold text-gray-600 hover:text-gray-800">عرض الشهر</button>
+            </form>
+            <a href="{{ route('admin.work-hours.index') }}" class="text-sm text-gray-500 hover:underline">نظرة عامة على الجميع</a>
+        </div>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">

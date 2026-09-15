@@ -16,8 +16,15 @@ class TeacherCertificate extends Model
         'teacher_id',
         'title',
         'issuer',
-        'year',
+        'granted_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'granted_at' => 'date',
+        ];
+    }
 
     public function teacher(): BelongsTo
     {

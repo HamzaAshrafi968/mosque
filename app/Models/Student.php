@@ -159,6 +159,18 @@ class Student extends Model
         return $this->hasMany(QuranCompletion::class);
     }
 
+    /** الأجزاء المحفوظة (تفتح خمسات «مراجعة 5»). */
+    public function juzMemorizations(): HasMany
+    {
+        return $this->hasMany(StudentJuzMemorization::class);
+    }
+
+    /** مراجعات الخمسات المسندة للطالب. */
+    public function quranKhamsaReviews(): HasMany
+    {
+        return $this->hasMany(QuranKhamsaReview::class);
+    }
+
     /** Hafiz extension profile (exists once the completion is confirmed). */
     public function hafizProfile(): HasOne
     {

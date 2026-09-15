@@ -10,6 +10,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Classroom;
 use App\Models\Section;
+use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AttendanceMetricService;
 use App\Services\AuditLogger;
@@ -61,6 +62,43 @@ class AttendanceController extends Controller
             'teacherRows' => $teacherRows,
             'date' => $date,
             'type' => $type,
+        ]);
+    }
+
+    /** Per-student summary: attendance, absence and lateness for a date range. */
+    public function summary(Request $request, AttendanceMetricService $metrics): View
+    {
+        $from = $request->input('from', now()->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->toDateString());
+
+        $students = Student::query()
+            ->with(['classroom:id,name', 'section:id,name,classroom_id'])
+            ->active()
+            ->when($request->filled('section_id'), fn ($q) => $q->where('section_id', $request->input('section_id')))
+            ->orderBy('name')
+            ->get();
+
+        $rows = $metrics->studentStats($students, $from, $to)->values();
+
+        $totals = [
+            'present' => $rows->sum(fn (array $row) => $row['present']),
+            'absent' => $rows->sum(fn (array $row) => $row['absent']),
+            'late' => $rows->sum(fn (array $row) => $row['late']),
+            'excused' => $rows->sum(fn (array $row) => $row['excused']),
+            'total' => $rows->sum(fn (array $row) => $row['total']),
+            'attended' => $rows->sum(fn (array $row) => $row['attended']),
+        ];
+
+        $totals['percentage'] = $totals['total'] > 0
+            ? round(($totals['attended'] / $totals['total']) * 100, 1)
+            : null;
+
+        return view('admin.attendance.summary', [
+            'classrooms' => Classroom::with('sections:id,classroom_id,name')->orderBy('name')->get(),
+            'rows' => $rows,
+            'from' => $from,
+            'to' => $to,
+            'totals' => $totals,
         ]);
     }
 

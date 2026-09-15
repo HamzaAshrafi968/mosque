@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ParentStudentRelationship;
 use App\Http\Controllers\Concerns\HandlesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
+use App\Models\Guardian;
+use App\Models\ParentStudent;
 use App\Models\QuranSurah;
 use App\Models\Section;
 use App\Models\Student;
@@ -15,6 +18,7 @@ use App\Services\AuditLogger;
 use App\Services\CustomFieldService;
 use App\Services\EnrollmentService;
 use App\Services\FinanceService;
+use App\Services\QuranKhamsaService;
 use App\Support\QuranMemorizationRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,12 +37,13 @@ class StudentController extends Controller
         private readonly AttendanceMetricService $attendanceMetrics,
         private readonly FinanceService $finance,
         private readonly AuditLogger $audit,
+        private readonly QuranKhamsaService $khamsa,
     ) {}
 
     public function index(Request $request): View
     {
         $students = Student::query()
-            ->with(['classroom:id,name', 'section:id,name', 'studySession:id,name'])
+            ->with(['classroom:id,name', 'section:id,name', 'studySession:id,name', 'guardians:id,name,phone'])
             ->search($request->string('q')->toString())
             ->when($request->filled('classroom_id'), fn ($q) => $q->where('classroom_id', $request->input('classroom_id')))
             ->when($request->filled('gender'), fn ($q) => $q->where('gender', $request->input('gender')))
@@ -59,7 +64,7 @@ class StudentController extends Controller
             'classrooms' => $this->classroomsTree(),
             'customFields' => $this->customFields->definitions(Student::CUSTOM_FIELD_ENTITY),
             'sessions' => StudySession::orderBy('name')->get(),
-            'surahs' => $this->surahs(),
+            'guardians' => $this->guardiansForPicker(),
         ]);
     }
 
@@ -71,7 +76,7 @@ class StudentController extends Controller
 
         $data = $this->applyAvatar($data, $request);
 
-        $student = Student::create(collect($data)->except(['custom_fields', 'portal_email', 'portal_password'])->all());
+        $student = Student::create(collect($data)->except(['custom_fields', 'portal_email', 'portal_password', 'guardian_ids', 'memorized_juz_numbers', 'memorized_juz_numbers_present'])->all());
 
         DB::transaction(function () use ($student, $customFieldPayload) {
             $this->customFields->save(Student::CUSTOM_FIELD_ENTITY, $student->id, $customFieldPayload);
@@ -89,7 +94,9 @@ class StudentController extends Controller
             $student->user()->update(['photo' => $data['photo']]);
         }
 
+        $this->syncGuardians($student, $data['guardian_ids'] ?? []);
         $this->enrollment->syncPlacement($student, $data['section_id'] ?? null);
+        $this->syncMemorizedJuz($request, $student, $data);
         $this->audit->logModel('student.created', $student, actor: $request->user());
 
         return redirect()->route('admin.students.index')->with('success', 'تمت إضافة الطالب بنجاح');
@@ -101,6 +108,7 @@ class StudentController extends Controller
             'classroom:id,name',
             'section:id,name',
             'studySession:id,name',
+            'guardians:id,name,phone',
             'memorizedFromSurah:id,name_arabic',
             'memorizedToSurah:id,name_arabic',
             'grades' => fn ($q) => $q->with('exam:id,title,exam_date,total_marks,subject_id', 'exam.subject:id,name')->latest(),
@@ -138,6 +146,7 @@ class StudentController extends Controller
             'customValues' => $values,
             'sessions' => StudySession::orderBy('name')->get(),
             'surahs' => $this->surahs(),
+            'memorizedJuz' => $this->khamsa->memorizedJuzNumbers($student),
         ]);
     }
 
@@ -151,7 +160,7 @@ class StudentController extends Controller
 
         $data = $this->applyAvatar($data, $request, $student->photo);
 
-        $student->update(collect($data)->except(['custom_fields', 'section_id', 'portal_email', 'portal_password'])->all());
+        $student->update(collect($data)->except(['custom_fields', 'section_id', 'portal_email', 'portal_password', 'guardian_ids', 'memorized_juz_numbers', 'memorized_juz_numbers_present'])->all());
 
         if ($student->user_id && array_key_exists('photo', $data)) {
             $student->user()->update(['photo' => $data['photo']]);
@@ -173,6 +182,7 @@ class StudentController extends Controller
             $this->enrollment->syncPlacement($student, null);
         }
 
+        $this->syncMemorizedJuz($request, $student, $data, $before);
         $this->audit->logModel('student.updated', $student, $before, actor: $request->user());
 
         return redirect()->route('admin.students.show', $student)->with('success', 'تم تحديث بيانات الطالب');
@@ -239,6 +249,34 @@ class StudentController extends Controller
         return QuranSurah::orderBy('sort_order')->get(['id', 'name_arabic', 'num_ayahs']);
     }
 
+    private function guardiansForPicker()
+    {
+        return Guardian::query()
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name', 'phone']);
+    }
+
+    /** Link the new student to the selected existing guardians (optional, create-only). */
+    private function syncGuardians(Student $student, array $guardianIds): void
+    {
+        if ($guardianIds === []) {
+            return;
+        }
+
+        $validIds = Guardian::query()->whereIn('id', $guardianIds)->pluck('id')->all();
+        $primary = true;
+
+        foreach (array_intersect($guardianIds, $validIds) as $guardianId) {
+            ParentStudent::updateOrCreate(
+                ['tenant_id' => $student->tenant_id, 'parent_id' => $guardianId, 'student_id' => $student->id],
+                ['relationship' => ParentStudentRelationship::Guardian, 'is_primary' => $primary],
+            );
+
+            $primary = false;
+        }
+    }
+
     private function validated(Request $request): array
     {
         $tenantId = config('app.current_tenant_id');
@@ -252,11 +290,36 @@ class StudentController extends Controller
             'section_id' => ['nullable', 'uuid', Rule::exists('sections', 'id')->where('tenant_id', $tenantId)],
             'guardian_name' => ['nullable', 'string', 'max:255'],
             'guardian_phone' => ['nullable', 'string', 'max:30'],
+            'guardian_ids' => ['nullable', 'array'],
+            'guardian_ids.*' => ['uuid', Rule::exists('parents', 'id')->where('tenant_id', $tenantId)],
             'notes' => ['nullable', 'string'],
             'portal_email' => ['nullable', 'email', 'max:255'],
             'portal_password' => ['nullable', 'string', 'min:6', 'max:255'],
             'custom_fields' => ['nullable', 'array'],
+            'memorized_juz_numbers' => ['nullable', 'array'],
+            'memorized_juz_numbers.*' => ['integer', 'min:1', 'max:30'],
+            'memorized_juz_numbers_present' => ['nullable', 'boolean'],
         ], QuranMemorizationRules::rules($request), $this->profilePhotoRules()));
+    }
+
+    /**
+     * مزامنة الأجزاء المحفوظة: عند إرسال شبكة الأجزاء من نموذج الطالب تكون
+     * هي جهة الحقيقة، وإلا تُعبّأ تلقائياً من مقدار الحفظ (memorized_juz).
+     */
+    private function syncMemorizedJuz(Request $request, Student $student, array $data, array $before = []): void
+    {
+        $submitted = $request->boolean('memorized_juz_numbers_present')
+            || array_key_exists('memorized_juz_numbers', $data);
+
+        if ($submitted) {
+            $this->khamsa->syncMemorizedJuz($student, $data['memorized_juz_numbers'] ?? [], $request->user());
+
+            return;
+        }
+
+        if ((float) ($data['memorized_juz'] ?? 0) !== (float) ($before['memorized_juz'] ?? 0)) {
+            $this->khamsa->syncIntakeMemorization($student, $request->user());
+        }
     }
 
     /** Merge the resolved avatar (new file / removal) into the payload. */

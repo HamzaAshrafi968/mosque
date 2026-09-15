@@ -108,6 +108,7 @@ class DashboardService
         return Cache::remember(self::key($tenantId, 'latest_announcements'), self::TTL, function () use ($limit) {
             return Announcement::query()
                 ->with('author:id,name')
+                ->notExpired()
                 ->latest('published_at')
                 ->limit($limit)
                 ->get();

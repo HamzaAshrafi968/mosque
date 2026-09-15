@@ -14,6 +14,16 @@
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
         </div>
         <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">الدوام</label>
+            <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">كل الدوامات (صف مشترك)</option>
+                @foreach($sessions as $session)
+                    <option value="{{ $session->id }}" @selected(old('study_session_id', $classroom?->study_session_id ?? config('app.current_study_session_id')) == $session->id)>{{ $session->name }}</option>
+                @endforeach
+            </select>
+            <p class="text-xs text-gray-400 mt-1">عند ربط الصف بدوام تتبع شعبه دوامه، وتنتقل شعبه وطلابه وجداوله معه عند التغيير.</p>
+        </div>
+        <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
             <textarea name="description" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">{{ old('description', $classroom?->description) }}</textarea>
         </div>

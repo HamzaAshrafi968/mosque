@@ -468,7 +468,7 @@ class QuranProgramsTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'hafiz_exam.graded']);
     }
 
-    public function test_failed_exam_requires_and_tracks_repetition_portions(): void
+    public function test_failed_exam_tracks_repetition_portions(): void
     {
         [$mosque, $admin] = $this->mosque();
         [, $teacher] = $this->makeTeacher($mosque->id);
@@ -477,24 +477,21 @@ class QuranProgramsTest extends TestCase
         $month = QuranProgramSettings::monthOf(now());
         $exam = HafizMonthlyExam::where('student_id', $student->id)->where('month', $month)->firstOrFail();
 
-        // Fail without portions → rejected with an error.
+        // Fail without portions → recorded (portions are added later from the exam page).
         $this->actingAs($admin)->post(route('admin.quran.exams.grade', $exam), [
             'grade' => 55,
             'supervisor_id' => $teacher->id,
-        ])->assertSessionHasErrors('grade');
-
-        // Fail + portion row → failed + revision recorded.
-        $this->actingAs($admin)->post(route('admin.quran.exams.grade', $exam), [
-            'grade' => 55,
-            'supervisor_id' => $teacher->id,
-            'revisions' => [[
-                'juz' => 7,
-                'amount' => 1,
-                'notes' => 'إعادة جزء 7',
-            ]],
         ])->assertRedirect();
 
         $this->assertDatabaseHas('hafiz_monthly_exams', ['id' => $exam->id, 'exam_status' => 'failed', 'grade' => 55.0]);
+
+        // Portion row added from the exam page → revision recorded.
+        $this->actingAs($admin)->post(route('admin.quran.exams.revisions.store', $exam), [
+            'juz' => 7,
+            'amount' => 1,
+            'notes' => 'إعادة جزء 7',
+        ])->assertRedirect();
+
         $this->assertDatabaseHas('hafiz_exam_revisions', ['juz' => 7, 'status' => 'pending']);
         $this->assertDatabaseHas('audit_logs', ['action' => 'hafiz_exam.revision_recorded']);
 
@@ -703,8 +700,24 @@ class QuranProgramsTest extends TestCase
             'amount' => 2,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
-        // Qualifying weekly evaluation (hafiz is enrolled automatically).
+        // Monthly hafiz exam graded with a supervisor from the entered mosque.
         $hafiz = $this->makeHafiz($mosque->id, $superAdmin);
+        $exam = HafizMonthlyExam::where('student_id', $hafiz->id)
+            ->where('month', QuranProgramSettings::monthOf(now()))
+            ->firstOrFail();
+
+        $this->post(route('admin.quran.exams.grade', $exam), [
+            'grade' => 90,
+            'supervisor_id' => $teacher->id,
+            'exam_date' => now()->toDateString(),
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('hafiz_monthly_exams', [
+            'id' => $exam->id,
+            'supervisor_id' => $teacher->id,
+        ]);
+
+        // Qualifying weekly evaluation (hafiz is enrolled automatically).
         $this->post(route('admin.quran.qualifying.evaluations.store'), [
             'student_id' => $hafiz->id,
             'week_start' => now()->startOfWeek()->toDateString(),

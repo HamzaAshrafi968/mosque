@@ -42,8 +42,30 @@
                 {{ $student->status === 'active' ? 'نشط' : 'مؤرشف' }}
             </span>
         </div>
-        <div><span class="text-sm text-gray-500">ولي الأمر:</span> <span class="font-bold mr-2">{{ $student->guardian_name ?? '—' }}</span></div>
-        <div><span class="text-sm text-gray-500">هاتف ولي الأمر:</span> <span class="font-bold mr-2">{{ $student->guardian_phone ?? '—' }}</span></div>
+        <div class="sm:col-span-2">
+            <span class="text-sm text-gray-500">أولياء الأمور:</span>
+            @if($student->guardians->isNotEmpty())
+                <div class="mt-1 flex flex-wrap gap-2">
+                    @foreach($student->guardians as $guardian)
+                        <span class="inline-flex items-center gap-2 bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">
+                            {{ $guardian->name }}
+                            @if($guardian->phone)
+                                <span dir="ltr" class="font-medium text-emerald-600">{{ $guardian->phone }}</span>
+                            @endif
+                        </span>
+                    @endforeach
+                </div>
+            @elseif($student->guardian_name || $student->guardian_phone)
+                <span class="font-bold mr-2">
+                    {{ $student->guardian_name ?? '—' }}
+                    @if($student->guardian_phone)
+                        <span dir="ltr" class="text-gray-500 font-medium"> {{ $student->guardian_phone }}</span>
+                    @endif
+                </span>
+            @else
+                <span class="font-bold mr-2 text-gray-400">—</span>
+            @endif
+        </div>
         @if($student->notes)
             <div class="col-span-2"><span class="text-sm text-gray-500">ملاحظات:</span> <span class="font-bold mr-2">{{ $student->notes }}</span></div>
         @endif

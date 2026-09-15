@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\QuranJuzMap;
+
 /**
  * Generates database/data/quran_pages.json — the Madani mushaf page layout (604 pages).
  *
@@ -9,6 +11,8 @@
  *
  * Run manually: php database/fetch-quran-pages.php
  */
+require_once __DIR__.'/../vendor/autoload.php';
+
 $url = 'https://api.alquran.cloud/v1/meta';
 
 $json = @file_get_contents($url);
@@ -18,7 +22,7 @@ if ($json === false) {
 }
 
 $meta = json_decode($json, true);
-if (! isset($meta['data']['pages']['references'], $meta['data']['surahs']['references'], $meta['data']['juzs']['references'])) {
+if (! isset($meta['data']['pages']['references'], $meta['data']['surahs']['references'])) {
     fwrite(STDERR, "استجابة غير متوقعة من المصدر\n");
     exit(1);
 }
@@ -30,18 +34,6 @@ foreach ($meta['data']['surahs']['references'] as $surah) {
 }
 
 $pageCount = count($pageRefs);
-$juzRefs = $meta['data']['juzs']['references'];
-
-$juzStartPages = [];
-foreach ($juzRefs as $index => $ref) {
-    $juzStartPages[$index + 1] = null;
-    foreach ($pageRefs as $pageIndex => $pageRef) {
-        if ((int) $pageRef['surah'] === (int) $ref['surah'] && (int) $pageRef['ayah'] === (int) $ref['ayah']) {
-            $juzStartPages[$index + 1] = $pageIndex + 1;
-            break;
-        }
-    }
-}
 
 $pages = [];
 for ($i = 0; $i < $pageCount; $i++) {
@@ -59,18 +51,11 @@ for ($i = 0; $i < $pageCount; $i++) {
         $end = ['surah' => 114, 'ayah' => $surahAyahs[114]];
     }
 
-    $juz = 1;
-    foreach ($juzStartPages as $juzNumber => $startPage) {
-        if ($startPage !== null && $startPage <= $i + 1) {
-            $juz = $juzNumber;
-        }
-    }
-
     $pages[] = [
         'page' => $i + 1,
         'start' => $start['surah'].':'.$start['ayah'],
         'end' => $end['surah'].':'.$end['ayah'],
-        'juz' => $juz,
+        'juz' => QuranJuzMap::juzForPage($i + 1),
     ];
 }
 

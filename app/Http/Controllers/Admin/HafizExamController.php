@@ -78,15 +78,6 @@ class HafizExamController extends Controller
     {
         $data = $this->gradingValidated($request);
 
-        $computedFailed = (float) $data['grade'] < QuranProgramSettings::HAFIZ_EXAM_PASS_MARK;
-
-        if ($computedFailed && $exam->revisions()->where('status', '!=', 'approved')->count() === 0
-            && ! $this->hasRevisionPayload($request)) {
-            throw ValidationException::withMessages([
-                'grade' => ['نتيجة راسبة تتطلب تحديد الأجزاء المطلوب إعادتها (سجل التسميع المرتجع أدناه)'],
-            ]);
-        }
-
         $this->programs->gradeMonthlyExam($exam, $data, $request->user());
 
         $this->storeRevisions($exam, $request, $request->user());
@@ -186,20 +177,9 @@ class HafizExamController extends Controller
         }
     }
 
-    private function hasRevisionPayload(Request $request): bool
-    {
-        foreach ($request->input('revisions', []) as $row) {
-            if (($row['juz'] ?? null) || ($row['from_surah'] ?? null) || ($row['to_surah'] ?? null) || ($row['amount'] ?? null)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private function gradingValidated(Request $request): array
     {
-        $tenantId = $request->user()->tenant_id;
+        $tenantId = config('app.current_tenant_id') ?? $request->user()->tenant_id;
 
         return $request->validate([
             'grade' => ['required', 'numeric', 'min:0', 'max:100'],

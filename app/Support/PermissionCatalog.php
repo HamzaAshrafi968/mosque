@@ -135,6 +135,12 @@ final class PermissionCatalog
         // Quran listening with the teacher (الاستماع مع المعلم)
         ['quran_review', 'view', 'مشاهدة الاستماع مع المعلم'],
         ['quran_review', 'create', 'تسجيل الاستماع مع المعلم'],
+        // «مراجعة 5» — الخمسات (5 صفحات لكل خمسة، 4 خمسات في الجزء)
+        ['quran_khamsa', 'view', 'مشاهدة مراجعة 5 (الخمسات)'],
+        ['quran_khamsa', 'create', 'تخصيص مراجعة 5'],
+        ['quran_khamsa', 'update', 'تعديل/إلغاء مراجعة 5'],
+        ['quran_khamsa', 'complete', 'إنهاء خمسة في مراجعة 5'],
+        ['quran', 'memorization.manage', 'إدارة الأجزاء المحفوظة'],
         // Reward points (نقاط المكافآت)
         ['reward_points', 'view', 'مشاهدة نقاط المكافآت'],
         ['reward_points', 'create', 'منح نقاط مكافأة'],
@@ -195,6 +201,8 @@ final class PermissionCatalog
         'quran.tasmee.view' => 'mosque', 'quran.tasmee.create' => 'mosque', 'quran.tasmee.update' => 'mosque',
         'quran.completion.view' => 'mosque', 'quran.completion.confirm' => 'mosque',
         'quran_review.view' => 'mosque', 'quran_review.create' => 'mosque',
+        'quran_khamsa.view' => 'mosque', 'quran_khamsa.create' => 'mosque', 'quran_khamsa.update' => 'mosque', 'quran_khamsa.complete' => 'mosque',
+        'quran.memorization.manage' => 'mosque',
         'reward_points.view' => 'mosque', 'reward_points.create' => 'mosque', 'reward_points.delete' => 'mosque',
         'qualifying.view' => 'mosque', 'qualifying.create' => 'mosque', 'qualifying.update' => 'mosque', 'qualifying.complete' => 'mosque',
         'ijazah.view' => 'mosque', 'ijazah.create' => 'mosque', 'ijazah.update' => 'mosque', 'ijazah.complete' => 'mosque',
@@ -225,6 +233,8 @@ final class PermissionCatalog
         'quran.tasmee.view' => 'own', 'quran.tasmee.create' => 'own', 'quran.tasmee.update' => 'own',
         'quran.completion.view' => 'own',
         'quran_review.view' => 'own', 'quran_review.create' => 'own',
+        'quran_khamsa.view' => 'own', 'quran_khamsa.create' => 'own', 'quran_khamsa.update' => 'own', 'quran_khamsa.complete' => 'own',
+        'quran.memorization.manage' => 'own',
         'reward_points.view' => 'own', 'reward_points.create' => 'own', 'reward_points.delete' => 'own',
         'qualifying.view' => 'own', 'qualifying.create' => 'own', 'qualifying.update' => 'own',
         'ijazah.view' => 'own', 'ijazah.create' => 'own', 'ijazah.update' => 'own',
@@ -331,6 +341,7 @@ final class PermissionCatalog
             'finance' => 'العمليات المالية',
             'quran' => 'القرآن (تسميع وإتمام)',
             'quran_review' => 'الاستماع مع المعلم',
+            'quran_khamsa' => 'مراجعة 5 (الخمسات)',
             'reward_points' => 'نقاط المكافآت',
             'qualifying' => 'البرنامج التأهيلي',
             'ijazah' => 'برنامج الإجازة',

@@ -12,7 +12,12 @@
                 <h3 class="font-bold text-gray-800">{{ $announcement->title }}</h3>
                 <span class="text-xs text-gray-400">{{ $announcement->published_at->format('Y-m-d H:i') }}</span>
             </div>
-            <p class="text-sm text-gray-600 whitespace-pre-wrap">{{ $announcement->body }}</p>
+            @if(filled($announcement->body))
+                <p class="text-sm text-gray-600 whitespace-pre-wrap">{{ $announcement->body }}</p>
+            @endif
+            @if($announcement->hasAudio())
+                <audio controls preload="none" src="{{ $announcement->audioUrl() }}" class="w-full mt-3"></audio>
+            @endif
             @if($announcement->author)
                 <div class="text-xs text-gray-400 mt-2">بواسطة: {{ $announcement->author->name }}</div>
             @endif

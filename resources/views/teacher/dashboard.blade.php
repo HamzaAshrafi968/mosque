@@ -98,6 +98,7 @@
         </h2>
         <div class="flex items-center gap-2">
             <span class="text-[11px] font-black text-emerald-700 bg-emerald-50 rounded-full px-3 py-1.5">الإجمالي الأسبوعي: {{ $weeklyWorkHours }} ساعة</span>
+            <span class="text-[11px] font-black text-pine-800 bg-pine-50 rounded-full px-3 py-1.5">إجمالي {{ \App\Support\QuranProgramSettings::monthLabel(now()->format('Y-m')) }}: {{ $monthlyWorkHours }} ساعة</span>
             <a href="{{ route('teacher.work-hours.index') }}" class="text-[11px] font-bold text-pine-700 hover:underline">التفاصيل ←</a>
         </div>
     </div>
@@ -136,7 +137,12 @@
                         <h3 class="font-black text-pine-950">{{ $announcement->title }}</h3>
                         <span class="text-[11px] font-bold text-gray-400 bg-gray-50 rounded-full px-2.5 py-1">{{ $announcement->published_at?->translatedFormat('d M Y') }}</span>
                     </div>
-                    <p class="text-gray-500 text-sm font-medium mt-1.5 leading-relaxed">{{ $announcement->body }}</p>
+                    @if(filled($announcement->body))
+                        <p class="text-gray-500 text-sm font-medium mt-1.5 leading-relaxed">{{ $announcement->body }}</p>
+                    @endif
+                    @if($announcement->hasAudio())
+                        <audio controls preload="none" src="{{ $announcement->audioUrl() }}" class="w-full mt-2"></audio>
+                    @endif
                 </div>
             @endforeach
         </div>

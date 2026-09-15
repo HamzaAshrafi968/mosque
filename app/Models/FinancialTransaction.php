@@ -10,6 +10,7 @@ use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Ledger entry (source of truth) — balances are never stored, always derived.
@@ -65,6 +66,12 @@ class FinancialTransaction extends Model
     public function reverses(): BelongsTo
     {
         return $this->belongsTo(self::class, 'reverses_id');
+    }
+
+    /** Reversal row that cancels this transaction (when it was corrected). */
+    public function reversal(): HasOne
+    {
+        return $this->hasOne(self::class, 'reverses_id');
     }
 
     /** The person this ledger entry belongs to (Student|Teacher|null). */

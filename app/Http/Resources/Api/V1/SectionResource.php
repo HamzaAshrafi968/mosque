@@ -12,6 +12,11 @@ class SectionResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'classroom_id' => $this->classroom_id,
+            'study_session_id' => $this->study_session_id,
+            'study_session' => $this->whenLoaded('studySession', fn () => $this->studySession ? [
+                'id' => $this->studySession->id,
+                'name' => $this->studySession->name,
+            ] : null),
         ];
     }
 }

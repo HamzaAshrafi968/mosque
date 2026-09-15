@@ -22,9 +22,18 @@ trait StudySessionScopedTrait
             $sessionId = config('app.current_study_session_id');
 
             if ($sessionId !== null) {
-                $builder->where($builder->getModel()->getTable().'.study_session_id', $sessionId);
+                $builder->getModel()->applyStudySessionScope($builder, $sessionId);
             }
         });
+    }
+
+    /**
+     * Default filter: the model's own study_session_id column. Models that can
+     * belong to several sessions at once (e.g. Teacher) override this.
+     */
+    public function applyStudySessionScope(Builder $builder, string $sessionId): void
+    {
+        $builder->where($this->getTable().'.study_session_id', $sessionId);
     }
 
     public function studySession(): BelongsTo

@@ -13,6 +13,7 @@ use App\Models\Teacher;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AttendanceMetricService;
+use App\Services\RoleService;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -231,5 +232,76 @@ class AttendanceSessionsTest extends TestCase
         $row = $grid['rows'][0];
         $this->assertSame('late', $row['cells'][$grid['sessions'][1]->id]->value);
         $this->assertSame(100.0, $row['stats']['percentage']);
+    }
+
+    public function test_mosque_manager_summary_shows_present_absent_and_late_counts(): void
+    {
+        [$tenant, , $section, $student] = $this->teacherWithSection();
+        $admin = User::factory()->admin()->for($tenant)->create();
+
+        $this->mark($student, $section, 'present', '2026-08-01');
+        $this->mark($student, $section, 'late', '2026-08-02');
+        $this->mark($student, $section, 'absent', '2026-08-03');
+        $this->mark($student, $section, 'excused', '2026-08-04');
+
+        $response = $this->actingAs($admin)->get(route('admin.attendance.summary', [
+            'from' => '2026-08-01',
+            'to' => '2026-08-31',
+        ]));
+
+        $response->assertOk()
+            ->assertSee($student->name)
+            ->assertSee('حاضر')
+            ->assertSee('غائب')
+            ->assertSee('متأخر');
+
+        // (present + late) / (present + late + absent) = 2/3 = 66.7
+        $response->assertSee('66.7%');
+
+        // The sidebar points the manager at the new students summary page.
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('الحضور والغياب والتأخير')
+            ->assertSee(route('admin.attendance.summary'));
+    }
+
+    public function test_super_admin_can_enter_mosque_and_open_attendance_summary(): void
+    {
+        [$tenant, , $section, $student] = $this->teacherWithSection();
+
+        $roles = app(RoleService::class);
+        $roles->ensureGlobalSuperAdminRole();
+
+        $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => 'super_admin']);
+        $roles->assignRole($superAdmin, RoleService::ROLE_SUPER_ADMIN);
+
+        $this->mark($student, $section, 'absent', '2026-08-01');
+
+        $this->actingAs($superAdmin)
+            ->post(route('super-admin.mosques.enter', $tenant), ['to' => 'attendance'])
+            ->assertRedirect(route('admin.attendance.summary'));
+
+        $this->get(route('admin.attendance.summary'))
+            ->assertOk()
+            ->assertSee($student->name)
+            ->assertSee('غائب');
+    }
+
+    private function mark(Student $student, Section $section, string $status, string $date): void
+    {
+        $session = AttendanceSession::create([
+            'tenant_id' => $student->tenant_id,
+            'section_id' => $section->id,
+            'date' => $date,
+            'status' => 'completed',
+        ]);
+
+        AttendanceRecord::create([
+            'tenant_id' => $student->tenant_id,
+            'attendance_session_id' => $session->id,
+            'student_id' => $student->id,
+            'status' => $status,
+        ]);
     }
 }

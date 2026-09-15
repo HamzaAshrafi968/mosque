@@ -14,6 +14,7 @@ use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Models\TeacherCertificate;
 use App\Models\TeacherRating;
+use App\Models\TeacherWorkHour;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\CustomFieldService;
@@ -36,7 +37,7 @@ class TeacherController extends Controller
     public function index(Request $request): View
     {
         $teachers = Teacher::query()
-            ->with('studySession:id,name')
+            ->with(['studySession:id,name', 'studySessions:id,name'])
             ->withCount('subjects')
             ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.$request->input('q').'%'))
             ->when($request->filled('gender'), fn ($q) => $q->where('gender', $request->input('gender')))
@@ -59,6 +60,7 @@ class TeacherController extends Controller
     {
         $teacher->load([
             'subjects:id,name',
+            'studySessions:id,name',
             'ratings' => fn ($q) => $q->with('user:id,name')->latest(),
             'certificates' => fn ($q) => $q->latest(),
             'assignedSections.classroom:id,name',
@@ -84,6 +86,7 @@ class TeacherController extends Controller
             'customValues' => $this->customFields->displayedValues(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id),
             'assignedSections' => $teacher->assignedSections()->with('classroom:id,name')->orderBy('name')->get(),
             'workHoursTotal' => round($teacher->workHours->sum(fn ($hour) => $hour->durationHours()), 2),
+            'monthlyWorkHoursTotal' => TeacherWorkHour::monthlyHours($teacher->id),
         ]);
     }
 
@@ -117,7 +120,7 @@ class TeacherController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'issuer' => ['nullable', 'string', 'max:255'],
-            'year' => ['nullable', 'string', 'max:10'],
+            'granted_at' => ['nullable', 'date'],
         ]);
 
         TeacherCertificate::create([...$data, 'teacher_id' => $teacher->id]);
@@ -140,9 +143,13 @@ class TeacherController extends Controller
         $customFields = $data['custom_fields'] ?? [];
         $this->customFields->validate(Teacher::CUSTOM_FIELD_ENTITY, $customFields);
 
+        $sessionIds = $this->sessionIds($data);
+        $data['study_session_id'] = $sessionIds[0] ?? null;
+        unset($data['study_session_ids']);
+
         $data = $this->applyAvatar($data, $request);
 
-        $teacher = DB::transaction(function () use ($data, $request, $customFields) {
+        $teacher = DB::transaction(function () use ($data, $request, $customFields, $sessionIds) {
             $userId = null;
 
             if ($request->filled('password')) {
@@ -162,6 +169,7 @@ class TeacherController extends Controller
             unset($data['password']);
 
             $teacher = Teacher::create([...Arr::except($data, ['custom_fields']), 'user_id' => $userId]);
+            $teacher->studySessions()->sync($sessionIds);
 
             $this->customFields->save(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id, $customFields);
 
@@ -175,6 +183,8 @@ class TeacherController extends Controller
 
     public function edit(Teacher $teacher): View
     {
+        $teacher->load('studySessions:id,name');
+
         return view('admin.teachers.edit', [
             'teacher' => $teacher,
             'customFields' => $this->customFields->definitions(Teacher::CUSTOM_FIELD_ENTITY),
@@ -189,12 +199,17 @@ class TeacherController extends Controller
         $customFields = $data['custom_fields'] ?? [];
         $this->customFields->validate(Teacher::CUSTOM_FIELD_ENTITY, $customFields);
 
+        $sessionIds = $this->sessionIds($data);
+        $data['study_session_id'] = $sessionIds[0] ?? null;
+        unset($data['study_session_ids']);
+
         $before = $teacher->getAttributes();
 
         $data = $this->applyAvatar($data, $request, $teacher->photo);
 
-        DB::transaction(function () use ($teacher, $data, $customFields) {
+        DB::transaction(function () use ($teacher, $data, $customFields, $sessionIds) {
             $teacher->update(Arr::except($data, ['password', 'custom_fields']));
+            $teacher->studySessions()->sync($sessionIds);
 
             if ($teacher->user_id && array_key_exists('photo', $data)) {
                 $teacher->user()->update(['photo' => $data['photo']]);
@@ -223,7 +238,8 @@ class TeacherController extends Controller
         return $request->validate(array_merge([
             'name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
-            'study_session_id' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', $tenantId)],
+            'study_session_ids' => ['nullable', 'array'],
+            'study_session_ids.*' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', $tenantId)],
             'email' => [
                 'nullable',
                 'email',
@@ -234,10 +250,17 @@ class TeacherController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'specialty' => ['nullable', 'string', 'max:255'],
             'hired_at' => ['nullable', 'date'],
+            'monthly_salary' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
             'password' => ['nullable', 'string', 'min:8'],
             'custom_fields' => ['nullable', 'array'],
         ], $this->profilePhotoRules()));
+    }
+
+    /** الدوامات المختارة بعد إسقاط القيم الفارغة (حقل مخفي عند عدم الاختيار). */
+    private function sessionIds(array $data): array
+    {
+        return array_values(array_unique(array_filter($data['study_session_ids'] ?? [])));
     }
 
     /** Merge the resolved avatar (new file / removal) into the payload. */

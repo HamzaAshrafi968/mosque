@@ -73,6 +73,20 @@ class StudentQuranRecordTest extends TestCase
             ->assertSee('من سورة البقرة (آية 1) إلى سورة الكهف (آية 20)');
     }
 
+    public function test_create_form_does_not_show_quran_range_fields(): void
+    {
+        $admin = $this->adminWithMosque();
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.create'))
+            ->assertOk()
+            ->assertSee('memorized_juz', false)
+            ->assertDontSee('memorized_from_surah_id', false)
+            ->assertDontSee('memorized_from_ayah', false)
+            ->assertDontSee('memorized_to_surah_id', false)
+            ->assertDontSee('memorized_to_ayah', false);
+    }
+
     public function test_admin_can_create_student_with_quran_record_via_api(): void
     {
         $admin = $this->adminWithMosque();

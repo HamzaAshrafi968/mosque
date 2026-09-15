@@ -218,7 +218,12 @@
                             {{ $announcement->author?->name }}@if($announcement->published_at) · {{ $announcement->published_at->translatedFormat('d M Y') }}@endif
                         </span>
                     </div>
-                    <p class="text-gray-500 text-sm font-medium mt-1.5 leading-relaxed">{{ $announcement->body }}</p>
+                    @if(filled($announcement->body))
+                        <p class="text-gray-500 text-sm font-medium mt-1.5 leading-relaxed">{{ $announcement->body }}</p>
+                    @endif
+                    @if($announcement->hasAudio())
+                        <audio controls preload="none" src="{{ $announcement->audioUrl() }}" class="w-full mt-2"></audio>
+                    @endif
                 </div>
             @endforeach
         </div>

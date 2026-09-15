@@ -49,10 +49,20 @@
                         <td class="px-4 py-3 border-t whitespace-nowrap">
                             <div class="flex items-center gap-3">
                                 <x-avatar :src="$teacher->avatarUrl()" :name="$teacher->name" size="sm" fallback-class="bg-gradient-to-br from-pine-500 to-pine-800" />
+                                @php
+                                    $shiftNames = $teacher->studySessions->pluck('name');
+                                    if ($shiftNames->isEmpty() && $teacher->studySession) {
+                                        $shiftNames = collect([$teacher->studySession->name]);
+                                    }
+                                @endphp
                                 <div class="font-bold">
                                     <a href="{{ route('admin.teachers.show', $teacher) }}" class="text-gray-800 hover:text-emerald-700 transition">{{ $teacher->name }}</a>
-                                    @if($teacher->studySession)
-                                        <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800">{{ $teacher->studySession->name }}</span></div>
+                                    @if($shiftNames->isNotEmpty())
+                                        <div class="flex flex-wrap gap-1 mt-1">
+                                            @foreach($shiftNames as $shiftName)
+                                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800">{{ $shiftName }}</span>
+                                            @endforeach
+                                        </div>
                                     @endif
                                 </div>
                             </div>

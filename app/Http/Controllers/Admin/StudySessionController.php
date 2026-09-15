@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Admin\Classroom\SyncClassroomShiftAction;
 use App\Http\Controllers\Controller;
+use App\Models\Classroom;
 use App\Models\Program;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Services\AuditLogger;
+use App\Services\EnrollmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,9 +19,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
- * إدارة الدوامات (الفترات الدراسية): كل دوام له طلابه وأساتذته وشعبه.
+ * إدارة الدوامات (الفترات الدراسية): كل دوام له طلابه وأساتذته وصفوفه وشعبه.
  * The manager switches the active session from the top header to filter the
- * whole admin panel (students / teachers / sections).
+ * whole admin panel (students / teachers / classrooms / sections).
  */
 class StudySessionController extends Controller
 {
@@ -32,6 +35,7 @@ class StudySessionController extends Controller
                 'students' => fn ($q) => $q->withoutGlobalScope('study_session'),
                 'teachers' => fn ($q) => $q->withoutGlobalScope('study_session'),
                 'sections' => fn ($q) => $q->withoutGlobalScope('study_session'),
+                'classrooms' => fn ($q) => $q->withoutGlobalScope('study_session'),
             ])
             ->orderBy('name')
             ->get();
@@ -48,6 +52,7 @@ class StudySessionController extends Controller
                 'students' => Student::query()->withoutGlobalScope('study_session')->whereNull('study_session_id')->count(),
                 'teachers' => Teacher::query()->withoutGlobalScope('study_session')->whereNull('study_session_id')->count(),
                 'sections' => Section::query()->withoutGlobalScope('study_session')->whereNull('study_session_id')->count(),
+                'classrooms' => Classroom::query()->withoutGlobalScope('study_session')->whereNull('study_session_id')->count(),
             ],
         ]);
     }
@@ -98,12 +103,11 @@ class StudySessionController extends Controller
 
     public function destroy(Request $request, StudySession $session): RedirectResponse
     {
-        $unscoped = fn ($q) => $q->withoutGlobalScope('study_session');
-
         if ($session->students()->withoutGlobalScope('study_session')->exists()
             || $session->teachers()->withoutGlobalScope('study_session')->exists()
-            || $session->sections()->withoutGlobalScope('study_session')->exists()) {
-            return back()->withErrors(['session' => 'لا يمكن حذف دوام عليه طلاب أو أساتذة أو شعب — انقلهم إلى دوام آخر أولاً']);
+            || $session->sections()->withoutGlobalScope('study_session')->exists()
+            || $session->classrooms()->withoutGlobalScope('study_session')->exists()) {
+            return back()->withErrors(['session' => 'لا يمكن حذف دوام عليه طلاب أو أساتذة أو شعب أو صفوف — انقلهم إلى دوام آخر أولاً']);
         }
 
         $this->audit->logModel('session.deleted', $session, actor: $request->user());
@@ -138,31 +142,85 @@ class StudySessionController extends Controller
     /**
      * Quick-fix tool: move every unassigned record of one kind into a session.
      */
-    public function assignUnassigned(Request $request): RedirectResponse
-    {
+    public function assignUnassigned(
+        Request $request,
+        SyncClassroomShiftAction $syncClassroomShift,
+        EnrollmentService $enrollment,
+    ): RedirectResponse {
         $data = $request->validate([
-            'type' => ['required', 'in:students,teachers,sections'],
+            'type' => ['required', 'in:students,teachers,sections,classrooms'],
             'study_session_id' => ['required', Rule::exists('study_sessions', 'id')->where('tenant_id', config('app.current_tenant_id'))],
         ]);
 
         $session = StudySession::find($data['study_session_id']);
 
-        $model = match ($data['type']) {
-            'students' => Student::class,
-            'teachers' => Teacher::class,
-            default => Section::class,
-        };
+        DB::transaction(function () use ($data, $session, $syncClassroomShift, $enrollment) {
+            // الصفوف تُنقل بكل ما يتبعها (شعب/طلاب/جداول) عبر الإجراء الموحّد.
+            if ($data['type'] === 'classrooms') {
+                Classroom::query()
+                    ->withoutGlobalScope('study_session')
+                    ->whereNull('study_session_id')
+                    ->get()
+                    ->each(fn (Classroom $classroom) => $syncClassroomShift->execute($classroom, $session->id));
 
-        DB::transaction(function () use ($model, $session) {
-            $model::query()
+                return;
+            }
+
+            $model = match ($data['type']) {
+                'students' => Student::class,
+                'teachers' => Teacher::class,
+                default => Section::class,
+            };
+
+            $ids = $model::query()
                 ->withoutGlobalScope('study_session')
                 ->whereNull('study_session_id')
+                ->pluck('id');
+
+            if ($ids->isEmpty()) {
+                return;
+            }
+
+            // الشعب تُحدَّث عبر الموديل حتى يُطبَّق شرط "شعبة الصف تتبع دوامه"،
+            // ثم يُزامَن دوام طلابها.
+            if ($data['type'] === 'sections') {
+                Section::query()
+                    ->withoutGlobalScope('study_session')
+                    ->whereIn('id', $ids)
+                    ->get()
+                    ->each(function (Section $section) use ($session, $enrollment) {
+                        $section->update(['study_session_id' => $session->id]);
+                        $enrollment->syncSectionShift($section);
+                    });
+
+                return;
+            }
+
+            $model::query()
+                ->withoutGlobalScope('study_session')
+                ->whereIn('id', $ids)
                 ->update(['study_session_id' => $session->id]);
+
+            // الأساتذة لهم جدول وسيط للدوامات المتعددة — يُحدَّث صراحةً لأن
+            // التحديث الجماعي لا يطلق أحداث الموديل.
+            if ($data['type'] === 'teachers') {
+                $now = now();
+
+                DB::table('study_session_teacher')->insertOrIgnore(
+                    $ids->map(fn ($id) => [
+                        'study_session_id' => $session->id,
+                        'teacher_id' => $id,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ])->all()
+                );
+            }
         });
 
         $label = match ($data['type']) {
             'students' => 'الطلاب',
             'teachers' => 'الأساتذة',
+            'classrooms' => 'الصفوف',
             default => 'الشعب',
         };
 

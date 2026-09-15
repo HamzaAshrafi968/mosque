@@ -32,8 +32,12 @@
 @if($section)
     <div class="mb-4 flex items-center justify-between">
         <h2 class="text-lg font-bold text-gray-800">جدول حضور {{ $section->name }} <span class="text-sm font-normal text-gray-500">من {{ $from }} إلى {{ $to }}</span></h2>
-        <a href="{{ route('admin.attendance.create', ['section_id' => $section->id]) }}"
-           class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">تسجيل جلسة جديدة</a>
+        <div class="flex gap-2 flex-wrap">
+            <a href="{{ route('admin.attendance.summary', ['from' => $from, 'to' => $to, 'section_id' => $section->id]) }}"
+               class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">ملخص الطلاب (حضور/غياب/تأخير)</a>
+            <a href="{{ route('admin.attendance.create', ['section_id' => $section->id]) }}"
+               class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">تسجيل جلسة جديدة</a>
+        </div>
     </div>
     <x-attendance-history-grid :sessions="$sessions" :rows="$rows" />
 @else

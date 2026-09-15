@@ -32,7 +32,12 @@
                             </span>
                         </div>
                     </div>
-                    <p class="text-sm text-gray-600 font-medium leading-relaxed mt-3 whitespace-pre-wrap">{{ $announcement->body }}</p>
+                    @if(filled($announcement->body))
+                        <p class="text-sm text-gray-600 font-medium leading-relaxed mt-3 whitespace-pre-wrap">{{ $announcement->body }}</p>
+                    @endif
+                    @if($announcement->hasAudio())
+                        <audio controls preload="none" src="{{ $announcement->audioUrl() }}" class="w-full mt-3"></audio>
+                    @endif
                     @if($announcement->author)
                         <div class="flex items-center gap-2.5 mt-4 pt-3 border-t border-dashed border-gray-100">
                             <x-avatar :src="$announcement->author->avatarUrl()" :name="$announcement->author->name" size="xs" fallback-class="bg-gradient-to-br from-gold-400 to-gold-700" />

@@ -185,6 +185,9 @@
     @case('camera')
         <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/>
         @break
+    @case('volume')
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        @break
     @case('rupee')
         <path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3a6 6 0 0 0 6-6"/>
         @break

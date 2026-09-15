@@ -92,24 +92,32 @@ class DatabaseSeeder extends Seeder
             'user_id' => $teacherUser->id,
             'name' => $teacherUser->name,
             'gender' => 'male',
+            'monthly_salary' => 1200,
             'study_session_id' => $firstSession->id,
         ]);
 
         Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $firstSession->id]);
         Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $secondSession->id]);
 
-        $classrooms = collect(['الصف الأول', 'الصف الثاني', 'الصف الثالث'])
-            ->map(fn ($name) => Classroom::create(['tenant_id' => $mosque1->id, 'name' => $name]));
+        // لكل دوام صفوفه الخاصة (الصفوف غير المرتبطة بدوام مشتركة بين الدوامات).
+        $classrooms = collect([
+            ['name' => 'الصف الأول', 'session' => $firstSession],
+            ['name' => 'الصف الثاني', 'session' => $firstSession],
+            ['name' => 'الصف الثالث', 'session' => $secondSession],
+            ['name' => 'الصف الرابع', 'session' => $secondSession],
+        ])->map(fn (array $row) => Classroom::create([
+            'tenant_id' => $mosque1->id,
+            'name' => $row['name'],
+            'study_session_id' => $row['session']->id,
+        ]));
 
-        $sessionFor = fn (string $sectionName) => $sectionName === 'أ' ? $firstSession->id : $secondSession->id;
-
-        $classrooms->each(function (Classroom $classroom) use ($mosque1, $sessionFor) {
+        $classrooms->each(function (Classroom $classroom) use ($mosque1) {
             foreach (['أ', 'ب'] as $sectionName) {
                 Section::create([
                     'tenant_id' => $mosque1->id,
                     'classroom_id' => $classroom->id,
                     'name' => $sectionName,
-                    'study_session_id' => $sessionFor($sectionName),
+                    'study_session_id' => $classroom->study_session_id,
                 ]);
             }
         });
@@ -510,18 +518,27 @@ class DatabaseSeeder extends Seeder
             'user_id' => $mosque2TeacherUser->id,
             'name' => $mosque2TeacherUser->name,
             'gender' => 'male',
+            'monthly_salary' => 1000,
             'study_session_id' => $firstSession2->id,
         ]);
 
-        $classrooms2 = collect(['الصف الأول', 'الصف الثاني'])
-            ->map(fn ($name) => Classroom::create(['tenant_id' => $mosque2->id, 'name' => $name]));
-
-        $sessionFor2 = fn (string $sectionName) => $sectionName === 'أ' ? $firstSession2->id : $secondSession2->id;
-
-        $sections2 = $classrooms2->flatMap(fn (Classroom $classroom) => collect([
-            Section::create(['tenant_id' => $mosque2->id, 'classroom_id' => $classroom->id, 'name' => 'أ', 'study_session_id' => $sessionFor2('أ')]),
-            Section::create(['tenant_id' => $mosque2->id, 'classroom_id' => $classroom->id, 'name' => 'ب', 'study_session_id' => $sessionFor2('ب')]),
+        $classrooms2 = collect([
+            ['name' => 'الصف الأول', 'session' => $firstSession2],
+            ['name' => 'الصف الثاني', 'session' => $secondSession2],
+        ])->map(fn (array $row) => Classroom::create([
+            'tenant_id' => $mosque2->id,
+            'name' => $row['name'],
+            'study_session_id' => $row['session']->id,
         ]));
+
+        $sections2 = $classrooms2->flatMap(fn (Classroom $classroom) => collect(['أ', 'ب'])->map(
+            fn (string $sectionName) => Section::create([
+                'tenant_id' => $mosque2->id,
+                'classroom_id' => $classroom->id,
+                'name' => $sectionName,
+                'study_session_id' => $classroom->study_session_id,
+            ])
+        ));
 
         Student::factory(25)->make(['tenant_id' => $mosque2->id])->each(function (Student $student) use ($sections2) {
             $section = $sections2->random();

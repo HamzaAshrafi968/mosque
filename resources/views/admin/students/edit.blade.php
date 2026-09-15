@@ -75,12 +75,28 @@
 
         <div class="border-t border-gray-100 pt-4">
             <h3 class="font-bold text-gray-800 mb-1">سجل الحفظ القرآني (اختياري)</h3>
-            <p class="text-xs text-gray-400 mb-3">ما حفظه الطالب من القرآن قبل الالتحاق وما وصل إليه.</p>
+            <p class="text-xs text-gray-400 mb-3">ما حفظه الطالب من القرآن قبل الالتحاق وما وصل إليه — تُفتح خمسات «مراجعة 5» للأجزاء المحددة فقط.</p>
+            <input type="hidden" name="memorized_juz_numbers_present" value="1">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">مقدار الحفظ (بالأجزاء)</label>
-                    <input type="number" name="memorized_juz" value="{{ old('memorized_juz', $student->memorized_juz !== null ? (float) $student->memorized_juz : null) }}" min="0" max="30" step="0.5"
+                    <input type="number" id="memorized_juz_input" name="memorized_juz" value="{{ old('memorized_juz', $student->memorized_juz !== null ? (float) $student->memorized_juz : null) }}" min="0" max="30" step="0.5"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">الأجزاء المحفوظة</label>
+                    <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
+                        @for($juz = 1; $juz <= 30; $juz++)
+                            <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-2 py-1.5 text-sm cursor-pointer">
+                                <input type="checkbox" name="memorized_juz_numbers[]" value="{{ $juz }}"
+                                       @checked(in_array($juz, array_map('intval', old('memorized_juz_numbers', $memorizedJuz ?? []))))
+                                       data-juz-checkbox="{{ $juz }}"
+                                       class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                                الجزء {{ $juz }}
+                            </label>
+                        @endfor
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">عند تغيير مقدار الحفظ تُحدَّد الأجزاء تلقائياً — يمكنك تعديل التحديد يدوياً.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">من سورة</label>
@@ -112,6 +128,7 @@
                 </div>
             </div>
         </div>
+        <x-memorized-juz-script />
 
         <div class="border-t border-gray-100 pt-4">
             <h3 class="font-bold text-gray-800 mb-1">حساب بوابة الطالب</h3>

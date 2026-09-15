@@ -21,6 +21,7 @@ class TeacherFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'specialty' => fake()->randomElement(['قرآن كريم', 'تجويد', 'فقه', 'حديث', 'سيرة']),
             'hired_at' => fake()->dateTimeBetween('-3 years'),
+            'monthly_salary' => fake()->randomElement([600, 800, 1000, 1200, 1500]),
             'is_active' => true,
         ];
     }

@@ -55,7 +55,8 @@ class MosqueUserController extends Controller
             'gender' => ['required', 'in:male,female'],
             'phone' => ['nullable', 'string', 'max:30'],
             'specialty' => ['nullable', 'string', 'max:255'],
-            'study_session_id' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', $mosque->id)],
+            'study_session_ids' => ['nullable', 'array'],
+            'study_session_ids.*' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', $mosque->id)],
         ], $this->profilePhotoRules()));
 
         $data['photo'] = $this->resolveProfilePhoto($request)['photo'] ?? null;
@@ -118,7 +119,8 @@ class MosqueUserController extends Controller
             'gender' => ['required', 'in:male,female'],
             'phone' => ['nullable', 'string', 'max:30'],
             'specialty' => ['nullable', 'string', 'max:255'],
-            'study_session_id' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', $mosque->id)],
+            'study_session_ids' => ['nullable', 'array'],
+            'study_session_ids.*' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', $mosque->id)],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['nullable', 'in:inherit,deny,mosque,class,section,own'],
         ], $this->profilePhotoRules()));
@@ -331,7 +333,9 @@ class MosqueUserController extends Controller
      */
     private function syncTeacherProfile(Tenant $mosque, User $user, array $data, array $photo): void
     {
-        $teacher = Teacher::withoutGlobalScope('tenant')->where('user_id', $user->id)->first();
+        $teacher = Teacher::withoutGlobalScopes(['tenant', 'study_session'])
+            ->where('user_id', $user->id)
+            ->first();
 
         $payload = [
             'name' => $user->name,
@@ -343,8 +347,11 @@ class MosqueUserController extends Controller
             $payload['specialty'] = $data['specialty'] ?? null;
         }
 
-        if (array_key_exists('study_session_id', $data)) {
-            $payload['study_session_id'] = $data['study_session_id'] ?? null;
+        $sessionIds = null;
+
+        if (array_key_exists('study_session_ids', $data)) {
+            $sessionIds = array_values(array_unique(array_filter($data['study_session_ids'] ?? [])));
+            $payload['study_session_id'] = $sessionIds[0] ?? null;
         }
 
         if ($photo !== []) {
@@ -353,15 +360,17 @@ class MosqueUserController extends Controller
 
         if ($teacher) {
             $teacher->update($payload);
-
-            return;
+        } else {
+            $teacher = Teacher::create($payload + [
+                'tenant_id' => $mosque->id,
+                'user_id' => $user->id,
+                'is_active' => true,
+            ]);
         }
 
-        Teacher::create($payload + [
-            'tenant_id' => $mosque->id,
-            'user_id' => $user->id,
-            'is_active' => true,
-        ]);
+        if ($sessionIds !== null) {
+            $teacher->studySessions()->sync($sessionIds);
+        }
     }
 
     /** ملف ولي الأمر (بوابة ولي الأمر) المرتبط بحساب المستخدم. */

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\QuranTasmeeResult;
 use App\Enums\QuranTasmeeType;
+use App\Services\QuranKhamsaService;
 use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
@@ -45,6 +46,17 @@ class QuranRecitationSession extends Model
             'result' => QuranTasmeeResult::class,
             'word_statuses' => 'array',
         ];
+    }
+
+    /**
+     * تسميع «جديد» قد يُكمل تغطية جزء كامل → يُسجَّل الجزء محفوظاً تلقائياً
+     * (يفتح خمساته في «مراجعة 5»). الإضافة فقط، ولا حذف تلقائي.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (QuranRecitationSession $session) {
+            app(QuranKhamsaService::class)->syncMemorizationFromTasmee($session);
+        });
     }
 
     public function student(): BelongsTo

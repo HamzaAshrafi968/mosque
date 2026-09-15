@@ -8,8 +8,10 @@ use App\Models\Classroom;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Support\AudioUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\View\View;
 
 class AnnouncementController extends Controller
@@ -31,20 +33,31 @@ class AnnouncementController extends Controller
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'body' => ['required', 'string'],
+            'body' => ['nullable', 'string', 'required_without:audio'],
             'audience' => ['required', 'in:all,teachers,guardians,classroom'],
             'classroom_id' => ['nullable', 'required_if:audience,classroom', 'exists:classrooms,id'],
+            'audio' => AudioUpload::rules(),
+            'auto_delete' => ['nullable', 'boolean'],
         ]);
 
+        $audio = $request->file('audio');
+
         $announcement = Announcement::create([
-            ...$data,
+            ...Arr::except($data, ['audio', 'auto_delete']),
             'user_id' => $request->user()->id,
             'published_at' => now(),
+            'audio_path' => $audio ? AudioUpload::store($audio) : null,
+            'audio_original_name' => $audio?->getClientOriginalName(),
+            // Audio announcements disappear automatically one week after
+            // publishing unless the manager opted out of the auto-delete.
+            'expires_at' => ($audio && $request->boolean('auto_delete', true))
+                ? now()->addWeek()
+                : null,
         ]);
 
         $this->notifyAudience($request, $announcement);
 
-        return back()->with('success', 'تم نشر الإعلان');
+        return back()->with('success', $audio ? 'تم نشر الإعلان الصوتي' : 'تم نشر الإعلان');
     }
 
     /** Fan-out to the matching audience (spec §39: new announcement). */
@@ -53,7 +66,13 @@ class AnnouncementController extends Controller
         $tenantId = $request->user()->tenant_id;
         $notifier = app(NotificationService::class);
         $title = 'إعلان جديد';
-        $body = "«{$announcement->title}» — ".mb_substr($announcement->body, 0, 150);
+        $body = "«{$announcement->title}»";
+
+        if (filled($announcement->body)) {
+            $body .= ' — '.mb_substr((string) $announcement->body, 0, 150);
+        } elseif ($announcement->hasAudio()) {
+            $body .= ' — إعلان صوتي';
+        }
 
         $userIds = collect();
 

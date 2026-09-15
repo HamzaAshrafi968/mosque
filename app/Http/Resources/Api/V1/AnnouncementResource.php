@@ -14,6 +14,10 @@ class AnnouncementResource extends JsonResource
             'body' => $this->body,
             'audience' => $this->audience,
             'published_at' => $this->published_at?->toDateTimeString(),
+            'has_audio' => $this->hasAudio(),
+            'audio_url' => $this->audioUrl(),
+            'audio_original_name' => $this->audio_original_name,
+            'expires_at' => $this->expires_at?->toDateTimeString(),
             'author' => $this->whenLoaded('author', fn () => [
                 'id' => $this->author->id,
                 'name' => $this->author->name,

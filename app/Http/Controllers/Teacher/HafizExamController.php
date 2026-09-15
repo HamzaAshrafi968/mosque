@@ -114,14 +114,6 @@ class HafizExamController extends BaseTeacherController
         $data['supervisor_id'] = $teacher->id;
         $data['notes'] = $data['notes'] ?? null;
 
-        if ((float) $data['grade'] < QuranProgramSettings::HAFIZ_EXAM_PASS_MARK
-            && $exam->revisions()->where('status', '!=', 'approved')->count() === 0
-            && ! $this->hasRevisionPayload($request)) {
-            throw ValidationException::withMessages([
-                'grade' => ['نتيجة راسبة تتطلب تحديد الأجزاء المطلوب إعادتها (سجل الأجزاء أدناه)'],
-            ]);
-        }
-
         $this->programs->gradeMonthlyExam($exam, $data, $request->user());
         $this->storeRevisions($exam, $request, $request->user());
 
@@ -205,17 +197,6 @@ class HafizExamController extends BaseTeacherController
 
             $this->audit->logModel('hafiz_exam.revision_recorded', $revision, actor: $actor);
         }
-    }
-
-    private function hasRevisionPayload(Request $request): bool
-    {
-        foreach ($request->input('revisions', []) as $row) {
-            if (($row['juz'] ?? null) || ($row['from_surah'] ?? null) || ($row['to_surah'] ?? null) || ($row['amount'] ?? null)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private function revisionValidated(Request $request): array

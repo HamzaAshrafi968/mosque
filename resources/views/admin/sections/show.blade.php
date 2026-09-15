@@ -33,12 +33,19 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
             <input type="text" name="name" value="{{ $section->name }}" required
                    class="w-full border border-gray-300 rounded-lg px-3 py-2">
-            <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">بدون دوام</option>
-                @foreach($sessions as $session)
-                    <option value="{{ $session->id }}" @selected((string) $section->study_session_id === (string) $session->id)>{{ $session->name }}</option>
-                @endforeach
-            </select>
+            @if($section->classroom?->study_session_id)
+                <div class="w-full border border-dashed border-teal-300 bg-teal-50 rounded-lg px-3 py-2 text-sm text-teal-800">
+                    الدوام: <span class="font-bold">{{ $section->classroom->studySession?->name }}</span>
+                    <span class="text-[11px] block text-teal-600">الشعبة تتبع دوام الصف</span>
+                </div>
+            @else
+                <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <option value="">بدون دوام</option>
+                    @foreach($sessions as $session)
+                        <option value="{{ $session->id }}" @selected((string) $section->study_session_id === (string) $session->id)>{{ $session->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             <input type="text" name="description" value="{{ $section->description }}" placeholder="وصف اختياري"
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 md:col-span-2">
         </div>

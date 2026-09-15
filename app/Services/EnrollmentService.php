@@ -220,6 +220,18 @@ class EnrollmentService
         }
     }
 
+    /**
+     * Keep the students of a section in its دوام when a shared section's shift
+     * changes (sections of a shift-bound classroom always follow the classroom).
+     */
+    public function syncSectionShift(Section $section): void
+    {
+        Student::query()
+            ->withoutGlobalScope('study_session')
+            ->where('section_id', $section->id)
+            ->update(['study_session_id' => $section->study_session_id]);
+    }
+
     /** Assign a teacher to a section (idempotent reactivation). */
     public function assignTeacher(Section $section, Teacher $teacher, SectionTeacherRole $role = SectionTeacherRole::Lead): SectionTeacher
     {

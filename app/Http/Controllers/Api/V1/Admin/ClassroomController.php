@@ -39,7 +39,7 @@ class ClassroomController extends BaseApiController
         $classroom = $this->classroomRepository->create($request->validated());
 
         return $this->created(
-            ClassroomResource::make($classroom),
+            ClassroomResource::make($classroom->load('studySession')),
             'تم إنشاء الصف'
         );
     }
@@ -65,7 +65,7 @@ class ClassroomController extends BaseApiController
         );
 
         return $this->created(
-            SectionResource::make($section),
+            SectionResource::make($section->load('studySession')),
             'تم إنشاء الشعبة'
         );
     }
@@ -75,6 +75,7 @@ class ClassroomController extends BaseApiController
     {
         $section = Section::with([
             'classroom:id,name',
+            'studySession:id,name',
             'teacherAssignments.teacher:id,name,phone,is_active',
         ])->find($sectionId);
 
@@ -106,10 +107,23 @@ class ClassroomController extends BaseApiController
     {
         $section = Section::findOrFail($sectionId);
 
-        $section->update($request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
-        ]));
+            'study_session_id' => ['nullable', 'uuid', Rule::exists('study_sessions', 'id')->where('tenant_id', config('app.current_tenant_id'))],
+        ]);
+
+        // شعبة الصف المرتبط بدوام تتبع دوامه حتماً.
+        if ($section->classroom?->study_session_id !== null) {
+            $data['study_session_id'] = $section->classroom->study_session_id;
+        }
+
+        $before = $section->study_session_id;
+        $section->update($data);
+
+        if ($before !== $section->study_session_id) {
+            $this->enrollment->syncSectionShift($section);
+        }
 
         return $this->success(SectionResource::make($section), 'تم تحديث الشعبة');
     }

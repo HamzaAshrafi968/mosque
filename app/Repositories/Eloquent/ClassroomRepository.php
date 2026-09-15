@@ -17,7 +17,7 @@ class ClassroomRepository extends BaseRepository implements ClassroomRepositoryI
     public function allWithSectionsAndCounts(): Collection
     {
         return $this->model
-            ->with('sections:id,classroom_id,name')
+            ->with(['studySession:id,name', 'sections:id,classroom_id,study_session_id,name'])
             ->withCount('students')
             ->orderBy('name')
             ->get();
