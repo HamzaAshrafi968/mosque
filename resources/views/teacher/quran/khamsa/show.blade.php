@@ -9,7 +9,7 @@
         'memorizedJuz' => $memorizedJuz,
         'listeningSessions' => $listeningSessions,
         'results' => $results,
-        'indexRoute' => route('teacher.quran.khamsa.index'),
+        'indexRoute' => route('teacher.quran.batches.index'),
         'completeRoute' => fn ($item) => route('teacher.quran.khamsa.items.complete', $item),
         'cancelRoute' => route('teacher.quran.khamsa.cancel', $review),
         'memorizationStoreRoute' => route('teacher.quran.khamsa.memorization.store'),

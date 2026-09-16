@@ -66,13 +66,13 @@ class PermissionEnforcementTest extends TestCase
         [$teacher] = $this->teacher($mosque);
 
         $this->actingAs($teacher)
-            ->get(route('teacher.quran.tasmee.index'))
+            ->get(route('teacher.quran.batches.index'))
             ->assertOk();
 
         $this->syncRole($mosque, RoleService::ROLE_TEACHER, ['attendance.create' => 'own']);
 
         $this->actingAs($teacher)
-            ->get(route('teacher.quran.tasmee.index'))
+            ->get(route('teacher.quran.batches.index'))
             ->assertForbidden();
     }
 

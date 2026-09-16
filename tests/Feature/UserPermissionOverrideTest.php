@@ -40,6 +40,8 @@ class UserPermissionOverrideTest extends TestCase
         'quran_review.view' => 'own', 'quran_review.create' => 'own',
         'quran_khamsa.view' => 'own', 'quran_khamsa.create' => 'own', 'quran_khamsa.update' => 'own', 'quran_khamsa.complete' => 'own',
         'quran.memorization.manage' => 'own',
+        'quran_listening.view' => 'own', 'quran_listening.create' => 'own', 'quran_listening.update' => 'own', 'quran_listening.listen' => 'own', 'quran_listening.test' => 'own',
+        'quran_batch.view' => 'own', 'quran_batch.update' => 'own',
         'reward_points.view' => 'own', 'reward_points.create' => 'own', 'reward_points.delete' => 'own',
         'qualifying.view' => 'own', 'qualifying.create' => 'own', 'qualifying.update' => 'own',
         'ijazah.view' => 'own', 'ijazah.create' => 'own', 'ijazah.update' => 'own',
@@ -180,14 +182,14 @@ class UserPermissionOverrideTest extends TestCase
         $this->actingAs($teacher)
             ->get(route('teacher.dashboard'))
             ->assertOk()
-            ->assertSee(route('teacher.quran-review.index'));
+            ->assertSee(route('teacher.quran.batches.index'));
 
-        $this->setOverride($mosque, $teacher, 'quran_review.view', 'deny');
+        $this->setOverride($mosque, $teacher, 'quran_batch.view', 'deny');
 
         $this->actingAs($teacher)
             ->get(route('teacher.dashboard'))
             ->assertOk()
-            ->assertDontSee(route('teacher.quran-review.index'));
+            ->assertDontSee(route('teacher.quran.batches.index'));
     }
 
     public function test_permissions_matrix_page_lists_the_role_baseline(): void

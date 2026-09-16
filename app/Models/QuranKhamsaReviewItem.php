@@ -49,7 +49,7 @@ class QuranKhamsaReviewItem extends Model
 
     public function review(): BelongsTo
     {
-        return $this->belongsTo(QuranKhamsaReview::class, 'review_id');
+        return $this->belongsTo(QuranKhamsaReview::class, 'review_id')->withoutGlobalScope('study_session');
     }
 
     public function teacher(): BelongsTo

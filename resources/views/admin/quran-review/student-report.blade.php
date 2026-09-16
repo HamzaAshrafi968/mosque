@@ -18,7 +18,7 @@
 
 @section('content')
 <div class="space-y-6 max-w-5xl mx-auto">
-    <a href="{{ route('admin.quran-review.index') }}" class="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 text-sm font-medium transition animate-fade-in-up">
+    <a href="{{ route('admin.quran.batches.index') }}" class="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 text-sm font-medium transition animate-fade-in-up">
         ← العودة إلى جلسات الاستماع
     </a>
 
@@ -169,7 +169,7 @@
     @endif
 
     <div class="flex justify-center animate-fade-in-up">
-        <a href="{{ route('admin.quran-review.index') }}" class="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-8 py-3 rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition font-bold shadow-lg shadow-emerald-600/20 inline-flex items-center gap-2">
+        <a href="{{ route('admin.quran.batches.index') }}" class="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-8 py-3 rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition font-bold shadow-lg shadow-emerald-600/20 inline-flex items-center gap-2">
             📋 العودة لقائمة جلسات الاستماع
         </a>
     </div>

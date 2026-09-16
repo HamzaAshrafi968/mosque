@@ -39,7 +39,7 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">⚠️ بحاجة إلى مراجعة</span>
-                <a href="{{ route('teacher.quran.tasmee.index') }}" class="text-xs text-emerald-700 hover:underline">كل التسميع</a>
+                <a href="{{ route('teacher.quran.batches.index') }}" class="text-xs text-emerald-700 hover:underline">كل التسميع</a>
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($weakStudents as $student)

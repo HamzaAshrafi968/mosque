@@ -327,10 +327,13 @@ class Phase0RegressionTest extends TestCase
 
         session(['study_session_id' => $secondShift->id]);
 
+        $session = QuranRecitationSession::query()->firstOrFail();
+        $this->assertSame('أستاذ الدوام الأول', $session->teacher->name);
+        $this->assertSame('طالب الدوام الأول', $session->student->name);
+
+        // سجل التسميع انتقل إلى مركز «دفعات الحفظ» مع فلتر الطالب.
         $this->actingAs($admin)
-            ->get(route('admin.quran.tasmee.index'))
-            ->assertOk()
-            ->assertSee('أستاذ الدوام الأول')
-            ->assertSee('طالب الدوام الأول');
+            ->get(route('admin.quran.tasmee.index', ['student_id' => $student->id]))
+            ->assertRedirect(route('admin.quran.batches.index', ['student_id' => $student->id]));
     }
 }

@@ -5,33 +5,17 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\QuranReviewSession;
 use App\Models\QuranReviewWord;
-use App\Models\QuranSurah;
 use App\Models\Student;
-use App\Models\Teacher;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class QuranReviewController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
-        $sessions = QuranReviewSession::query()
-            ->with(['student:id,name', 'teacher:id,name', 'surah:id,name_arabic'])
-            ->when($request->teacher_id, fn ($q) => $q->where('teacher_id', $request->teacher_id))
-            ->when($request->student_id, fn ($q) => $q->where('student_id', $request->student_id))
-            ->when($request->surah_id, fn ($q) => $q->where('surah_id', $request->surah_id))
-            ->when($request->date_from, fn ($q) => $q->whereDate('date', '>=', $request->date_from))
-            ->when($request->date_to, fn ($q) => $q->whereDate('date', '<=', $request->date_to))
-            ->orderByDesc('date')
-            ->orderByDesc('created_at')
-            ->paginate(20);
-
-        return view('admin.quran-review.index', [
-            'sessions' => $sessions,
-            'teachers' => Teacher::orderBy('name')->get(['id', 'name']),
-            'students' => Student::active()->orderBy('name')->get(['id', 'name']),
-            'surahs' => QuranSurah::orderBy('sort_order')->get(['id', 'name_arabic']),
-        ]);
+        // دُمج «الاستماع مع المعلم» في مركز «دفعات الحفظ».
+        return redirect()->route('admin.quran.batches.index');
     }
 
     public function show(string $id): View

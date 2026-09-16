@@ -5,12 +5,16 @@
         'completed' => 'bg-emerald-100 text-emerald-800',
         'cancelled' => 'bg-gray-200 text-gray-600',
     ];
+    $embedded = $embedded ?? false;
+    $readOnly = $readOnly ?? false;
 @endphp
 
 <div class="space-y-6">
     <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-            <a href="{{ $indexRoute }}" class="text-sm text-emerald-700 hover:text-emerald-800">← كل المراجعات</a>
+            @if(! $embedded)
+                <a href="{{ $indexRoute }}" class="text-sm text-emerald-700 hover:text-emerald-800">← دفعات الحفظ</a>
+            @endif
             <h2 class="text-2xl font-extrabold text-gray-800 mt-1">مراجعة 5 — {{ $review->student?->name }}</h2>
             <div class="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-500">
                 <span>الأستاذ: <b class="text-gray-700">{{ $review->teacher?->name ?? '—' }}</b></span>
@@ -28,7 +32,7 @@
             <span class="px-3 py-1 rounded-full text-xs font-bold {{ $statusClasses[$review->status->value] ?? 'bg-gray-100 text-gray-600' }}">
                 {{ $review->status->label() }}
             </span>
-            @if(! $review->isCompleted() && ! $review->isCancelled())
+            @if(! $readOnly && ! $review->isCompleted() && ! $review->isCancelled())
                 <form method="POST" action="{{ $cancelRoute }}" onsubmit="return confirm('إلغاء هذه المراجعة؟')">
                     @csrf
                     <button class="text-sm text-red-600 hover:underline">إلغاء المراجعة</button>
@@ -51,12 +55,14 @@
         <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-900">{{ $review->notes }}</div>
     @endif
 
-    @include('quran.khamsa.memorization-panel', [
-        'student' => $review->student,
-        'memorizedJuz' => $memorizedJuz,
-        'storeRoute' => $memorizationStoreRoute,
-        'destroyRoute' => $memorizationDestroyRoute,
-    ])
+    @if(! $readOnly)
+        @include('quran.khamsa.memorization-panel', [
+            'student' => $review->student,
+            'memorizedJuz' => $memorizedJuz,
+            'storeRoute' => $memorizationStoreRoute,
+            'destroyRoute' => $memorizationDestroyRoute,
+        ])
+    @endif
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
@@ -98,7 +104,7 @@
                             @endif
                         </td>
                         <td class="px-4 py-3">
-                            @if(! $item->isCompleted() && ! $review->isCancelled())
+                            @if(! $readOnly && ! $item->isCompleted() && ! $review->isCancelled())
                                 <form method="POST" action="{{ $completeRoute($item) }}" class="space-y-2 min-w-56">
                                     @csrf
                                     <select name="result" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">

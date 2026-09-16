@@ -9,6 +9,7 @@ use App\Models\QuranReviewSession;
 use App\Models\Student;
 use App\Models\StudySession;
 use App\Services\QuranKhamsaService;
+use App\Services\QuranMemorizationGatingService;
 use App\Services\QuranScopeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,26 +24,13 @@ class QuranKhamsaController extends BaseTeacherController
     public function __construct(
         private readonly QuranKhamsaService $khamsa,
         private readonly QuranScopeService $scope,
+        private readonly QuranMemorizationGatingService $gating,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
-        $teacher = $this->currentTeacher($request);
-
-        $reviews = QuranKhamsaReview::query()
-            ->with(['student:id,name', 'teacher:id,name', 'studySession:id,name', 'items'])
-            ->where('teacher_id', $teacher->id)
-            ->when($request->filled('student_id'), fn ($query) => $query->where('student_id', $request->input('student_id')))
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
-            ->orderByDesc('assigned_at')
-            ->orderByDesc('created_at')
-            ->paginate(20)
-            ->withQueryString();
-
-        return view('teacher.quran.khamsa.index', [
-            'reviews' => $reviews,
-            'students' => $this->scope->studentsFor($teacher),
-        ]);
+        // دُمجت «مراجعة 5» في مركز «دفعات الحفظ».
+        return redirect()->route('teacher.quran.batches.index');
     }
 
     public function create(Request $request): View
@@ -170,6 +158,7 @@ class QuranKhamsaController extends BaseTeacherController
         $this->scope->assertCanManageStudent($teacher, $student);
 
         $this->khamsa->recordMemorization($student, (int) $data['juz'], $request->user());
+        $this->gating->sync($student, $request->user());
 
         return back()->with('success', 'تم تسجيل حفظ الجزء '.$data['juz']);
     }
@@ -187,6 +176,7 @@ class QuranKhamsaController extends BaseTeacherController
         $this->scope->assertCanManageStudent($teacher, $student);
 
         $this->khamsa->removeMemorization($student, (int) $data['juz'], $request->user());
+        $this->gating->sync($student, $request->user());
 
         return back()->with('success', 'تم إلغاء تسجيل حفظ الجزء '.$data['juz']);
     }

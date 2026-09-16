@@ -199,7 +199,7 @@ class QuranProgramsTest extends TestCase
         $this->assertSame(2, QuranRecitationSession::where('student_id', $student->id)->count());
 
         $this->actingAs($admin)
-            ->get(route('admin.quran.tasmee.index', ['type' => 'new']))
+            ->get(route('admin.quran.batches.index', ['student_id' => $student->id]))
             ->assertOk()
             ->assertSee('سورة البقرة');
     }
@@ -894,7 +894,7 @@ class QuranProgramsTest extends TestCase
         ]);
 
         foreach ([
-            'admin.quran.index', 'admin.quran.tasmee.index', 'admin.quran.tasmee.create',
+            'admin.quran.index', 'admin.quran.batches.index', 'admin.quran.tasmee.create',
             'admin.quran.completions.index', 'admin.quran.completions.create',
             'admin.quran.hafiz.index', 'admin.quran.qualifying.index', 'admin.quran.ijazah.index',
             'admin.quran.exams.index', 'admin.faith-meetings.index', 'admin.faith-meetings.create',
@@ -929,7 +929,7 @@ class QuranProgramsTest extends TestCase
         $this->enrollStudent($student, $section);
 
         foreach ([
-            'teacher.quran.index', 'teacher.quran.tasmee.index', 'teacher.quran.tasmee.create',
+            'teacher.quran.index', 'teacher.quran.batches.index', 'teacher.quran.tasmee.create',
             'teacher.quran.qualifying.index', 'teacher.quran.qualifying.evaluations.create',
             'teacher.quran.ijazah.index', 'teacher.quran.ijazah.evaluations.create',
             'teacher.quran.exams.index', 'teacher.quran.faith-meetings.index',

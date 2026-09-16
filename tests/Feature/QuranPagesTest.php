@@ -213,7 +213,7 @@ class QuranPagesTest extends TestCase
             'date' => now()->toDateString(),
             'from_page' => 2,
             'to_page' => 4,
-        ])->assertRedirect(route('admin.quran.tasmee.index', ['type' => 'new']));
+        ])->assertRedirect(route('admin.quran.batches.index', ['student_id' => $student->id]));
 
         $session = QuranRecitationSession::query()->latest('created_at')->first();
         $this->assertNotNull($session);
@@ -316,7 +316,7 @@ class QuranPagesTest extends TestCase
             ->assertSee('word-1:0', false);
 
         $this->actingAs($admin)
-            ->get(route('admin.quran.tasmee.index'))
+            ->get(route('admin.quran.batches.index', ['student_id' => $student->id]))
             ->assertOk()
             ->assertSee('2 خطأ محدد');
     }

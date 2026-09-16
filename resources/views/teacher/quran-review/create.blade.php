@@ -64,7 +64,7 @@
     </div>
     @else
     <div class="flex items-center gap-3 mb-2 animate-slide-right">
-        <a href="{{ route('teacher.quran-review.index') }}" class="text-emerald-600 hover:text-emerald-800 text-sm font-medium transition">
+        <a href="{{ route('teacher.quran.batches.index') }}" class="text-emerald-600 hover:text-emerald-800 text-sm font-medium transition">
             ← العودة إلى جلسات الاستماع
         </a>
         <span class="text-gray-300">|</span>

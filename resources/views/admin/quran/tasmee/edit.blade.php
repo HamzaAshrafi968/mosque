@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="max-w-3xl mx-auto space-y-6">
-    <a href="{{ route('admin.quran.tasmee.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← سجل التسميع</a>
+    <a href="{{ route('admin.quran.batches.index', ['student_id' => $session->student_id]) }}" class="text-sm text-emerald-700 hover:text-emerald-800">← دفعات الحفظ</a>
     <h2 class="text-2xl font-extrabold text-gray-800">تعديل تسميع — {{ $session->student->name }}</h2>
 
     <form method="POST" action="{{ route('admin.quran.tasmee.update', $session) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
@@ -65,7 +65,7 @@
         </div>
         <div class="flex items-center justify-between pt-2">
             <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-8 py-2.5 rounded-xl">حفظ التعديلات</button>
-            <a href="{{ route('admin.quran.tasmee.index') }}" class="text-gray-500 text-sm hover:underline">إلغاء</a>
+            <a href="{{ route('admin.quran.batches.index', ['student_id' => $session->student_id]) }}" class="text-gray-500 text-sm hover:underline">إلغاء</a>
         </div>
     </form>
 </div>

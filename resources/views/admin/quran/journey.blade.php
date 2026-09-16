@@ -222,7 +222,7 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                     <span class="font-bold text-gray-800">🗣️ سجل التسميع</span>
-                    <a href="{{ route('admin.quran.tasmee.index', ['student_id' => $student->id]) }}" class="text-xs text-emerald-700 hover:underline">كل السجل</a>
+                    <a href="{{ route('admin.quran.batches.index', ['student_id' => $student->id]) }}" class="text-xs text-emerald-700 hover:underline">كل السجل</a>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">

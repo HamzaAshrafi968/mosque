@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Enums\QuranKhamsaItemStatus;
 use App\Enums\QuranKhamsaReviewStatus;
+use App\Enums\QuranListeningItemStatus;
 use App\Enums\QuranTasmeeType;
 use App\Models\QuranKhamsaReview;
 use App\Models\QuranKhamsaReviewItem;
+use App\Models\QuranListeningPlanItem;
+use App\Models\QuranMemorizationBatch;
 use App\Models\QuranRecitationSession;
 use App\Models\QuranReviewSession;
 use App\Models\Student;
@@ -30,7 +33,10 @@ use Illuminate\Validation\ValidationException;
  */
 class QuranKhamsaService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly QuranMemorizationGatingService $gating,
+    ) {}
 
     /**
      * كل الخمسات المتاحة للطالب (٣٠ جزءاً × ٤) مع حالة الفتح والقفل.
@@ -87,10 +93,17 @@ class QuranKhamsaService
         return in_array($juz, $this->memorizedJuzNumbers($student), true);
     }
 
+    /** هل الخمسة (جزء:خمسة) مخصّصة مسبقاً وقيد المراجعة للطالب؟ */
+    public function isKhamsaPending(Student $student, int $juz, int $khamsa): bool
+    {
+        return in_array($juz.':'.$khamsa, $this->pendingKhamsaKeys($student), true);
+    }
+
     /**
      * إنشاء مراجعة جديدة (رأس + خمسات) مع فرض قواعد القفل والدوام.
+     * يمكن ربطها بخطة استماع (listening_plan_id) عند دمج «مراجعة 5» فيها.
      *
-     * @param  array{student_id: string, teacher_id: string, study_session_id: string, assigned_at?: string, due_date?: ?string, notes?: ?string, items: array<int, array{juz: int|string, khamsa: int|string}>}  $data
+     * @param  array{student_id: string, teacher_id: string, study_session_id: string, listening_plan_id?: ?string, assigned_at?: string, due_date?: ?string, notes?: ?string, items: array<int, array{juz: int|string, khamsa: int|string}>}  $data
      */
     public function createReview(array $data, User $actor): QuranKhamsaReview
     {
@@ -152,6 +165,7 @@ class QuranKhamsaService
                 'teacher_id' => $teacher->id,
                 'study_session_id' => $session->id,
                 'assigned_by' => $actor->id,
+                'listening_plan_id' => $data['listening_plan_id'] ?? null,
                 'assigned_at' => $data['assigned_at'] ?? Carbon::today(),
                 'due_date' => $data['due_date'] ?? null,
                 'status' => QuranKhamsaReviewStatus::Pending,
@@ -184,13 +198,15 @@ class QuranKhamsaService
      *
      * @param  array{result?: ?string, notes?: ?string, quran_review_session_id?: ?string}  $data
      */
-    public function completeItem(QuranKhamsaReviewItem $item, array $data, User $actor): void
+    public function completeItem(QuranKhamsaReviewItem $item, array $data, User $actor, bool $syncPlan = true): void
     {
         if ($item->isCompleted()) {
             throw ValidationException::withMessages(['item' => ['هذه الخمسة منجَزة مسبقاً']]);
         }
 
-        $review = $item->review;
+        $review = $item->relationLoaded('review')
+            ? $item->review
+            : ($item->review_id ? QuranKhamsaReview::withoutGlobalScope('study_session')->find($item->review_id) : null);
 
         if (! $review || $review->isCancelled()) {
             throw ValidationException::withMessages(['item' => ['لا يمكن إنهاء خمسة في مراجعة ملغاة']]);
@@ -213,7 +229,7 @@ class QuranKhamsaService
             $sessionId = null;
         }
 
-        DB::transaction(function () use ($item, $data, $sessionId, $actor, $review) {
+        DB::transaction(function () use ($item, $data, $sessionId, $actor, $review, $syncPlan) {
             $item->update([
                 'status' => QuranKhamsaItemStatus::Completed,
                 'result' => $data['result'] ?? null,
@@ -225,12 +241,68 @@ class QuranKhamsaService
 
             $this->audit->logModel('khamsa_review.item_completed', $item, actor: $actor);
 
+            if ($syncPlan) {
+                $this->syncListeningPlanItem($item, $sessionId, $actor);
+            }
+
             if (! $review->items()->where('status', QuranKhamsaItemStatus::Pending)->exists()) {
                 $review->update(['status' => QuranKhamsaReviewStatus::Completed]);
 
                 $this->audit->logModel('khamsa_review.completed', $review, actor: $actor);
             }
         });
+
+        $this->syncBatchAfterReview($review);
+    }
+
+    /** اكتمال مراجعة مرتبطة بدفعة حفظ ينقل الدفعة إلى «بانتظار الاختبار». */
+    private function syncBatchAfterReview(QuranKhamsaReview $review): void
+    {
+        if (! $review->isCompleted()) {
+            return;
+        }
+
+        $batch = QuranMemorizationBatch::query()
+            ->where('review_5_id', $review->id)
+            ->first();
+
+        if (! $batch) {
+            return;
+        }
+
+        $student = Student::withoutGlobalScope('study_session')->find($batch->student_id);
+
+        if ($student) {
+            $this->gating->sync($student);
+        }
+    }
+
+    /**
+     * مزامنة عكسية: إنهاء خمسة مرتبطة بخطة استماع يسجّل استماع عنصر الخطة
+     * المقابل (إن كان مفتوحاً) ويربط جلسة «الاستماع مع المعلم» به.
+     */
+    private function syncListeningPlanItem(QuranKhamsaReviewItem $item, ?string $sessionId, User $actor): void
+    {
+        $planItem = QuranListeningPlanItem::query()
+            ->where('khamsa_review_item_id', $item->id)
+            ->first();
+
+        if (! $planItem || $planItem->isPassed() || $planItem->isListened()) {
+            return;
+        }
+
+        if (! $planItem->canBeListened()) {
+            return;
+        }
+
+        $planItem->update([
+            'status' => QuranListeningItemStatus::Listened,
+            'listened_at' => now(),
+            'listened_by' => $actor->id,
+            'quran_review_session_id' => $sessionId ?? $planItem->quran_review_session_id,
+        ]);
+
+        $this->audit->logModel('quran_listening.item_listened', $planItem, actor: $actor);
     }
 
     public function cancelReview(QuranKhamsaReview $review, ?User $actor = null): void
@@ -324,6 +396,8 @@ class QuranKhamsaService
                 }
             }
         });
+
+        $this->gating->sync($student, $actor);
     }
 
     /**
@@ -338,9 +412,10 @@ class QuranKhamsaService
 
         $count = (int) floor((float) $student->memorized_juz);
         $count = max(0, min(QuranJuzMap::TOTAL_JUZ, $count));
+        $recorded = false;
 
         for ($juz = 1; $juz <= $count; $juz++) {
-            StudentJuzMemorization::firstOrCreate(
+            $record = StudentJuzMemorization::firstOrCreate(
                 ['student_id' => $student->id, 'juz' => $juz],
                 [
                     'memorized_at' => Carbon::today(),
@@ -348,6 +423,12 @@ class QuranKhamsaService
                     'source' => StudentJuzMemorization::SOURCE_INTAKE,
                 ]
             );
+
+            $recorded = $recorded || $record->wasRecentlyCreated;
+        }
+
+        if ($recorded) {
+            $this->gating->sync($student, $actor);
         }
     }
 
@@ -361,34 +442,13 @@ class QuranKhamsaService
             return;
         }
 
-        $intervals = QuranRecitationSession::query()
-            ->where('student_id', $session->student_id)
-            ->where('type', QuranTasmeeType::New)
-            ->whereNotNull('from_page')
-            ->whereNotNull('to_page')
-            ->get(['from_page', 'to_page'])
-            ->map(fn (QuranRecitationSession $row) => [(int) $row->from_page, (int) $row->to_page])
-            ->filter(fn (array $interval) => $interval[0] >= 1 && $interval[1] <= QuranJuzMap::TOTAL_PAGES && $interval[0] <= $interval[1])
-            ->values()
-            ->all();
+        $merged = $this->gating->coveredPageIntervals($session->student_id);
 
-        if ($intervals === []) {
+        if ($merged === []) {
             return;
         }
 
-        usort($intervals, fn (array $a, array $b) => $a[0] <=> $b[0]);
-
-        $merged = [];
-
-        foreach ($intervals as [$from, $to]) {
-            $last = count($merged) - 1;
-
-            if ($last >= 0 && $from <= $merged[$last][1] + 1) {
-                $merged[$last][1] = max($merged[$last][1], $to);
-            } else {
-                $merged[] = [$from, $to];
-            }
-        }
+        $recorded = false;
 
         foreach (range(1, QuranJuzMap::TOTAL_JUZ) as $juz) {
             $range = QuranJuzMap::pageRange($juz);
@@ -401,7 +461,7 @@ class QuranKhamsaService
                 continue;
             }
 
-            StudentJuzMemorization::firstOrCreate(
+            $record = StudentJuzMemorization::firstOrCreate(
                 ['student_id' => $session->student_id, 'juz' => $juz],
                 [
                     'memorized_at' => $session->date ?? Carbon::today(),
@@ -409,6 +469,12 @@ class QuranKhamsaService
                     'source' => StudentJuzMemorization::SOURCE_TASMEE,
                 ]
             );
+
+            $recorded = $recorded || $record->wasRecentlyCreated;
+        }
+
+        if ($recorded && $student = Student::query()->find($session->student_id)) {
+            $this->gating->sync($student);
         }
     }
 

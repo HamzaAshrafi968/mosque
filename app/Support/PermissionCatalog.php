@@ -141,6 +141,18 @@ final class PermissionCatalog
         ['quran_khamsa', 'update', 'تعديل/إلغاء مراجعة 5'],
         ['quran_khamsa', 'complete', 'إنهاء خمسة في مراجعة 5'],
         ['quran', 'memorization.manage', 'إدارة الأجزاء المحفوظة'],
+        // «خطة الاستماع والاختبار»: أجزاء + نطاق صفحات لكل جزء، واختبار يفتح الدفعة التالية
+        ['quran_listening', 'view', 'مشاهدة خطط الاستماع'],
+        ['quran_listening', 'create', 'إنشاء خطة استماع'],
+        ['quran_listening', 'update', 'تعديل/إلغاء خطة الاستماع'],
+        ['quran_listening', 'listen', 'تسجيل الاستماع لأجزاء الخطة'],
+        ['quran_listening', 'test', 'تسجيل اختبار الاستماع'],
+        // دفعات الحفظ (كل جزأين = دفعة: مراجعة 5 ← اختبار بحد نجاح الجامع)
+        ['quran_batch', 'view', 'مشاهدة دفعات الحفظ'],
+        ['quran_batch', 'update', 'إعادة مراجعة/اختبار دفعة الحفظ'],
+        // إعدادات برنامج القرآن لكل جامع
+        ['quran_settings', 'view', 'مشاهدة إعدادات برنامج القرآن'],
+        ['quran_settings', 'update', 'تعديل إعدادات برنامج القرآن'],
         // Reward points (نقاط المكافآت)
         ['reward_points', 'view', 'مشاهدة نقاط المكافآت'],
         ['reward_points', 'create', 'منح نقاط مكافأة'],
@@ -203,6 +215,9 @@ final class PermissionCatalog
         'quran_review.view' => 'mosque', 'quran_review.create' => 'mosque',
         'quran_khamsa.view' => 'mosque', 'quran_khamsa.create' => 'mosque', 'quran_khamsa.update' => 'mosque', 'quran_khamsa.complete' => 'mosque',
         'quran.memorization.manage' => 'mosque',
+        'quran_listening.view' => 'mosque', 'quran_listening.create' => 'mosque', 'quran_listening.update' => 'mosque', 'quran_listening.listen' => 'mosque', 'quran_listening.test' => 'mosque',
+        'quran_batch.view' => 'mosque', 'quran_batch.update' => 'mosque',
+        'quran_settings.view' => 'mosque', 'quran_settings.update' => 'mosque',
         'reward_points.view' => 'mosque', 'reward_points.create' => 'mosque', 'reward_points.delete' => 'mosque',
         'qualifying.view' => 'mosque', 'qualifying.create' => 'mosque', 'qualifying.update' => 'mosque', 'qualifying.complete' => 'mosque',
         'ijazah.view' => 'mosque', 'ijazah.create' => 'mosque', 'ijazah.update' => 'mosque', 'ijazah.complete' => 'mosque',
@@ -235,6 +250,8 @@ final class PermissionCatalog
         'quran_review.view' => 'own', 'quran_review.create' => 'own',
         'quran_khamsa.view' => 'own', 'quran_khamsa.create' => 'own', 'quran_khamsa.update' => 'own', 'quran_khamsa.complete' => 'own',
         'quran.memorization.manage' => 'own',
+        'quran_listening.view' => 'own', 'quran_listening.create' => 'own', 'quran_listening.update' => 'own', 'quran_listening.listen' => 'own', 'quran_listening.test' => 'own',
+        'quran_batch.view' => 'own', 'quran_batch.update' => 'own',
         'reward_points.view' => 'own', 'reward_points.create' => 'own', 'reward_points.delete' => 'own',
         'qualifying.view' => 'own', 'qualifying.create' => 'own', 'qualifying.update' => 'own',
         'ijazah.view' => 'own', 'ijazah.create' => 'own', 'ijazah.update' => 'own',
@@ -274,6 +291,8 @@ final class PermissionCatalog
         'assignments.view' => 'own',
         'lessons.view' => 'own',
         'announcements.view' => 'mosque',
+        'quran_listening.view' => 'own', 'quran_listening.listen' => 'own',
+        'quran_batch.view' => 'own',
     ];
 
     public static function codes(): array
@@ -342,6 +361,9 @@ final class PermissionCatalog
             'quran' => 'القرآن (تسميع وإتمام)',
             'quran_review' => 'الاستماع مع المعلم',
             'quran_khamsa' => 'مراجعة 5 (الخمسات)',
+            'quran_listening' => 'خطة الاستماع والاختبار',
+            'quran_batch' => 'دفعات الحفظ',
+            'quran_settings' => 'إعدادات برنامج القرآن',
             'reward_points' => 'نقاط المكافآت',
             'qualifying' => 'البرنامج التأهيلي',
             'ijazah' => 'برنامج الإجازة',

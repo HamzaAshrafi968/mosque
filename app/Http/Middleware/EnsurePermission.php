@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Student;
 use App\Models\User;
 use App\Services\AuthorizationService;
 use Closure;
@@ -11,6 +12,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsurePermission
 {
+    /**
+     * Subjects whose `user_id` links them to their own portal account rather
+     * than pointing at an owning user. Their domain scoping is enforced by the
+     * controllers (e.g. QuranScopeService::assertCanManageStudent).
+     */
+    private const PORTAL_LINKED_SUBJECTS = [
+        Student::class,
+    ];
+
     public function __construct(private readonly AuthorizationService $authorization) {}
 
     public function handle(Request $request, Closure $next, string ...$permissions): Response
@@ -62,6 +72,10 @@ class EnsurePermission
                 'teacher_id' => $user->teacher?->id,
                 'supervisor_id' => $user->teacher?->id,
             ];
+
+            if (in_array($subject::class, self::PORTAL_LINKED_SUBJECTS, true)) {
+                unset($references['user_id']);
+            }
 
             $hasOwnershipColumn = false;
 

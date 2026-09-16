@@ -16,25 +16,10 @@ use Illuminate\View\View;
 
 class QuranReviewController extends BaseTeacherController
 {
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
-        $teacher = $this->currentTeacher($request);
-
-        $sessions = QuranReviewSession::query()
-            ->with(['student:id,name', 'surah:id,name_arabic'])
-            ->where('teacher_id', $teacher->id)
-            ->orderByDesc('date')
-            ->orderByDesc('created_at')
-            ->paginate(20);
-
-        $students = Student::query()->active()->orderBy('name')->get(['id', 'name']);
-        $surahs = QuranSurah::orderBy('sort_order')->get(['id', 'name_arabic']);
-
-        return view('teacher.quran-review.index', [
-            'sessions' => $sessions,
-            'students' => $students,
-            'surahs' => $surahs,
-        ]);
+        // دُمج «الاستماع مع المعلم» في مركز «دفعات الحفظ».
+        return redirect()->route('teacher.quran.batches.index');
     }
 
     public function create(Request $request, QuranPageService $pages): View

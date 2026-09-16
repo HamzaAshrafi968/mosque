@@ -155,6 +155,26 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('quran/khamsa/{review}', [Admin\QuranKhamsaController::class, 'show'])->name('quran.khamsa.show')->middleware('permission:quran_khamsa.view');
     Route::post('quran/khamsa/{review}/cancel', [Admin\QuranKhamsaController::class, 'cancel'])->name('quran.khamsa.cancel')->middleware('permission:quran_khamsa.update');
 
+    // ---- «خطة الاستماع والاختبار»: أجزاء بنطاق صفحات، واختبار يفتح الدفعة التالية ----
+    Route::get('quran/listening', [Admin\QuranListeningController::class, 'index'])->name('quran.listening.index')->middleware('permission:quran_listening.view');
+    Route::get('quran/listening/create', [Admin\QuranListeningController::class, 'create'])->name('quran.listening.create')->middleware('permission:quran_listening.create');
+    Route::post('quran/listening', [Admin\QuranListeningController::class, 'store'])->name('quran.listening.store')->middleware('permission:quran_listening.create');
+    Route::post('quran/listening/items/{item}/listen', [Admin\QuranListeningController::class, 'listen'])->name('quran.listening.items.listen')->middleware('permission:quran_listening.listen');
+    Route::get('quran/listening/items/{item}/audio', [Admin\QuranListeningController::class, 'audio'])->name('quran.listening.items.audio')->middleware('permission:quran_listening.view');
+    Route::post('quran/listening/items/{item}/progress', [Admin\QuranListeningController::class, 'progress'])->name('quran.listening.items.progress')->middleware('permission:quran_listening.listen');
+    Route::get('quran/listening/{plan}', [Admin\QuranListeningController::class, 'show'])->name('quran.listening.show')->middleware('permission:quran_listening.view');
+    Route::post('quran/listening/{plan}/test', [Admin\QuranListeningController::class, 'test'])->name('quran.listening.test')->middleware('permission:quran_listening.test');
+    Route::post('quran/listening/{plan}/cancel', [Admin\QuranListeningController::class, 'cancel'])->name('quran.listening.cancel')->middleware('permission:quran_listening.update');
+
+    // ---- دفعات الحفظ: كل جزأين دفعة → مراجعة 5 → اختبار بحد نجاح الجامع ----
+    Route::get('quran/batches', [Admin\QuranBatchController::class, 'index'])->name('quran.batches.index')->middleware('permission:quran_batch.view');
+    Route::get('quran/batches/session-start', [Admin\QuranBatchController::class, 'sessionStart'])->name('quran.batches.session-start')->middleware('permission:quran.tasmee.create,quran_review.create');
+    Route::post('quran/batches/{batch}/repeat', [Admin\QuranBatchController::class, 'repeat'])->name('quran.batches.repeat')->middleware('permission:quran_batch.update');
+
+    // ---- إعدادات برنامج القرآن (حد النجاح في اختبار الدفعات) ----
+    Route::get('settings/quran', [Admin\QuranSettingsController::class, 'edit'])->name('settings.quran.edit')->middleware('permission:quran_settings.view');
+    Route::patch('settings/quran', [Admin\QuranSettingsController::class, 'update'])->name('settings.quran.update')->middleware('permission:quran_settings.update');
+
     Route::get('reward-points', [Admin\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
 
     Route::resource('users', Admin\UserController::class)->only(['index', 'store', 'update', 'destroy'])
@@ -317,6 +337,22 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('quran/khamsa/{review}', [Teacher\QuranKhamsaController::class, 'show'])->name('quran.khamsa.show')->middleware('permission:quran_khamsa.view');
     Route::post('quran/khamsa/{review}/cancel', [Teacher\QuranKhamsaController::class, 'cancel'])->name('quran.khamsa.cancel')->middleware('permission:quran_khamsa.update');
 
+    // ---- «خطة الاستماع والاختبار» للمعلم ----
+    Route::get('quran/listening', [Teacher\QuranListeningController::class, 'index'])->name('quran.listening.index')->middleware('permission:quran_listening.view');
+    Route::get('quran/listening/create', [Teacher\QuranListeningController::class, 'create'])->name('quran.listening.create')->middleware('permission:quran_listening.create');
+    Route::post('quran/listening', [Teacher\QuranListeningController::class, 'store'])->name('quran.listening.store')->middleware('permission:quran_listening.create');
+    Route::post('quran/listening/items/{item}/listen', [Teacher\QuranListeningController::class, 'listen'])->name('quran.listening.items.listen')->middleware('permission:quran_listening.listen');
+    Route::get('quran/listening/items/{item}/audio', [Teacher\QuranListeningController::class, 'audio'])->name('quran.listening.items.audio')->middleware('permission:quran_listening.view');
+    Route::post('quran/listening/items/{item}/progress', [Teacher\QuranListeningController::class, 'progress'])->name('quran.listening.items.progress')->middleware('permission:quran_listening.listen');
+    Route::get('quran/listening/{plan}', [Teacher\QuranListeningController::class, 'show'])->name('quran.listening.show')->middleware('permission:quran_listening.view');
+    Route::post('quran/listening/{plan}/test', [Teacher\QuranListeningController::class, 'test'])->name('quran.listening.test')->middleware('permission:quran_listening.test');
+    Route::post('quran/listening/{plan}/cancel', [Teacher\QuranListeningController::class, 'cancel'])->name('quran.listening.cancel')->middleware('permission:quran_listening.update');
+
+    // ---- دفعات الحفظ: كل جزأين دفعة → مراجعة 5 → اختبار بحد نجاح الجامع ----
+    Route::get('quran/batches', [Teacher\QuranBatchController::class, 'index'])->name('quran.batches.index')->middleware('permission:quran_batch.view');
+    Route::get('quran/batches/session-start', [Teacher\QuranBatchController::class, 'sessionStart'])->name('quran.batches.session-start')->middleware('permission:quran.tasmee.create,quran_review.create');
+    Route::post('quran/batches/{batch}/repeat', [Teacher\QuranBatchController::class, 'repeat'])->name('quran.batches.repeat')->middleware('permission:quran_batch.update');
+
     Route::get('reward-points', [Teacher\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
     Route::get('reward-points/create', [Teacher\RewardPointController::class, 'create'])->name('reward-points.create')->middleware('permission:reward_points.create');
     Route::post('reward-points', [Teacher\RewardPointController::class, 'store'])->name('reward-points.store')->middleware('permission:reward_points.create');
@@ -430,6 +466,17 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::post('homeworks/{homework}/submit', [StudentPortal\PortalController::class, 'submitHomework'])->name('homeworks.submit');
     Route::get('announcements', [StudentPortal\PortalController::class, 'announcements'])->name('announcements');
     Route::get('quran-khamsa', [StudentPortal\KhamsaController::class, 'index'])->name('quran-khamsa');
+
+    // ---- «ملفي القرآني»: الشاشة الموحدة (الإنجاز + الدفعة الحالية + الدورة) ----
+    Route::get('quran', [StudentPortal\QuranProfileController::class, 'index'])->name('quran-profile')->middleware('permission:quran_batch.view');
+
+    // ---- «خطة الاستماع»: عرض الخطة + قائمة التشغيل + تسجيل الاستماع ----
+    // مسارات العناصر قبل {plan} حتى لا تلتقط الكلمة الثابتة.
+    Route::get('quran-listening', [StudentPortal\QuranListeningController::class, 'index'])->name('quran-listening.index')->middleware('permission:quran_listening.view');
+    Route::post('quran-listening/items/{item}/listen', [StudentPortal\QuranListeningController::class, 'listen'])->name('quran-listening.items.listen')->middleware('permission:quran_listening.listen');
+    Route::get('quran-listening/items/{item}/audio', [StudentPortal\QuranListeningController::class, 'audio'])->name('quran-listening.items.audio')->middleware('permission:quran_listening.view');
+    Route::post('quran-listening/items/{item}/progress', [StudentPortal\QuranListeningController::class, 'progress'])->name('quran-listening.items.progress')->middleware('permission:quran_listening.listen');
+    Route::get('quran-listening/{plan}', [StudentPortal\QuranListeningController::class, 'show'])->name('quran-listening.show');
 });
 
 // ---- Sheikh portal additions: sections & finance ledger (spec §19-§32) ----

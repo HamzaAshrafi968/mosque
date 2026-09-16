@@ -171,6 +171,12 @@ class Student extends Model
         return $this->hasMany(QuranKhamsaReview::class);
     }
 
+    /** دفعات الحفظ (جزآن لكل دفعة: مراجعة 5 ← اختبار ← فتح التالية). */
+    public function memorizationBatches(): HasMany
+    {
+        return $this->hasMany(QuranMemorizationBatch::class);
+    }
+
     /** Hafiz extension profile (exists once the completion is confirmed). */
     public function hafizProfile(): HasOne
     {

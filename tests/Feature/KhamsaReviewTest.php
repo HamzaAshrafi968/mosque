@@ -12,6 +12,7 @@ use App\Models\Teacher;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\QuranKhamsaService;
+use App\Services\QuranMemorizationGatingService;
 use App\Services\RoleService;
 use App\Services\StudySessionService;
 use Tests\TestCase;
@@ -302,7 +303,7 @@ class KhamsaReviewTest extends TestCase
         ], $admin);
 
         $this->actingAs($studentUser)
-            ->get(route('student.quran-khamsa'))
+            ->get(route('student.quran-profile'))
             ->assertOk()
             ->assertSee('الأستاذ محمد')
             ->assertSee('الخمسة 1')
@@ -363,6 +364,10 @@ class KhamsaReviewTest extends TestCase
         $this->memorize($studentFirst, [1]);
         $this->memorize($studentSecond, [1]);
 
+        $gating = app(QuranMemorizationGatingService::class);
+        $gating->sync($studentFirst);
+        $gating->sync($studentSecond);
+
         $service = app(QuranKhamsaService::class);
 
         $service->createReview([
@@ -383,7 +388,7 @@ class KhamsaReviewTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['study_session_id' => $first->id])
-            ->get(route('admin.quran.khamsa.index'))
+            ->get(route('admin.quran.batches.index'))
             ->assertOk()
             ->assertSee('طالب الدوام الأول')
             ->assertDontSee('طالب الدوام الثاني');

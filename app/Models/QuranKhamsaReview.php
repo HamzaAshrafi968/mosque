@@ -25,6 +25,7 @@ class QuranKhamsaReview extends Model
         'teacher_id',
         'study_session_id',
         'assigned_by',
+        'listening_plan_id',
         'assigned_at',
         'due_date',
         'status',
@@ -53,6 +54,11 @@ class QuranKhamsaReview extends Model
     public function assignedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_by');
+    }
+
+    public function listeningPlan(): BelongsTo
+    {
+        return $this->belongsTo(QuranListeningPlan::class, 'listening_plan_id')->withoutGlobalScope('study_session');
     }
 
     public function items(): HasMany

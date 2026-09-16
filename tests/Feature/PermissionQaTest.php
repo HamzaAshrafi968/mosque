@@ -197,10 +197,10 @@ class PermissionQaTest extends TestCase
             'users' => ['admin.users.index', 'users.view'],
             'sessions' => ['admin.sessions.index', 'sessions.view'],
             'custom fields' => ['admin.custom-fields.index', 'custom_fields.view'],
-            'quran review' => ['admin.quran-review.index', 'quran_review.view'],
+            'quran batches' => ['admin.quran.batches.index', 'quran_batch.view'],
             'reward points' => ['admin.reward-points.index', 'reward_points.view'],
             'quran program' => ['admin.quran.index', 'quran.tasmee.view'],
-            'quran tasmee' => ['admin.quran.tasmee.index', 'quran.tasmee.view'],
+            'quran tasmee' => ['admin.quran.tasmee.create', 'quran.tasmee.create'],
             'quran completions' => ['admin.quran.completions.index', 'quran.completion.view'],
             'hafiz profiles' => ['admin.quran.hafiz.index', 'hafiz_profile.view'],
             'qualifying' => ['admin.quran.qualifying.index', 'qualifying.view'],
@@ -248,10 +248,10 @@ class PermissionQaTest extends TestCase
             'exams' => ['teacher.exams.index', 'exams.view'],
             'lessons' => ['teacher.lessons.index', 'lessons.view'],
             'messages' => ['teacher.messages.index', 'messages.view'],
-            'quran review' => ['teacher.quran-review.index', 'quran_review.view'],
+            'quran batches' => ['teacher.quran.batches.index', 'quran_batch.view'],
             'reward points' => ['teacher.reward-points.index', 'reward_points.view'],
             'quran program' => ['teacher.quran.index', 'quran.tasmee.view'],
-            'quran tasmee' => ['teacher.quran.tasmee.index', 'quran.tasmee.view'],
+            'quran tasmee' => ['teacher.quran.tasmee.create', 'quran.tasmee.create'],
             'qualifying' => ['teacher.quran.qualifying.index', 'qualifying.view'],
             'ijazah' => ['teacher.quran.ijazah.index', 'ijazah.view'],
             'hafiz exams' => ['teacher.quran.exams.index', 'hafiz_exams.view'],
@@ -508,10 +508,8 @@ class PermissionQaTest extends TestCase
 
     // ---------------------------------------------------- known gaps (QA)
 
-    public function test_known_gap_teacher_can_open_journey_for_student_with_portal_account(): void
+    public function test_teacher_can_open_journey_for_student_with_portal_account(): void
     {
-        $this->markTestSkipped('Known gap: EnsurePermission treats Student.user_id as teacher ownership, so a teacher is denied for students who own a portal account.');
-
         $mosque = $this->mosque();
         [$teacherUser, $teacher] = $this->teacher($mosque);
         [, $student] = $this->studentWithAccount($mosque);
@@ -529,10 +527,8 @@ class PermissionQaTest extends TestCase
             ->assertOk();
     }
 
-    public function test_known_gap_teacher_can_open_ijazah_month_for_student_with_portal_account(): void
+    public function test_teacher_can_open_ijazah_month_for_student_with_portal_account(): void
     {
-        $this->markTestSkipped('Known gap: same ownership-predicate bug as the journey page (Student.user_id).');
-
         $mosque = $this->mosque();
         [$teacherUser, $teacher] = $this->teacher($mosque);
         [, $student] = $this->studentWithAccount($mosque);

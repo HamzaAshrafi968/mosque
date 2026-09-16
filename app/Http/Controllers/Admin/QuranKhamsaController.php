@@ -11,6 +11,7 @@ use App\Models\Student;
 use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Services\QuranKhamsaService;
+use App\Services\QuranMemorizationGatingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -21,27 +22,15 @@ use Illuminate\View\View;
  */
 class QuranKhamsaController extends Controller
 {
-    public function __construct(private readonly QuranKhamsaService $khamsa) {}
+    public function __construct(
+        private readonly QuranKhamsaService $khamsa,
+        private readonly QuranMemorizationGatingService $gating,
+    ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
-        $reviews = QuranKhamsaReview::query()
-            ->with(['student:id,name', 'teacher:id,name', 'studySession:id,name', 'items'])
-            ->when($request->filled('student_id'), fn ($query) => $query->where('student_id', $request->input('student_id')))
-            ->when($request->filled('teacher_id'), fn ($query) => $query->where('teacher_id', $request->input('teacher_id')))
-            ->when($request->filled('study_session_id'), fn ($query) => $query->where('study_session_id', $request->input('study_session_id')))
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
-            ->orderByDesc('assigned_at')
-            ->orderByDesc('created_at')
-            ->paginate(20)
-            ->withQueryString();
-
-        return view('admin.quran.khamsa.index', [
-            'reviews' => $reviews,
-            'students' => Student::query()->active()->orderBy('name')->get(['id', 'name']),
-            'teachers' => Teacher::query()->orderBy('name')->get(['id', 'name']),
-            'sessions' => StudySession::orderBy('name')->get(['id', 'name']),
-        ]);
+        // دُمجت «مراجعة 5» في مركز «دفعات الحفظ».
+        return redirect()->route('admin.quran.batches.index');
     }
 
     public function create(Request $request): View
@@ -134,6 +123,7 @@ class QuranKhamsaController extends Controller
         $student = Student::query()->findOrFail($data['student_id']);
 
         $this->khamsa->recordMemorization($student, (int) $data['juz'], $request->user());
+        $this->gating->sync($student, $request->user());
 
         return back()->with('success', 'تم تسجيل حفظ الجزء '.$data['juz']);
     }
@@ -148,6 +138,7 @@ class QuranKhamsaController extends Controller
         $student = Student::query()->findOrFail($data['student_id']);
 
         $this->khamsa->removeMemorization($student, (int) $data['juz'], $request->user());
+        $this->gating->sync($student, $request->user());
 
         return back()->with('success', 'تم إلغاء تسجيل حفظ الجزء '.$data['juz']);
     }

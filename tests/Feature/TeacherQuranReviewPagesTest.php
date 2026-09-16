@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\QuranRecitationSession;
 use App\Models\QuranReviewSession;
 use App\Models\QuranReviewWord;
 use App\Models\QuranSurah;
@@ -185,16 +186,27 @@ class TeacherQuranReviewPagesTest extends TestCase
             ->assertSee('صفحة 2')
             ->assertSee('ذَٰلِكَ');
 
+        // «الاستماع مع المعلم» دُمج في سجل «التسميع مع المعلم» داخل مركز «دفعات الحفظ».
+        QuranRecitationSession::create([
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'revision',
+            'date' => now()->toDateString(),
+            'amount' => 1,
+        ]);
+
         $this->actingAs($teacherUser)
-            ->get(route('teacher.quran-review.index'))
+            ->get(route('teacher.quran.batches.index', ['student_id' => $student->id]))
             ->assertOk()
+            ->assertSee('التسميع مع المعلم')
+            ->assertSee('استماع مع المعلم')
             ->assertSee('صفحة 2');
     }
 
     public function test_store_page_review_handles_a_page_spanning_two_surahs(): void
     {
         [$mosque] = $this->mosque();
-        [$teacherUser] = $this->makeTeacher($mosque->id);
+        [$teacherUser, $teacher] = $this->makeTeacher($mosque->id);
         $student = $this->makeStudent($mosque->id);
 
         $statuses = $this->statusesForPages(106, 106);

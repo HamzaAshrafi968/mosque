@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\QuranTasmeeResult;
 use App\Enums\QuranTasmeeType;
 use App\Http\Controllers\Controller;
+use App\Models\QuranMemorizationBatch;
 use App\Models\QuranRecitationSession;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AuditLogger;
+use App\Services\AuthorizationService;
+use App\Services\QuranMemorizationGatingService;
 use App\Services\QuranPageService;
 use App\Support\TasmeePageInput;
 use Illuminate\Http\RedirectResponse;
@@ -18,36 +21,57 @@ use Illuminate\View\View;
 
 class QuranTasmeeController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly QuranMemorizationGatingService $gating,
+        private readonly AuthorizationService $authorization,
+    ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
-        $sessions = QuranRecitationSession::query()
-            ->with(['student:id,name', 'teacher:id,name'])
-            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->input('type')))
-            ->when($request->filled('student_id'), fn ($q) => $q->where('student_id', $request->input('student_id')))
-            ->when($request->filled('date_from'), fn ($q) => $q->where('date', '>=', $request->input('date_from')))
-            ->when($request->filled('date_to'), fn ($q) => $q->where('date', '<=', $request->input('date_to')))
-            ->orderByDesc('date')
-            ->orderByDesc('created_at')
-            ->paginate(20)
-            ->withQueryString();
+        $target = $this->authorization->can($request->user(), 'quran_batch.view')
+            ? 'admin.quran.batches.index'
+            : 'admin.quran.index';
 
-        return view('admin.quran.tasmee.index', [
-            'sessions' => $sessions,
-            'students' => Student::query()->orderBy('name')->get(['id', 'name']),
-            'types' => QuranTasmeeType::cases(),
-        ]);
+        return redirect()->route($target, array_filter([
+            'student_id' => $request->input('student_id'),
+        ]));
     }
 
     public function create(Request $request): View
     {
+        $presetStudentId = $request->input('student_id');
+        $presetType = in_array($request->input('type'), [QuranTasmeeType::New->value, QuranTasmeeType::Revision->value], true)
+            ? $request->input('type')
+            : null;
+        $batch = null;
+        $progress = null;
+        $suggested = null;
+
+        if ($presetStudentId) {
+            $student = Student::query()->find($presetStudentId);
+
+            if ($student) {
+                $batch = $this->gating->currentBatch($student);
+
+                if ($batch) {
+                    $progress = $this->gating->batchMemorizationProgress($batch);
+                    $suggested = $this->suggestedRange($batch, $progress);
+                }
+            }
+        }
+
         return view('admin.quran.tasmee.create', [
             'students' => Student::query()->active()->orderBy('name')->get(['id', 'name', 'classroom_id']),
             'teachers' => Teacher::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'types' => QuranTasmeeType::cases(),
             'results' => QuranTasmeeResult::cases(),
-            'presetStudentId' => $request->input('student_id'),
+            'presetStudentId' => $presetStudentId,
+            'presetType' => $presetType,
+            'batch' => $batch,
+            'progress' => $progress,
+            'suggestedFrom' => $suggested['from'] ?? null,
+            'suggestedTo' => $suggested['to'] ?? null,
         ]);
     }
 
@@ -77,6 +101,8 @@ class QuranTasmeeController extends Controller
                 ->withErrors(['from_page' => 'حدد نطاق صفحات صحيحاً (حتى '.QuranPageService::MAX_REVIEW_PAGES.' صفحات) لفتح صفحة التسميع.']);
         }
 
+        $this->assertNewTasmeeWithinBatch($data['student_id'], $data['type'], $from, $to);
+
         return view('admin.quran.tasmee.review', [
             'session' => $session,
             'student' => Student::findOrFail($data['student_id']),
@@ -99,9 +125,17 @@ class QuranTasmeeController extends Controller
     {
         $data = TasmeePageInput::normalize($this->validated($request));
 
+        $this->assertNewTasmeeWithinBatch(
+            $data['student_id'],
+            $data['type'],
+            isset($data['from_page']) ? (int) $data['from_page'] : null,
+            isset($data['to_page']) ? (int) $data['to_page'] : null,
+        );
+
         $session = QuranRecitationSession::create([
             'student_id' => $data['student_id'],
             'teacher_id' => $data['teacher_id'],
+            'batch_id' => $this->batchIdFor($data['student_id'], $data),
             'type' => $data['type'],
             'date' => $data['date'],
             'amount' => $data['amount'],
@@ -116,7 +150,7 @@ class QuranTasmeeController extends Controller
         $this->audit->logModel('quran.tasmee.created', $session, actor: $request->user());
 
         return redirect()
-            ->route('admin.quran.tasmee.index', ['type' => $data['type']])
+            ->route('admin.quran.batches.index', ['student_id' => $data['student_id']])
             ->with('success', 'تم تسجيل التسميع بنجاح');
     }
 
@@ -136,9 +170,17 @@ class QuranTasmeeController extends Controller
         $data = TasmeePageInput::normalize($this->validated($request));
         $before = $session->getAttributes();
 
+        $this->assertNewTasmeeWithinBatch(
+            $data['student_id'],
+            $data['type'],
+            isset($data['from_page']) ? (int) $data['from_page'] : null,
+            isset($data['to_page']) ? (int) $data['to_page'] : null,
+        );
+
         $session->update([
             'student_id' => $data['student_id'],
             'teacher_id' => $data['teacher_id'],
+            'batch_id' => $this->batchIdFor($data['student_id'], $data),
             'type' => $data['type'],
             'date' => $data['date'],
             'amount' => $data['amount'],
@@ -165,8 +207,62 @@ class QuranTasmeeController extends Controller
         }
 
         return redirect()
-            ->route('admin.quran.tasmee.index', ['type' => $session->type->value])
+            ->route('admin.quran.batches.index', ['student_id' => $data['student_id']])
             ->with('success', 'تم تحديث التسميع');
+    }
+
+    /** دفعة تسميع «جديد»: تُشتق من نطاق الصفحات وتُترك فارغة للمراجعة. */
+    private function batchIdFor(string $studentId, array $data): ?string
+    {
+        if ($data['type'] !== QuranTasmeeType::New->value) {
+            return null;
+        }
+
+        $student = Student::query()->find($studentId);
+
+        if (! $student) {
+            return null;
+        }
+
+        return $this->gating->batchForPageRange(
+            $student,
+            isset($data['from_page']) ? (int) $data['from_page'] : null,
+            isset($data['to_page']) ? (int) $data['to_page'] : null,
+        )?->id;
+    }
+
+    /**
+     * نطاق مقترح لتسميع «جديد»: من أول صفحة غير مغطاة داخل الدفعة،
+     * بمقدار ٥ صفحات كحد أقصى (أو حتى نهاية الدفعة).
+     *
+     * @param  array{next_page: ?int}  $progress
+     * @return array{from: int, to: int}|null
+     */
+    private function suggestedRange(QuranMemorizationBatch $batch, array $progress): ?array
+    {
+        $from = $progress['next_page'];
+
+        if ($from === null) {
+            return null;
+        }
+
+        $range = $batch->pagesRange();
+
+        return ['from' => $from, 'to' => min($from + 4, $range['to'])];
+    }
+
+    /** تسميع «جديد» مسموح فقط داخل نطاق الدفعة الحالية للطالب. */
+    private function assertNewTasmeeWithinBatch(string $studentId, string $type, ?int $fromPage, ?int $toPage): void
+    {
+        if ($type !== QuranTasmeeType::New->value) {
+            return;
+        }
+
+        $student = Student::query()->find($studentId);
+
+        if ($student) {
+            $this->gating->assertNewTasmeeAllowed($student, $fromPage, $toPage);
+        }
     }
 
     private function validated(Request $request): array

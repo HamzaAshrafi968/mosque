@@ -24,6 +24,7 @@ class QuranRecitationSession extends Model
         'tenant_id',
         'student_id',
         'teacher_id',
+        'batch_id',
         'type',
         'date',
         'amount',
@@ -67,5 +68,11 @@ class QuranRecitationSession extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class)->withoutGlobalScope('study_session');
+    }
+
+    /** دفعة الحفظ المرتبطة (لتسميع «جديد» داخل نطاقها). */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(QuranMemorizationBatch::class, 'batch_id');
     }
 }

@@ -40,7 +40,7 @@
 
 @section('content')
 <div class="space-y-6 max-w-5xl mx-auto">
-    <a href="{{ route('teacher.quran-review.index') }}" class="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 text-sm font-medium transition animate-fade-in-up">
+    <a href="{{ route('teacher.quran.batches.index') }}" class="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 text-sm font-medium transition animate-fade-in-up">
         ← العودة إلى جلسات الاستماع
     </a>
 
