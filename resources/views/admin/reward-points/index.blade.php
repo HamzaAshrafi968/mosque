@@ -20,6 +20,27 @@
             <span>🏆</span> سجل نقاط المكافآت
         </div>
 
+        <form method="GET" class="px-5 py-4 border-b border-gray-100 grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <select name="student_id" class="rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500">
+                <option value="">كل الطلاب</option>
+                @foreach($students as $student)
+                    <option value="{{ $student->id }}" @selected(request('student_id') === $student->id)>{{ $student->name }}</option>
+                @endforeach
+            </select>
+            <select name="study_session_id" class="rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500">
+                <option value="">كل الدوامات</option>
+                @foreach($sessions as $session)
+                    <option value="{{ $session->id }}" @selected(request('study_session_id') === $session->id)>{{ $session->name }}</option>
+                @endforeach
+            </select>
+            <select name="type" class="rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500">
+                <option value="">كل الأنواع</option>
+                <option value="earned" @selected(request('type') === 'earned')>ربح</option>
+                <option value="deducted" @selected(request('type') === 'deducted')>خصم</option>
+            </select>
+            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold px-4 py-2 rounded-lg">تصفية</button>
+        </form>
+
         @if($points->isEmpty())
             <div class="p-16 text-center">
                 <div class="w-20 h-20 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
@@ -34,6 +55,7 @@
                     <thead>
                         <tr class="bg-gradient-to-r from-gray-50 to-amber-50/50 border-b border-gray-200">
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">👨‍🎓 الطالب</th>
+                            <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">🌅 الدوام</th>
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">👤 أضافها</th>
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">🏆 النقاط</th>
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">📋 النوع</th>
@@ -54,7 +76,14 @@
                                         </a>
                                     </div>
                                 </td>
-                                <td class="px-5 py-4 text-gray-600">{{ $point->awardedBy->name }}</td>
+                                <td class="px-5 py-4 text-gray-600">
+                                    @if($point->studySession)
+                                        <span class="text-xs font-semibold">{{ $point->studySession->name }}</span>
+                                    @else
+                                        <span class="text-gray-400">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-5 py-4 text-gray-600">{{ $point->awardedBy?->name ?? 'النظام' }}</td>
                                 <td class="px-5 py-4">
                                     <span class="font-bold text-lg {{ $point->type === 'earned' ? 'text-emerald-600' : 'text-red-600' }}">
                                         {{ $point->type === 'earned' ? '+' : '-' }}{{ $point->points }}

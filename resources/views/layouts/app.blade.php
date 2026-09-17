@@ -207,6 +207,8 @@
                     @if ($can('quran_settings.view'))
                         <x-nav-link icon="fields" :href="route('admin.settings.quran.edit')" :active="request()->routeIs('admin.settings.quran.*')"><span>إعدادات
                                 القرآن</span></x-nav-link>
+                        <x-nav-link icon="trophy" :href="route('admin.settings.rewards.edit')" :active="request()->routeIs('admin.settings.rewards.*')"><span>إعدادات
+                                النقاط</span></x-nav-link>
                     @endif
                     @if ($can('quran.tasmee.view'))
                         <x-nav-link icon="moon" :href="route('admin.quran.index')" :active="request()->routeIs('admin.quran.index') || request()->routeIs('admin.quran.journey')"><span>البرامج
@@ -267,6 +269,8 @@
                         <span>لوحة التحكم</span>
                     </x-nav-link>
                     <x-nav-link icon="mosque" :href="route('super-admin.mosques.index')" :active="request()->routeIs('super-admin.mosques.*')"><span>الجوامع</span></x-nav-link>
+                    <x-nav-link icon="quran" :href="route('super-admin.sharia-courses.index')" :active="request()->routeIs('super-admin.sharia-courses.*')"><span>الدورات
+                            الشرعية</span></x-nav-link>
                     <x-nav-link icon="bell" :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">
                         <span class="flex-1">الإشعارات</span>
                         @if ($unreadCount > 0)
@@ -313,6 +317,7 @@
                     @if ($can('quran_batch.view'))
                         <x-nav-link icon="quran" :href="route('student.quran-profile')" :active="request()->routeIs('student.quran-profile')"><span>ملفي القرآني</span></x-nav-link>
                     @endif
+                    <x-nav-link icon="trophy" :href="route('student.reward-points')" :active="request()->routeIs('student.reward-points')"><span>نقاطي</span></x-nav-link>
                     <x-nav-link icon="megaphone" :href="route('student.announcements')"
                         :active="request()->routeIs('student.announcements')"><span>الإعلانات</span></x-nav-link>
                     <x-nav-link icon="bell" :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">

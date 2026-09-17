@@ -646,7 +646,8 @@ class QuranListeningPlanTest extends TestCase
             ->get(route('admin.quran.listening.show', $plan))
             ->assertOk()
             ->assertSee('مراجعة 5 المرتبطة')
-            ->assertSee('الخمسة 1');
+            ->assertDontSee('العنصر والصفحات')
+            ->assertDontSee('الخمسة 1');
     }
 
     public function test_review_item_requires_a_memorized_juz(): void
@@ -891,7 +892,7 @@ class QuranListeningPlanTest extends TestCase
             ->assertSee('توليد تلقائي من الأجزاء المحفوظة');
     }
 
-    public function test_teacher_show_page_renders_review_items_and_khamsa_link(): void
+    public function test_teacher_show_page_renders_the_khamsa_link_and_student_page_renders_items(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [$teacherUser, $teacher] = $this->teacher($mosque, $session);
@@ -917,6 +918,16 @@ class QuranListeningPlanTest extends TestCase
             ->get(route('teacher.quran.listening.show', $plan))
             ->assertOk()
             ->assertSee('مراجعة 5 المرتبطة')
+            ->assertDontSee('العنصر والصفحات');
+
+        $studentUser = User::factory()->create(['tenant_id' => $mosque->id, 'role' => 'student']);
+        $student->user_id = $studentUser->id;
+        $student->save();
+
+        $this->actingAs($studentUser)
+            ->get(route('student.quran-listening.show', $plan))
+            ->assertOk()
+            ->assertSee('العنصر والصفحات')
             ->assertSee('الخمسة 1')
             ->assertSee('جديد');
     }

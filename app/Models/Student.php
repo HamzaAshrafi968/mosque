@@ -217,6 +217,12 @@ class Student extends Model
         return $this->hasMany(FaithMeetingStudent::class);
     }
 
+    /** تسجيلات الطالب في الدورات الشرعية (سجل الدورة). */
+    public function shariaCourseEnrollments(): HasMany
+    {
+        return $this->hasMany(ShariaCourseStudent::class, 'student_id');
+    }
+
     public function faithMeetings(): BelongsToMany
     {
         return $this->belongsToMany(FaithMeeting::class, 'faith_meeting_students', 'student_id', 'meeting_id')

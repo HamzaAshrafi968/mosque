@@ -198,8 +198,13 @@ class QuranProgramsTest extends TestCase
 
         $this->assertSame(2, QuranRecitationSession::where('student_id', $student->id)->count());
 
+        $first = QuranRecitationSession::query()
+            ->where('student_id', $student->id)
+            ->where('recited_portion', 'سورة البقرة')
+            ->firstOrFail();
+
         $this->actingAs($admin)
-            ->get(route('admin.quran.batches.index', ['student_id' => $student->id]))
+            ->get(route('admin.quran.tasmee.edit', $first))
             ->assertOk()
             ->assertSee('سورة البقرة');
     }

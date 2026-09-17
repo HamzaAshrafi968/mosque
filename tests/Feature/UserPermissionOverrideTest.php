@@ -49,7 +49,7 @@ class UserPermissionOverrideTest extends TestCase
         'hafiz_profile.view' => 'own',
         'faith_meetings.view' => 'own', 'faith_meetings.create' => 'own', 'faith_meetings.update' => 'own', 'faith_meetings.attendance' => 'own',
         'work_hours.view' => 'own',
-        'sharia_courses.view' => 'own', 'sharia_courses.update' => 'own', 'sharia_courses.attendance' => 'own',
+        'sharia_courses.view' => 'own', 'sharia_courses.update' => 'own', 'sharia_courses.attendance' => 'own', 'sharia_courses.memorization' => 'own',
     ];
 
     private function mosque(): Tenant

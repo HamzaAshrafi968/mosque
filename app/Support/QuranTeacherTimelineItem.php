@@ -36,7 +36,6 @@ final readonly class QuranTeacherTimelineItem
         public QuranTeacherTimelineDetailLevel $detailLevel = QuranTeacherTimelineDetailLevel::Summary,
         public ?int $wordErrorCount = null,
         public ?string $showUrl = null,
-        public ?string $editUrl = null,
     ) {}
 
     public function isListening(): bool

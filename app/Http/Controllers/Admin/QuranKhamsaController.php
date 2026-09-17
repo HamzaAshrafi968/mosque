@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Quran\StartKhamsaReviewSessionAction;
 use App\Enums\QuranTasmeeResult;
 use App\Http\Controllers\Controller;
 use App\Models\QuranKhamsaReview;
 use App\Models\QuranKhamsaReviewItem;
+use App\Models\QuranMemorizationBatch;
 use App\Models\QuranReviewSession;
 use App\Models\Student;
 use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Services\QuranKhamsaService;
 use App\Services\QuranMemorizationGatingService;
+use App\Services\QuranPageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -81,6 +84,12 @@ class QuranKhamsaController extends Controller
             'items.quranReviewSession:id,date,from_page,to_page,mastery_percentage',
         ]);
 
+        $batch = QuranMemorizationBatch::query()
+            ->where(function ($query) use ($review) {
+                $query->where('review_5_id', $review->id)->orWhere('retake_review_id', $review->id);
+            })
+            ->first();
+
         return view('admin.quran.khamsa.show', [
             'review' => $review,
             'memorizedJuz' => $this->khamsa->memorizedJuzNumbers($review->student),
@@ -90,7 +99,66 @@ class QuranKhamsaController extends Controller
                 ->limit(10)
                 ->get(['id', 'date', 'from_page', 'to_page', 'mastery_percentage']),
             'results' => QuranTasmeeResult::cases(),
+            'reviewRoute' => fn (QuranKhamsaReview $row) => route('admin.quran.khamsa.review', $row),
+            'testUrl' => $batch?->isReadyForTest()
+                ? route('admin.quran.batches.index', ['student_id' => $review->student_id]).'#batch-test'
+                : null,
         ]);
+    }
+
+    /** شاشة مراجعة الخمسات المحددة: فتح القرآن عليها وتسجيل الأخطاء كلمة بكلمة. */
+    public function review(Request $request, QuranKhamsaReview $review, QuranPageService $pages): View
+    {
+        $items = $this->khamsa->pendingSelection($review, (array) $request->input('items', []));
+        $range = $this->khamsa->selectionPageRange($items);
+        $this->khamsa->assertSelectionPageLimit($range);
+
+        return view('quran.khamsa.review', [
+            'review' => $review->load(['student:id,name', 'teacher:id,name']),
+            'selectedItems' => $items,
+            'pages' => $pages->pagesForRange($range['from'], $range['to']),
+            'statuses' => [],
+            'fromPage' => $range['from'],
+            'toPage' => $range['to'],
+            'date' => now()->toDateString(),
+            'results' => QuranTasmeeResult::cases(),
+            'storeRoute' => route('admin.quran.khamsa.review.store', $review),
+            'backRoute' => route('admin.quran.khamsa.show', $review),
+        ]);
+    }
+
+    /** حفظ المراجعة: جلسة «استماع مع المعلم» واحدة تُنهي كل الخمسات المحددة. */
+    public function storeReview(Request $request, QuranKhamsaReview $review, StartKhamsaReviewSessionAction $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*' => ['string', 'uuid'],
+            'date' => ['required', 'date'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'result' => ['nullable', Rule::enum(QuranTasmeeResult::class)],
+            'word_statuses' => ['nullable', 'array', 'max:5000'],
+            'word_statuses.*' => ['string', Rule::in(['correct', 'incorrect', 'hesitation', 'tajweed_error', 'added', 'forgotten', 'unreviewed'])],
+        ]);
+
+        $result = $action->execute($review, $data['items'], $data, $request->user(), $request);
+
+        $message = 'تم إنهاء '.$result['completed'].' خمسة بجلسة استماع (إتقان '.$result['mastery_percentage'].'%)';
+
+        $linkedToBatch = QuranMemorizationBatch::query()
+            ->where(function ($query) use ($review) {
+                $query->where('review_5_id', $review->id)->orWhere('retake_review_id', $review->id);
+            })
+            ->exists();
+
+        if ($linkedToBatch && $review->refresh()->isCompleted()) {
+            return redirect()
+                ->to(route('admin.quran.batches.index', ['student_id' => $review->student_id]).'#batch-test')
+                ->with('success', $message.' — سجّل نتيجة الاختبار');
+        }
+
+        return redirect()
+            ->route('admin.quran.khamsa.show', $review)
+            ->with('success', $message);
     }
 
     public function complete(Request $request, QuranKhamsaReviewItem $item): RedirectResponse

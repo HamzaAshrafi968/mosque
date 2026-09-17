@@ -48,7 +48,6 @@ class QuranTeacherTimelineService
      * سجل «التسميع مع المعلم» لطالب واحد، الأحدث أولاً.
      *
      * @param  callable(QuranReviewSession): string|null  $reviewShowUrl  رابط عرض جلسة الاستماع
-     * @param  callable(QuranRecitationSession): string|null  $tasmeeEditUrl  رابط تعديل التسميع
      * @return Collection<int, QuranTeacherTimelineItem>
      */
     public function forStudent(
@@ -57,14 +56,13 @@ class QuranTeacherTimelineService
         ?string $teacherId = null,
         int $limit = 20,
         ?callable $reviewShowUrl = null,
-        ?callable $tasmeeEditUrl = null,
     ): Collection {
         $filter = $this->normalizeFilter($filter);
 
         $items = collect();
 
         if ($filter === null || $filter === self::FILTER_NEW || $filter === self::FILTER_REVISION) {
-            $items = $items->concat($this->recitationItems($student, $filter, $teacherId, $tasmeeEditUrl));
+            $items = $items->concat($this->recitationItems($student, $filter, $teacherId));
         }
 
         if ($filter === null || $filter === self::FILTER_LISTENING) {
@@ -82,11 +80,8 @@ class QuranTeacherTimelineService
         return array_key_exists((string) $filter, self::filters()) ? $filter : null;
     }
 
-    /**
-     * @param  callable(QuranRecitationSession): string|null  $tasmeeEditUrl
-     * @return Collection<int, QuranTeacherTimelineItem>
-     */
-    private function recitationItems(Student $student, ?string $filter, ?string $teacherId, ?callable $tasmeeEditUrl): Collection
+    /** @return Collection<int, QuranTeacherTimelineItem> */
+    private function recitationItems(Student $student, ?string $filter, ?string $teacherId): Collection
     {
         return QuranRecitationSession::query()
             ->with(['teacher:id,name', 'batch:id,batch_number,from_juz,to_juz'])
@@ -98,10 +93,10 @@ class QuranTeacherTimelineService
             ->orderByDesc('created_at')
             ->limit(self::PER_SOURCE_LIMIT)
             ->get()
-            ->map(fn (QuranRecitationSession $session) => $this->recitationItem($session, $tasmeeEditUrl));
+            ->map(fn (QuranRecitationSession $session) => $this->recitationItem($session));
     }
 
-    private function recitationItem(QuranRecitationSession $session, ?callable $tasmeeEditUrl): QuranTeacherTimelineItem
+    private function recitationItem(QuranRecitationSession $session): QuranTeacherTimelineItem
     {
         $isNew = $session->type === QuranTasmeeType::New;
         $wordErrorCount = is_array($session->word_statuses) && $session->word_statuses !== []
@@ -124,7 +119,6 @@ class QuranTeacherTimelineService
             teacherName: $session->teacher?->name,
             detailLevel: QuranTeacherTimelineDetailLevel::Summary,
             wordErrorCount: $wordErrorCount,
-            editUrl: $tasmeeEditUrl ? $tasmeeEditUrl($session) : null,
         );
     }
 

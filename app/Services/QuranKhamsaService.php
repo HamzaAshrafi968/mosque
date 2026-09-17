@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Enums\QuranKhamsaItemStatus;
 use App\Enums\QuranKhamsaReviewStatus;
+use App\Enums\QuranKhamsaReviewType;
 use App\Enums\QuranListeningItemStatus;
+use App\Enums\QuranTasmeeResult;
 use App\Enums\QuranTasmeeType;
 use App\Models\QuranKhamsaReview;
 use App\Models\QuranKhamsaReviewItem;
@@ -19,6 +21,7 @@ use App\Models\Teacher;
 use App\Models\User;
 use App\Support\QuranJuzMap;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -33,9 +36,13 @@ use Illuminate\Validation\ValidationException;
  */
 class QuranKhamsaService
 {
+    /** حد صفحات جلسة مراجعة الخمسات الواحدة (٦ خمسات متتالية تغطي ~٣٠ صفحة). */
+    public const MAX_REVIEW_PAGES = 30;
+
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly QuranMemorizationGatingService $gating,
+        private readonly RewardPointAutoService $rewardPoints,
     ) {}
 
     /**
@@ -101,9 +108,10 @@ class QuranKhamsaService
 
     /**
      * إنشاء مراجعة جديدة (رأس + خمسات) مع فرض قواعد القفل والدوام.
-     * يمكن ربطها بخطة استماع (listening_plan_id) عند دمج «مراجعة 5» فيها.
+     * يمكن ربطها بخطة استماع (listening_plan_id) عند دمج «مراجعة 5» فيها،
+     * وتحديد نوعها: خمسات ما بعد الحفظ (افتراضي) أو خمسات إعادة رسوب الاختبار.
      *
-     * @param  array{student_id: string, teacher_id: string, study_session_id: string, listening_plan_id?: ?string, assigned_at?: string, due_date?: ?string, notes?: ?string, items: array<int, array{juz: int|string, khamsa: int|string}>}  $data
+     * @param  array{student_id: string, teacher_id: string, study_session_id: string, listening_plan_id?: ?string, type?: QuranKhamsaReviewType|string, assigned_at?: string, due_date?: ?string, notes?: ?string, items: array<int, array{juz: int|string, khamsa: int|string}>}  $data
      */
     public function createReview(array $data, User $actor): QuranKhamsaReview
     {
@@ -160,6 +168,9 @@ class QuranKhamsaService
         }
 
         return DB::transaction(function () use ($student, $teacher, $session, $items, $data, $actor) {
+            $type = $data['type'] ?? QuranKhamsaReviewType::PostMemorization;
+            $type = $type instanceof QuranKhamsaReviewType ? $type : QuranKhamsaReviewType::from((string) $type);
+
             $review = QuranKhamsaReview::create([
                 'student_id' => $student->id,
                 'teacher_id' => $teacher->id,
@@ -169,6 +180,7 @@ class QuranKhamsaService
                 'assigned_at' => $data['assigned_at'] ?? Carbon::today(),
                 'due_date' => $data['due_date'] ?? null,
                 'status' => QuranKhamsaReviewStatus::Pending,
+                'type' => $type,
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -253,6 +265,104 @@ class QuranKhamsaService
         });
 
         $this->syncBatchAfterReview($review);
+
+        $this->rewardPoints->awardForKhamsaItem($item, $actor);
+    }
+
+    /**
+     * الخمسات المحددة لمراجعة جماعية: يجب أن تكون تابعة للمراجعة وقيد المراجعة.
+     *
+     * @param  array<int, string>  $itemIds
+     * @return Collection<int, QuranKhamsaReviewItem>
+     */
+    public function pendingSelection(QuranKhamsaReview $review, array $itemIds): Collection
+    {
+        $ids = array_values(array_unique(array_filter($itemIds)));
+
+        if ($ids === []) {
+            throw ValidationException::withMessages(['items' => ['حدد خمسة واحدة على الأقل']]);
+        }
+
+        $items = QuranKhamsaReviewItem::query()
+            ->where('review_id', $review->id)
+            ->whereIn('id', $ids)
+            ->where('status', QuranKhamsaItemStatus::Pending)
+            ->orderBy('from_page')
+            ->get();
+
+        if ($items->count() !== count($ids)) {
+            throw ValidationException::withMessages([
+                'items' => ['إحدى الخمسات المحددة غير متاحة للمراجعة (منجَزة مسبقاً أو لا تتبع هذه المراجعة)'],
+            ]);
+        }
+
+        return $items;
+    }
+
+    /** التحديد يجب أن يكون خمسات متتالية بلا فجوات بين نطاقات صفحاتها. */
+    public function assertContiguousSelection(Collection $items): void
+    {
+        $sorted = $items->sortBy('from_page')->values();
+
+        for ($i = 1; $i < $sorted->count(); $i++) {
+            if ((int) $sorted[$i]->from_page !== (int) $sorted[$i - 1]->to_page + 1) {
+                throw ValidationException::withMessages([
+                    'items' => ['التحديد يجب أن يكون خمسات متتالية بلا فجوات'],
+                ]);
+            }
+        }
+    }
+
+    /**
+     * نطاق صفحات التحديد: من أول صفحة في أول خمسة إلى آخر صفحة في آخر خمسة.
+     *
+     * @param  Collection<int, QuranKhamsaReviewItem>  $items
+     * @return array{from: int, to: int, pages: int}
+     */
+    public function selectionPageRange(Collection $items): array
+    {
+        $from = (int) $items->min('from_page');
+        $to = (int) $items->max('to_page');
+
+        return ['from' => $from, 'to' => $to, 'pages' => max(0, $to - $from + 1)];
+    }
+
+    /** @param  array{pages: int}  $range */
+    public function assertSelectionPageLimit(array $range): void
+    {
+        if ($range['pages'] > self::MAX_REVIEW_PAGES) {
+            throw ValidationException::withMessages([
+                'items' => ['الحد الأقصى للمراجعة الواحدة '.self::MAX_REVIEW_PAGES.' صفحة — قلّل عدد الخمسات المحددة'],
+            ]);
+        }
+    }
+
+    /**
+     * إنهاء مجموعة خمسات دفعة واحدة بجلسة «استماع مع المعلم» واحدة.
+     *
+     * @param  Collection<int, QuranKhamsaReviewItem>  $items
+     */
+    public function completeItems(
+        QuranKhamsaReview $review,
+        Collection $items,
+        string $sessionId,
+        ?QuranTasmeeResult $result,
+        ?string $notes,
+        User $actor,
+    ): int {
+        $completed = 0;
+
+        foreach ($items as $item) {
+            $this->completeItem($item, [
+                'result' => $result?->value,
+                'notes' => $notes,
+                'quran_review_session_id' => $sessionId,
+            ], $actor);
+
+            $completed++;
+        }
+
+        return $completed;
     }
 
     /** اكتمال مراجعة مرتبطة بدفعة حفظ ينقل الدفعة إلى «بانتظار الاختبار». */
@@ -263,7 +373,10 @@ class QuranKhamsaService
         }
 
         $batch = QuranMemorizationBatch::query()
-            ->where('review_5_id', $review->id)
+            ->where(function ($query) use ($review) {
+                $query->where('review_5_id', $review->id)
+                    ->orWhere('retake_review_id', $review->id);
+            })
             ->first();
 
         if (! $batch) {

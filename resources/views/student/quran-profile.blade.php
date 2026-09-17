@@ -21,6 +21,8 @@
     $currentBatch = $currentBatch ?? ($currentState['batch'] ?? null);
     $currentStatus = $currentState['status'] ?? null;
     $review = $review ?? $currentBatch?->review5;
+    $retakeReview = $retakeReview ?? $currentBatch?->retakeReview5;
+    $failedJuz = $failedJuz ?? [];
     $plan = $plan ?? $currentBatch?->plan;
     $lastTest = $lastTest ?? $currentBatch?->lastTest;
     $reviewProgress = $review?->progress();
@@ -28,7 +30,6 @@
     $threshold = rtrim(rtrim(number_format($minimumPassingPercentage, 2, '.', ''), '0'), '.');
     $memorizationProgress = $memorizationProgress ?? null;
     $timeline = $timeline ?? collect();
-    $coveredPages = $memorizationProgress['covered_pages'] ?? [];
 @endphp
 
 <div class="max-w-5xl mx-auto">
@@ -114,12 +115,12 @@
                     'border-red-300 bg-red-50' => $currentStatus->value === 'needs_repeat',
                     'border-gray-200 bg-gray-50' => ! in_array($currentStatus->value, ['ready_for_test', 'needs_repeat'], true),
                 ])>
-                    <div class="text-xs font-bold text-gray-500 mb-1">3. الاختبار</div>
+                    <div class="text-xs font-bold text-gray-500 mb-1">3. الاختبار التراكمي</div>
                     <div class="text-sm font-black text-gray-800">
                         @if ($currentStatus->value === 'needs_repeat')
-                            راسب — يحتاج إعادة
+                            راسب في الأجزاء: {{ $failedJuz === [] ? '—' : implode('، ', $failedJuz) }}
                         @elseif ($currentStatus->value === 'ready_for_test')
-                            مطلوب الآن
+                            {{ $lastTest && ! $lastTest->isPass() ? 'إعادة الاختبار مطلوبة' : 'مطلوب الآن' }}
                         @elseif ($lastTest)
                             {{ rtrim(rtrim(number_format((float) $lastTest->score, 2, '.', ''), '0'), '.') }}%
                         @else
@@ -157,14 +158,8 @@
                                 <span class="font-bold text-gray-700">الجزء {{ $juzRow['juz'] }}</span>
                                 <span class="text-gray-500">{{ $juzRow['covered'] }} / {{ $juzRow['total'] }} صفحة — {{ $juzRow['percentage'] }}%</span>
                             </div>
-                            <div class="grid grid-cols-7 sm:grid-cols-10 gap-1">
-                                @for ($page = $juzRow['from']; $page <= $juzRow['to']; $page++)
-                                    <div @class([
-                                        'text-[10px] text-center rounded border py-0.5',
-                                        'border-emerald-300 bg-emerald-100 text-emerald-800 font-bold' => in_array($page, $coveredPages, true),
-                                        'border-gray-200 bg-gray-50 text-gray-400' => ! in_array($page, $coveredPages, true),
-                                    ]) title="صفحة {{ $page }}">{{ $page }}</div>
-                                @endfor
+                            <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                                <div class="h-full bg-emerald-600" style="width: {{ min(100, $juzRow['percentage']) }}%"></div>
                             </div>
                         </div>
                     @endforeach
@@ -188,6 +183,7 @@
                 'reciters' => $reciters,
                 'canTest' => false,
                 'canListen' => true,
+                'showPlayer' => true,
                 'embedded' => true,
                 'indexRoute' => route('student.quran-profile'),
                 'listenRoute' => fn ($item) => route('student.quran-listening.items.listen', $item),
@@ -204,6 +200,29 @@
         <div class="mb-6">
             @include('quran.khamsa.review-details', [
                 'review' => $review,
+                'memorizedJuz' => $memorizedJuz,
+                'listeningSessions' => collect(),
+                'results' => [],
+                'embedded' => true,
+                'readOnly' => true,
+                'indexRoute' => route('student.quran-profile'),
+                'completeRoute' => null,
+                'cancelRoute' => null,
+                'memorizationStoreRoute' => null,
+                'memorizationDestroyRoute' => null,
+            ])
+        </div>
+    @endif
+
+    @if ($retakeReview)
+        <div class="mb-6">
+            <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 mb-3">
+                <span class="font-bold">خمسات إعادة رسوب الاختبار:</span>
+                رسبت في الأجزاء {{ $failedJuz === [] ? '—' : implode('، ', $failedJuz) }}
+                — أكمل خمسات الإعادة، ثم يُفتح اختبار الإعادة على نفس الأجزاء.
+            </div>
+            @include('quran.khamsa.review-details', [
+                'review' => $retakeReview,
                 'memorizedJuz' => $memorizedJuz,
                 'listeningSessions' => collect(),
                 'results' => [],
@@ -269,6 +288,13 @@
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-sm font-bold text-gray-700">{{ $reviewItem->assigned_at?->format('Y-m-d') ?? '—' }}</span>
                             <span class="text-[11px] font-bold text-gray-400">{{ $reviewItem->status->label() }}</span>
+                        </div>
+                        <div class="text-[11px] mt-1">
+                            <span @class([
+                                'px-2 py-0.5 rounded-full font-bold',
+                                'bg-red-100 text-red-700' => $reviewItem->isRetake(),
+                                'bg-emerald-100 text-emerald-800' => ! $reviewItem->isRetake(),
+                            ])>{{ $reviewItem->type->label() }}</span>
                         </div>
                         <div class="text-[11px] text-gray-400 mt-1">{{ $reviewProgress['completed'] }} / {{ $reviewProgress['total'] }} خمسة — الأستاذ: {{ $reviewItem->teacher?->name ?? '—' }}</div>
                     </div>

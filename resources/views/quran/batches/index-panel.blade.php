@@ -13,10 +13,18 @@
     $planProgressUrl = $planProgressRoute ?? null;
     $planTestUrl = $planTestRoute ?? null;
     $planCancelUrl = $planCancelRoute ?? null;
+    $khamsaReviewUrl = $khamsaReviewRoute ?? null;
+    $batchTestUrl = $batchTestRoute ?? null;
+    $batchRetakeUrl = $batchRetakeRoute ?? null;
+    $retakeCancelUrl = $retakeCancelRoute ?? null;
+    $retakeReview = $retakeReview ?? null;
+    $failedJuz = $failedJuz ?? [];
+    $testScopeJuz = $testScopeJuz ?? [];
     $timeline = $timeline ?? collect();
     $memorizationProgress = $memorizationProgress ?? null;
-    $coveredPages = $memorizationProgress['covered_pages'] ?? [];
     $memorizationDone = $currentBatch && $currentBatch->status->value !== 'pending_memorization';
+    $retakePending = $retakeReview && ! $retakeReview->isCompleted() && ! $retakeReview->isCancelled();
+    $testAnchor = $currentBatch && $currentBatch->isReadyForTest() ? '#batch-test' : null;
     $nextBatchOpen = false;
 
     if ($currentBatch) {
@@ -133,12 +141,16 @@
                     'border-red-300 bg-red-50' => $currentBatch?->isNeedsRepeat(),
                     'border-gray-200 bg-gray-50' => ! $currentBatch?->isReadyForTest() && ! $currentBatch?->isNeedsRepeat(),
                 ])>
-                    <div class="text-[11px] font-bold text-gray-500 mb-1">٣. الاختبار</div>
+                    <div class="text-[11px] font-bold text-gray-500 mb-1">٣. الاختبار التراكمي</div>
                     <div class="text-sm font-black text-gray-800">
                         @if ($currentBatch?->isNeedsRepeat())
-                            راسب — يحتاج إعادة
+                            <a href="#batch-test" class="text-red-700 hover:underline">
+                                راسب — الأجزاء: {{ $failedJuz === [] ? '—' : implode('، ', $failedJuz) }}
+                            </a>
                         @elseif ($currentBatch?->isReadyForTest())
-                            مطلوب الآن
+                            <a href="#batch-test" class="text-emerald-700 hover:underline">
+                                {{ $currentBatch->lastTest ? 'إعادة الاختبار مطلوبة' : 'مطلوب الآن — سجّل النتيجة' }}
+                            </a>
                         @elseif ($currentBatch?->lastTest)
                             {{ rtrim(rtrim(number_format((float) $currentBatch->lastTest->score, 2, '.', ''), '0'), '.') }}%
                         @else
@@ -196,7 +208,7 @@
                         <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center justify-center">١</span>
                         <h2 class="font-bold text-gray-800">التسميع مع المعلم</h2>
                     </div>
-                    <p class="text-xs text-gray-400 mt-1">سجل موحّد لمتابعة الحفظ والأداء مع المعلم — تسميع حفظ جديد، مراجعة، أو استماع وتقييم تفصيلي من بوابة واحدة.</p>
+                    <p class="text-xs text-gray-400 mt-1">سجل جلسات الاستماع والتقييم التفصيلي (كلمة بكلمة) مع المعلم.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     @if ($sessionStartUrl)
@@ -229,20 +241,11 @@
                     @foreach ($memorizationProgress['juz'] as $juzRow)
                         <div class="rounded-xl border border-gray-200 p-3">
                             <div class="flex flex-wrap items-center justify-between gap-2 text-xs mb-2">
-                                <span class="font-bold text-gray-700">الجزء {{ $juzRow['juz'] }} (صفحات {{ $juzRow['from'] }}–{{ $juzRow['to'] }})</span>
+                                <span class="font-bold text-gray-700">الجزء {{ $juzRow['juz'] }}</span>
                                 <span class="text-gray-500">{{ $juzRow['covered'] }} / {{ $juzRow['total'] }} صفحة — {{ $juzRow['percentage'] }}%</span>
                             </div>
-                            <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden mb-2">
+                            <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden">
                                 <div class="h-full bg-emerald-600" style="width: {{ min(100, $juzRow['percentage']) }}%"></div>
-                            </div>
-                            <div class="grid grid-cols-7 sm:grid-cols-10 gap-1">
-                                @for ($page = $juzRow['from']; $page <= $juzRow['to']; $page++)
-                                    <div @class([
-                                        'text-[10px] text-center rounded border py-0.5',
-                                        'border-emerald-300 bg-emerald-100 text-emerald-800 font-bold' => in_array($page, $coveredPages, true),
-                                        'border-gray-200 bg-gray-50 text-gray-400' => ! in_array($page, $coveredPages, true),
-                                    ]) title="صفحة {{ $page }}">{{ $page }}</div>
-                                @endfor
                             </div>
                         </div>
                     @endforeach
@@ -252,33 +255,6 @@
             @else
                 <div class="text-sm text-emerald-700 mb-4">ما شاء الله — أكمل الطالب حفظ جميع الأجزاء.</div>
             @endif
-
-            @php
-                $timelineFilter = request('timeline_type');
-                $timelineFilterUrl = function (?string $value) use ($indexRoute, $selectedStudent) {
-                    $query = http_build_query(array_filter([
-                        'student_id' => $selectedStudent->id,
-                        'status' => request('status'),
-                        'timeline_type' => $value,
-                    ]));
-
-                    return $query === '' ? $indexRoute : $indexRoute.'?'.$query;
-                };
-            @endphp
-            <div class="flex flex-wrap items-center gap-2 mb-3">
-                <a href="{{ $timelineFilterUrl(null) }}" @class([
-                    'text-[11px] font-bold px-3 py-1 rounded-full',
-                    'bg-emerald-700 text-white' => ! $timelineFilter,
-                    'bg-gray-100 text-gray-600 hover:bg-gray-200' => (bool) $timelineFilter,
-                ])>الكل</a>
-                @foreach (\App\Services\QuranTeacherTimelineService::filters() as $filterValue => $filterLabel)
-                    <a href="{{ $timelineFilterUrl($filterValue) }}" @class([
-                        'text-[11px] font-bold px-3 py-1 rounded-full',
-                        'bg-emerald-700 text-white' => $timelineFilter === $filterValue,
-                        'bg-gray-100 text-gray-600 hover:bg-gray-200' => $timelineFilter !== $filterValue,
-                    ])>{{ $filterLabel }}</a>
-                @endforeach
-            </div>
 
             <x-quran-teacher-timeline :items="$timeline" />
         </div>
@@ -293,7 +269,7 @@
             <div class="mb-6">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-800 text-xs font-black flex items-center justify-center">٢</span>
-                    <h3 class="font-bold text-gray-700">المراجعة الخمسية</h3>
+                    <h3 class="font-bold text-gray-700">المراجعة الخمسية (خمسات ما بعد الحفظ)</h3>
                 </div>
                 @include('quran.khamsa.review-details', [
                     'review' => $review,
@@ -306,6 +282,32 @@
                     'cancelRoute' => $reviewCancelUrl,
                     'memorizationStoreRoute' => $memorizationStoreUrl,
                     'memorizationDestroyRoute' => $memorizationDestroyUrl,
+                    'reviewRoute' => $khamsaReviewUrl,
+                    'testUrl' => $testAnchor,
+                ])
+            </div>
+        @endif
+
+        @if ($retakeReview)
+            <div class="mb-6">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="w-6 h-6 rounded-full bg-red-100 text-red-700 text-xs font-black flex items-center justify-center">٢.ب</span>
+                    <h3 class="font-bold text-red-700">خمسات إعادة رسوب الاختبار</h3>
+                </div>
+                <p class="text-xs text-gray-500 mb-2">الأجزاء الراسبة: <b class="text-red-700">{{ $failedJuz === [] ? '—' : implode('، ', $failedJuz) }}</b> — أُنشئت تلقائياً من نتيجة الاختبار التراكمي.</p>
+                @include('quran.khamsa.review-details', [
+                    'review' => $retakeReview,
+                    'memorizedJuz' => $memorizedJuz,
+                    'listeningSessions' => $listeningSessions,
+                    'results' => $tasmeeResults,
+                    'embedded' => true,
+                    'indexRoute' => $indexRoute,
+                    'completeRoute' => $reviewCompleteUrl,
+                    'cancelRoute' => $retakeCancelUrl,
+                    'memorizationStoreRoute' => $memorizationStoreUrl,
+                    'memorizationDestroyRoute' => $memorizationDestroyUrl,
+                    'reviewRoute' => $khamsaReviewUrl,
+                    'testUrl' => $testAnchor,
                 ])
             </div>
         @endif
@@ -314,7 +316,7 @@
             <div class="mb-6">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="w-6 h-6 rounded-full bg-sky-100 text-sky-800 text-xs font-black flex items-center justify-center">٣</span>
-                    <h3 class="font-bold text-gray-700">خطة الاستماع والاختبار</h3>
+                    <h3 class="font-bold text-gray-700">خطة الاستماع</h3>
                 </div>
                 @include('quran.listening.plan-details', [
                     'plan' => $plan,
@@ -322,8 +324,8 @@
                     'listeningItems' => $listeningItems,
                     'listeningSessions' => $listeningSessions,
                     'reciters' => $reciters,
-                    'canTest' => true,
-                    'canListen' => true,
+                    'canTest' => false,
+                    'canListen' => false,
                     'embedded' => true,
                     'indexRoute' => $indexRoute,
                     'listenRoute' => $planListenUrl,
@@ -334,6 +336,19 @@
                     'khamsaRoute' => $khamsaUrl,
                 ])
             </div>
+        @endif
+
+        @if ($currentBatch)
+            @include('quran.batches.test-form', [
+                'currentBatch' => $currentBatch,
+                'retakeReview' => $retakeReview,
+                'failedJuz' => $failedJuz,
+                'testScopeJuz' => $testScopeJuz,
+                'batchTestRoute' => $batchTestUrl,
+                'batchRetakeRoute' => $batchRetakeUrl,
+                'khamsaRoute' => $khamsaUrl,
+                'minimumPassingPercentage' => $minimumPassingPercentage,
+            ])
         @endif
     @endif
 

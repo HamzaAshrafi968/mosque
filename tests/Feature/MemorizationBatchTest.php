@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\QuranListeningPlanStatus;
 use App\Enums\QuranMemorizationBatchStatus;
 use App\Models\QuranCompletion;
-use App\Models\QuranListeningPlan;
 use App\Models\QuranListeningTest;
 use App\Models\QuranMemorizationBatch;
 use App\Models\QuranRecitationSession;
@@ -15,11 +14,11 @@ use App\Models\Teacher;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\QuranKhamsaService;
-use App\Services\QuranListeningService;
 use App\Services\QuranMemorizationGatingService;
 use App\Services\QuranSettingsService;
 use App\Services\RoleService;
 use App\Services\StudySessionService;
+use Database\Seeders\QuranDataSeeder;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -51,7 +50,7 @@ class MemorizationBatchTest extends TestCase
     }
 
     /** @return array{0: User, 1: Teacher} */
-    private function teacher(Tenant $mosque, StudySession $session): array
+    private function teacher(Tenant $mosque, StudySession $session, string $name = 'الأستاذ محمد'): array
     {
         $user = User::factory()->create(['tenant_id' => $mosque->id]);
 
@@ -59,7 +58,7 @@ class MemorizationBatchTest extends TestCase
             'tenant_id' => $mosque->id,
             'user_id' => $user->id,
             'study_session_id' => $session->id,
-            'name' => 'الأستاذ محمد',
+            'name' => $name,
         ]);
 
         return [$user, $teacher];
@@ -116,38 +115,43 @@ class MemorizationBatchTest extends TestCase
         }
     }
 
-    private function listenAll(QuranListeningPlan $plan, User $actor): void
+    /** إنهاء جميع خمسات المراجعة العادية (خمسات ما بعد الحفظ). */
+    private function completeReview(QuranMemorizationBatch $batch, User $actor): void
     {
-        foreach ($plan->items()->get() as $item) {
-            app(QuranListeningService::class)->markListened($item, $actor);
+        $review = $batch->review5()->firstOrFail();
+
+        foreach ($review->items()->orderBy('from_page')->get() as $item) {
+            app(QuranKhamsaService::class)->completeItem($item, [], $actor);
         }
     }
 
-    /** @param array<int, string> $results item_id => pass|fail */
-    private function submitTest(QuranListeningPlan $plan, User $actor, array $results): QuranListeningTest
+    /** إنهاء جميع خمسات الإعادة المرتبطة بالدفعة. */
+    private function completeRetakeReview(QuranMemorizationBatch $batch, User $actor): void
     {
-        $payload = [];
+        $review = $batch->retakeReview5()->firstOrFail();
 
-        foreach ($results as $itemId => $result) {
-            $payload[$itemId] = ['result' => $result];
+        foreach ($review->items()->orderBy('from_page')->get() as $item) {
+            app(QuranKhamsaService::class)->completeItem($item, [], $actor);
         }
+    }
 
-        return app(QuranListeningService::class)->recordTest($plan, $payload, $actor);
+    /** @param array<int, string> $results juz => pass|fail */
+    private function submitTest(QuranMemorizationBatch $batch, User $actor, array $results): QuranListeningTest
+    {
+        return $this->gating()->recordCumulativeTest($batch, $results, $actor);
     }
 
     private function passBatch(QuranMemorizationBatch $batch, User $actor): QuranListeningTest
     {
-        $plan = $batch->plan()->firstOrFail();
-
-        $this->listenAll($plan, $actor);
+        $this->completeReview($batch, $actor);
 
         $results = [];
 
-        foreach ($plan->items()->get() as $item) {
-            $results[$item->id] = 'pass';
+        foreach ($this->gating()->testScopeJuzNumbers($batch) as $juz) {
+            $results[$juz] = 'pass';
         }
 
-        return $this->submitTest($plan, $actor, $results);
+        return $this->submitTest($batch, $actor, $results);
     }
 
     public function test_two_memorized_juz_open_the_batch_and_auto_generate_review_and_plan(): void
@@ -183,6 +187,22 @@ class MemorizationBatchTest extends TestCase
         );
     }
 
+    public function test_cycle_generation_works_with_multiple_active_teachers(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $this->teacher($mosque, $session, 'الأستاذ سامي');
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+
+        $this->assertSame(QuranMemorizationBatchStatus::PendingReview5, $batch->status);
+        $this->assertNotNull($batch->plan_id);
+        $this->assertNotNull($batch->review_5_id);
+    }
+
     public function test_next_batch_stays_locked_until_the_current_one_passes(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
@@ -206,7 +226,7 @@ class MemorizationBatchTest extends TestCase
         $this->assertNotNull($second->plan_id);
     }
 
-    public function test_score_is_computed_from_items_and_compared_with_the_threshold(): void
+    public function test_score_is_computed_from_juz_results_and_compared_with_the_threshold(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $this->teacher($mosque, $session);
@@ -216,19 +236,12 @@ class MemorizationBatchTest extends TestCase
 
         $this->memorize($student, [1, 2]);
 
-        $plan = $this->batch($student, 1)->plan()->firstOrFail();
-        $this->listenAll($plan, $admin);
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
 
-        $items = $plan->items()->get();
-        $results = [];
+        $test = $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'fail']);
 
-        foreach ($items as $index => $item) {
-            $results[$item->id] = $index < 6 ? 'pass' : 'fail';
-        }
-
-        $test = $this->submitTest($plan, $admin, $results);
-
-        $this->assertSame('75.00', (string) $test->score);
+        $this->assertSame('50.00', (string) $test->score);
         $this->assertSame('80.00', (string) $test->passing_percentage);
         $this->assertSame('fail', $test->result->value);
         $this->assertSame(QuranMemorizationBatchStatus::NeedsRepeat, $this->batch($student, 1)->status);
@@ -251,38 +264,21 @@ class MemorizationBatchTest extends TestCase
 
         $this->memorize($student, [1, 2]);
 
-        $plan = $this->batch($student, 1)->plan()->firstOrFail();
-        $this->listenAll($plan, $admin);
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
 
-        $items = $plan->items()->get();
-        $results = [];
-
-        foreach ($items as $index => $item) {
-            $results[$item->id] = $index < 6 ? 'pass' : 'fail';
-        }
-
-        $firstTest = $this->submitTest($plan, $admin, $results);
+        $firstTest = $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'fail']);
 
         // المدير يخفض حد النجاح لاحقاً: الاختبار القديم يبقى بلقطته.
-        app(QuranSettingsService::class)->setMinimumPassingPercentage(60);
+        app(QuranSettingsService::class)->setMinimumPassingPercentage(40);
 
-        $failed = $plan->items()->where('status', 'needs_repeat')->get();
+        $this->completeRetakeReview($batch, $admin);
 
-        foreach ($failed as $item) {
-            app(QuranListeningService::class)->markListened($item, $admin);
-        }
-
-        $retry = [];
-
-        foreach ($failed as $item) {
-            $retry[$item->id] = 'pass';
-        }
-
-        $secondTest = $this->submitTest($plan, $admin, $retry);
+        $secondTest = $this->submitTest($batch, $admin, [2 => 'pass']);
 
         $this->assertSame('80.00', (string) $firstTest->refresh()->passing_percentage);
         $this->assertSame('fail', $firstTest->result->value);
-        $this->assertSame('60.00', (string) $secondTest->passing_percentage);
+        $this->assertSame('40.00', (string) $secondTest->passing_percentage);
         $this->assertSame('100.00', (string) $secondTest->score);
         $this->assertSame('pass', $secondTest->result->value);
         $this->assertSame(QuranMemorizationBatchStatus::Passed, $this->batch($student, 1)->status);
@@ -301,17 +297,13 @@ class MemorizationBatchTest extends TestCase
         $batch = $this->batch($student, 1);
         $oldPlan = $batch->plan()->firstOrFail();
 
-        $this->listenAll($oldPlan, $admin);
-
-        $results = [];
-
-        foreach ($oldPlan->items()->get() as $item) {
-            $results[$item->id] = 'fail';
-        }
-
-        $this->submitTest($oldPlan, $admin, $results);
+        $this->completeReview($batch, $admin);
+        $this->submitTest($batch, $admin, [1 => 'fail', 2 => 'fail']);
 
         $this->assertSame(QuranMemorizationBatchStatus::NeedsRepeat, $this->batch($student, 1)->status);
+
+        $retake = $batch->retakeReview5()->firstOrFail();
+        $this->assertSame('retake_after_fail', $retake->type->value);
 
         $this->gating()->regenerateReview($batch, $admin);
 
@@ -319,6 +311,8 @@ class MemorizationBatchTest extends TestCase
 
         $this->assertSame(QuranMemorizationBatchStatus::PendingReview5, $batch->status);
         $this->assertNull($batch->last_test_id);
+        $this->assertNull($batch->retake_review_id);
+        $this->assertSame('cancelled', $retake->refresh()->status->value);
         $this->assertSame(QuranListeningPlanStatus::Cancelled, $oldPlan->refresh()->status);
 
         $newPlan = $batch->plan()->firstOrFail();
@@ -327,7 +321,7 @@ class MemorizationBatchTest extends TestCase
         $this->assertSame(8, $newPlan->items()->count());
     }
 
-    public function test_partial_test_submission_is_rejected_for_batch_plans(): void
+    public function test_batch_test_is_rejected_before_all_khamsat_are_finished(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $this->teacher($mosque, $session);
@@ -335,24 +329,49 @@ class MemorizationBatchTest extends TestCase
 
         $this->memorize($student, [1, 2]);
 
-        $plan = $this->batch($student, 1)->plan()->firstOrFail();
-        $this->listenAll($plan, $admin);
+        $batch = $this->batch($student, 1);
+        $review = $batch->review5()->firstOrFail();
 
-        $first = $plan->items()->orderBy('position')->firstOrFail();
+        // إنهاء خمسات جزئية فقط (٢ من ٨).
+        foreach ($review->items()->orderBy('from_page')->take(2)->get() as $item) {
+            app(QuranKhamsaService::class)->completeItem($item, [], $admin);
+        }
 
         try {
-            $this->submitTest($plan, $admin, [$first->id => 'pass']);
-            $this->fail('Expected ValidationException for a partial batch test submission');
+            $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'pass']);
+            $this->fail('Expected ValidationException before the review is completed');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('results', $exception->errors());
         }
 
         $this->assertSame(QuranMemorizationBatchStatus::PendingReview5, $this->batch($student, 1)->status);
-        $this->assertTrue($plan->refresh()->isActive());
-        $this->assertSame(0, $plan->tests()->count());
+        $this->assertSame(0, QuranListeningTest::query()->where('batch_id', $batch->id)->count());
+        $this->assertTrue($batch->plan()->firstOrFail()->isActive());
     }
 
-    public function test_failed_items_keep_needs_repeat_after_a_scored_batch_pass(): void
+    public function test_missing_juz_result_is_rejected_for_the_cumulative_test(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+
+        try {
+            $this->submitTest($batch, $admin, [1 => 'pass']);
+            $this->fail('Expected ValidationException for a missing juz result');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('results', $exception->errors());
+        }
+
+        $this->assertSame(QuranMemorizationBatchStatus::ReadyForTest, $this->batch($student, 1)->status);
+        $this->assertSame(0, QuranListeningTest::query()->where('batch_id', $batch->id)->count());
+    }
+
+    public function test_passing_the_cumulative_test_closes_the_plan_and_marks_items_passed(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $this->teacher($mosque, $session);
@@ -362,27 +381,173 @@ class MemorizationBatchTest extends TestCase
 
         $this->memorize($student, [1, 2]);
 
-        $plan = $this->batch($student, 1)->plan()->firstOrFail();
-        $this->listenAll($plan, $admin);
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
 
-        $items = $plan->items()->get();
-        $results = [];
-
-        foreach ($items as $index => $item) {
-            $results[$item->id] = $index < 6 ? 'pass' : 'fail';
-        }
-
-        $test = $this->submitTest($plan, $admin, $results);
+        $test = $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'pass']);
 
         $this->assertSame('pass', $test->result->value);
-        $this->assertSame('75.00', (string) $test->score);
+        $this->assertSame('100.00', (string) $test->score);
         $this->assertSame(QuranMemorizationBatchStatus::Passed, $this->batch($student, 1)->status);
-        $this->assertTrue($plan->refresh()->isCompleted());
+        $this->assertTrue($batch->plan()->firstOrFail()->refresh()->isCompleted());
+        $this->assertSame(8, $batch->plan()->firstOrFail()->items()->where('status', 'passed')->count());
+        $this->assertNull($batch->refresh()->retake_review_id);
+    }
 
-        // العنصران الراسبان يبقيان «يحتاج إعادة» ولا يُقلبان إلى «مُستمع».
-        $this->assertSame(2, $plan->items()->where('status', 'needs_repeat')->count());
-        $this->assertSame(6, $plan->items()->where('status', 'passed')->count());
-        $this->assertSame(0, $plan->items()->where('status', 'listened')->count());
+    public function test_failed_cumulative_test_creates_retake_khamsat_for_failed_juz_only(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        app(QuranSettingsService::class)->setMinimumPassingPercentage(80);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+
+        $test = $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'fail']);
+
+        $this->assertSame('fail', $test->result->value);
+        $this->assertSame(QuranMemorizationBatchStatus::NeedsRepeat, $this->batch($student, 1)->status);
+        $this->assertSame([2], $this->gating()->failedJuzNumbers($batch->refresh()));
+
+        $retake = $batch->retakeReview5()->firstOrFail();
+
+        $this->assertSame('retake_after_fail', $retake->type->value);
+        $this->assertSame('pending', $retake->status->value);
+        $this->assertSame(4, $retake->items()->count());
+        $this->assertSame([2], $retake->items()->orderBy('khamsa')->pluck('juz')->unique()->values()->all());
+
+        // الدفعة التالية تبقى مقفلة.
+        $this->assertFalse(
+            QuranMemorizationBatch::query()
+                ->where('student_id', $student->id)
+                ->where('batch_number', 2)
+                ->exists()
+        );
+    }
+
+    public function test_retest_is_blocked_until_the_retake_khamsat_are_completed(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        app(QuranSettingsService::class)->setMinimumPassingPercentage(80);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+        $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'fail']);
+
+        // اختبار الإعادة ممنوع قبل إنهاء خمسات الإعادة.
+        try {
+            $this->submitTest($batch, $admin, [2 => 'pass']);
+            $this->fail('Expected ValidationException before the retake review is completed');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('results', $exception->errors());
+        }
+
+        $this->completeRetakeReview($batch, $admin);
+
+        $this->assertSame(QuranMemorizationBatchStatus::ReadyForTest, $this->batch($student, 1)->status);
+        $this->assertSame([2], $this->gating()->testScopeJuzNumbers($batch->refresh()));
+
+        $retest = $this->submitTest($batch, $admin, [2 => 'pass']);
+
+        $this->assertSame('100.00', (string) $retest->score);
+        $this->assertSame('pass', $retest->result->value);
+        $this->assertSame(QuranMemorizationBatchStatus::Passed, $this->batch($student, 1)->status);
+        $this->assertSame(QuranMemorizationBatchStatus::PendingMemorization, $this->batch($student, 2)->status);
+    }
+
+    public function test_cumulative_test_covers_all_juz_up_to_the_batch(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        app(QuranSettingsService::class)->setMinimumPassingPercentage(80);
+
+        $this->seedPassedBatches($student, [1, 2]);
+        $this->memorize($student, range(1, 6));
+
+        $batch = $this->batch($student, 3);
+        $this->completeReview($batch, $admin);
+
+        $this->assertSame([1, 2, 3, 4, 5, 6], $this->gating()->testScopeJuzNumbers($batch));
+
+        $test = $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'pass', 3 => 'fail', 4 => 'pass', 5 => 'pass', 6 => 'pass']);
+
+        $this->assertSame(6, $test->items()->count());
+        $this->assertSame('83.33', (string) $test->score);
+        $this->assertSame('pass', $test->result->value);
+        $this->assertSame(QuranMemorizationBatchStatus::Passed, $this->batch($student, 3)->status);
+        $this->assertSame(QuranMemorizationBatchStatus::PendingMemorization, $this->batch($student, 4)->status);
+    }
+
+    public function test_full_retake_option_covers_all_juz_of_the_batch(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        app(QuranSettingsService::class)->setMinimumPassingPercentage(80);
+
+        $this->seedPassedBatches($student, [1, 2]);
+        $this->memorize($student, range(1, 6));
+
+        $batch = $this->batch($student, 3);
+        $this->completeReview($batch, $admin);
+        $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'pass', 3 => 'fail', 4 => 'pass', 5 => 'fail', 6 => 'fail']);
+
+        $failedOnly = $batch->retakeReview5()->firstOrFail();
+        $this->assertSame(12, $failedOnly->items()->count());
+
+        // خيار «إعادة الاختبار كاملًا» يستبدل مراجعة الأجزاء الراسبة بمدى 1..6.
+        $this->gating()->createRetakeReview($batch, $this->gating()->cumulativeJuzNumbers($batch), $admin);
+
+        $batch->refresh();
+
+        $this->assertSame('cancelled', $failedOnly->refresh()->status->value);
+        $this->assertSame([1, 2, 3, 4, 5, 6], $this->gating()->testScopeJuzNumbers($batch));
+
+        $full = $batch->retakeReview5()->firstOrFail();
+        $this->assertNotSame($failedOnly->id, $full->id);
+        $this->assertSame(24, $full->items()->count());
+    }
+
+    public function test_retest_failure_creates_a_new_retake_for_the_newly_failed_juz(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        app(QuranSettingsService::class)->setMinimumPassingPercentage(80);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+        $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'fail']);
+
+        $firstRetake = $batch->retakeReview5()->firstOrFail();
+        $this->completeRetakeReview($batch, $admin);
+
+        $this->submitTest($batch, $admin, [2 => 'fail']);
+
+        $batch->refresh();
+
+        $this->assertSame(QuranMemorizationBatchStatus::NeedsRepeat, $batch->status);
+        $this->assertSame('completed', $firstRetake->refresh()->status->value);
+
+        $secondRetake = $batch->retakeReview5()->firstOrFail();
+        $this->assertNotSame($firstRetake->id, $secondRetake->id);
+        $this->assertSame('pending', $secondRetake->status->value);
+        $this->assertSame([2], $secondRetake->items()->orderBy('khamsa')->pluck('juz')->unique()->values()->all());
     }
 
     public function test_regenerate_review_cancels_an_orphaned_pending_review(): void
@@ -573,13 +738,19 @@ class MemorizationBatchTest extends TestCase
             ->get(route('admin.quran.batches.index', ['student_id' => $student->id]))
             ->assertOk()
             ->assertSee('دفعات الحفظ')
-            ->assertSee('الدفعة 1');
+            ->assertSee('الدفعة 1')
+            ->assertDontSee('الاستماع / التشغيل')
+            ->assertDontSee('العنصر والصفحات')
+            ->assertDontSee('بانتظار استماع الطالب');
 
         $this->actingAs($teacherUser)
             ->get(route('teacher.quran.batches.index', ['student_id' => $student->id]))
             ->assertOk()
             ->assertSee('دفعات الحفظ')
-            ->assertSee('الدفعة 1');
+            ->assertSee('الدفعة 1')
+            ->assertDontSee('الاستماع / التشغيل')
+            ->assertDontSee('العنصر والصفحات')
+            ->assertDontSee('بانتظار استماع الطالب');
     }
 
     public function test_memorized_juz_are_still_the_source_of_truth(): void
@@ -596,5 +767,246 @@ class MemorizationBatchTest extends TestCase
         $this->gating()->sync($student);
 
         $this->assertSame(QuranMemorizationBatchStatus::PendingMemorization, $this->batch($student, 1)->status);
+    }
+
+    public function test_completing_a_batch_review_leads_to_the_test_form(): void
+    {
+        $this->seed(QuranDataSeeder::class);
+
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $review = $batch->review5()->firstOrFail();
+        $items = $review->items()->orderBy('from_page')->get();
+
+        // جلسة أولى جزئية (≤ 30 صفحة): لا يظهر زر الاختبار قبل اكتمال كل الخمسات.
+        $this->actingAs($admin)
+            ->post(route('admin.quran.khamsa.review.store', $review), [
+                'items' => $items->take(5)->pluck('id')->all(),
+                'date' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('admin.quran.khamsa.show', $review));
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.khamsa.show', $review))
+            ->assertOk()
+            ->assertDontSee('تسجيل نتيجة الاختبار');
+
+        $this->assertSame(QuranMemorizationBatchStatus::PendingReview5, $this->batch($student, 1)->status);
+
+        // الجلسة الثانية تُكمل الخمسات: الانتقال مباشرة إلى نموذج الاختبار التراكمي.
+        $this->actingAs($admin)
+            ->post(route('admin.quran.khamsa.review.store', $review), [
+                'items' => $items->slice(5)->pluck('id')->all(),
+                'date' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('admin.quran.batches.index', ['student_id' => $student->id]).'#batch-test');
+
+        $this->assertSame('completed', $review->refresh()->status->value);
+        $this->assertSame(QuranMemorizationBatchStatus::ReadyForTest, $this->batch($student, 1)->status);
+
+        // نموذج الاختبار التراكمي ظاهر في المركز (صف لكل جزء من أجزاء النطاق).
+        $this->actingAs($admin)
+            ->get(route('admin.quran.batches.index', ['student_id' => $student->id]))
+            ->assertOk()
+            ->assertSee('id="batch-test"', false)
+            ->assertSee('الاختبار التراكمي')
+            ->assertSee('تسجيل نتيجة الاختبار')
+            ->assertSee('الجزء 1')
+            ->assertSee('الجزء 2');
+    }
+
+    public function test_admin_can_record_the_cumulative_test_from_the_center(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.test', $batch), [
+                'results' => [1 => 'pass', 2 => 'pass'],
+            ])
+            ->assertRedirect();
+
+        $batch->refresh();
+
+        $this->assertSame(QuranMemorizationBatchStatus::Passed, $batch->status);
+        $this->assertSame('100.00', (string) $batch->lastTest->score);
+    }
+
+    public function test_web_test_route_is_rejected_before_the_khamsat_finish(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.test', $batch), [
+                'results' => [1 => 'pass', 2 => 'pass'],
+            ])
+            ->assertSessionHasErrors('results');
+
+        $this->assertSame(QuranMemorizationBatchStatus::PendingReview5, $this->batch($student, 1)->status);
+        $this->assertSame(0, QuranListeningTest::query()->where('batch_id', $batch->id)->count());
+    }
+
+    public function test_admin_can_switch_to_a_full_retake_from_the_center(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+        $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'fail']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.retake', $batch), ['mode' => 'full'])
+            ->assertRedirect();
+
+        $batch->refresh();
+
+        $this->assertSame([1, 2], $this->gating()->testScopeJuzNumbers($batch));
+        $this->assertSame(8, $batch->retakeReview5()->firstOrFail()->items()->count());
+    }
+
+    public function test_center_shows_the_retake_section_and_blocks_the_test_after_a_fail(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+        $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'fail']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.batches.index', ['student_id' => $student->id]))
+            ->assertOk()
+            ->assertSee('خمسات إعادة رسوب الاختبار')
+            ->assertSee('رسب الطالب في الأجزاء')
+            ->assertSee('إعادة الأجزاء الراسبة فقط')
+            ->assertSee('إعادة الاختبار كاملًا')
+            ->assertDontSee('تسجيل نتيجة الاختبار');
+    }
+
+    public function test_student_profile_shows_the_retake_review_and_failed_juz(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+
+        $studentUser = User::factory()->create(['tenant_id' => $mosque->id, 'role' => 'student']);
+        $student = $this->student($mosque, $session, 'أحمد');
+        $student->update(['user_id' => $studentUser->id]);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+        $this->submitTest($batch, $admin, [1 => 'pass', 2 => 'fail']);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.quran-profile'))
+            ->assertOk()
+            ->assertSee('خمسات إعادة رسوب الاختبار')
+            ->assertSee('رسبت في الأجزاء');
+    }
+
+    public function test_teacher_outside_scope_cannot_record_the_cumulative_test(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        [, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $otherSession = StudySession::query()
+            ->where('tenant_id', $mosque->id)
+            ->whereKeyNot($session->id)
+            ->firstOrFail();
+
+        [$otherUser] = $this->teacher($mosque, $otherSession, 'أستاذ دوام آخر');
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+
+        $this->actingAs($otherUser)
+            ->post(route('teacher.quran.batches.test', $batch), [
+                'results' => [1 => 'pass', 2 => 'pass'],
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_per_item_listening_test_route_rejects_batch_plans(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1, 2]);
+
+        $batch = $this->batch($student, 1);
+        $this->completeReview($batch, $admin);
+
+        $plan = $batch->plan()->firstOrFail();
+        $item = $plan->items()->orderBy('position')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.listening.test', $plan), [
+                'results' => [$item->id => ['result' => 'pass']],
+            ])
+            ->assertSessionHasErrors('results');
+
+        $this->assertSame(0, $plan->tests()->count());
+    }
+
+    public function test_a_manual_review_without_a_batch_has_no_test_link(): void
+    {
+        $this->seed(QuranDataSeeder::class);
+
+        [$mosque, $admin, $session] = $this->mosque();
+        [, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1]);
+
+        $review = app(QuranKhamsaService::class)->createReview([
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'study_session_id' => $session->id,
+            'assigned_at' => now()->toDateString(),
+            'items' => [['juz' => 1, 'khamsa' => 1]],
+        ], $admin);
+
+        $item = $review->items()->firstOrFail();
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.khamsa.review.store', $review), [
+                'items' => [$item->id],
+                'date' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('admin.quran.khamsa.show', $review));
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.khamsa.show', $review))
+            ->assertOk()
+            ->assertDontSee('تسجيل نتيجة الاختبار');
     }
 }

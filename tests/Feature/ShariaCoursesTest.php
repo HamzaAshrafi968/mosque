@@ -67,44 +67,52 @@ class ShariaCoursesTest extends TestCase
         $this->actingAs($admin)
             ->post(route('admin.sharia-courses.store'), [
                 'name' => 'دورة التفسير',
-                'supervisor_id' => $teacher->id,
+                'supervisor_ids' => [$teacher->id],
                 'location' => 'القاعة الكبرى',
                 'start_date' => now()->toDateString(),
                 'status' => 'active',
             ])
             ->assertRedirect();
 
+        $course = ShariaCourse::query()->where('name', 'دورة التفسير')->firstOrFail();
+
         $this->assertDatabaseHas('sharia_courses', [
             'tenant_id' => $mosque->id,
             'name' => 'دورة التفسير',
-            'supervisor_id' => $teacher->id,
+        ]);
+        $this->assertDatabaseHas('sharia_course_supervisor', [
+            'course_id' => $course->id,
+            'teacher_id' => $teacher->id,
         ]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'sharia_course.created']);
     }
 
-    public function test_super_admin_inside_a_mosque_can_create_course_with_supervisor(): void
+    public function test_super_admin_inside_a_mosque_can_create_course_with_supervisors(): void
     {
         [$mosque] = $this->mosque();
         $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => User::ROLE_SUPER_ADMIN]);
         app(RoleService::class)->assignRole($superAdmin, RoleService::ROLE_SUPER_ADMIN);
 
         [, $teacher] = $this->makeTeacher($mosque->id);
+        [, $secondTeacher] = $this->makeTeacher($mosque->id);
 
         $this->actingAs($superAdmin)
             ->withSession(['super_admin_mosque_id' => $mosque->id])
             ->post(route('admin.sharia-courses.store'), [
                 'name' => 'دورة العقيدة',
-                'supervisor_id' => $teacher->id,
+                'supervisor_ids' => [$teacher->id, $secondTeacher->id],
                 'status' => 'active',
             ])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
+        $course = ShariaCourse::query()->where('name', 'دورة العقيدة')->firstOrFail();
+
         $this->assertDatabaseHas('sharia_courses', [
             'tenant_id' => $mosque->id,
             'name' => 'دورة العقيدة',
-            'supervisor_id' => $teacher->id,
         ]);
+        $this->assertSame(2, $course->supervisors()->count());
     }
 
     public function test_course_students_are_fully_independent_from_school_students(): void
@@ -227,7 +235,8 @@ class ShariaCoursesTest extends TestCase
     {
         [$mosque, $admin] = $this->mosque();
         [$teacherUser, $teacher] = $this->makeTeacher($mosque->id);
-        $course = $this->makeCourse($mosque->id, $admin, ['supervisor_id' => $teacher->id]);
+        $course = $this->makeCourse($mosque->id, $admin);
+        $course->supervisors()->sync([$teacher->id]);
         $student = $this->addStudent($course);
 
         $this->actingAs($teacherUser)

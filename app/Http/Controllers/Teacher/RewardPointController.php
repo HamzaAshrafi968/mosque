@@ -16,11 +16,12 @@ class RewardPointController extends BaseTeacherController
         $teacher = $this->currentTeacher($request);
 
         $points = RewardPoint::query()
-            ->with(['student:id,name', 'awardedBy:id,name', 'quranReviewSession:id,surah_id,from_ayah,to_ayah', 'quranReviewSession.surah:id,name_arabic'])
+            ->with(['student:id,name', 'awardedBy:id,name', 'studySession:id,name', 'quranReviewSession:id,surah_id,from_ayah,to_ayah', 'quranReviewSession.surah:id,name_arabic'])
             ->where('awarded_by', $request->user()->id)
             ->when($request->student_id, fn ($q) => $q->where('student_id', $request->student_id))
             ->orderByDesc('created_at')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         $students = Student::query()->active()->orderBy('name')->get(['id', 'name']);
 
@@ -56,9 +57,12 @@ class RewardPointController extends BaseTeacherController
             'notes' => ['nullable', 'string'],
         ]);
 
+        $student = Student::query()->find($data['student_id']);
+
         RewardPoint::create([
             ...$data,
             'awarded_by' => $request->user()->id,
+            'study_session_id' => $student?->study_session_id,
         ]);
 
         return redirect()
@@ -71,7 +75,7 @@ class RewardPointController extends BaseTeacherController
         $point = RewardPoint::findOrFail($id);
 
         abort_unless(
-            $point->awarded_by === $request->user()->id && $point->quran_review_session_id === null,
+            $point->awarded_by === $request->user()->id && ! $point->isAutomatic(),
             403
         );
 

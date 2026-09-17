@@ -391,12 +391,14 @@ class DatabaseSeeder extends Seeder
             'tenant_id' => $mosque1->id,
             'name' => 'دورة أحكام الصلاة',
             'description' => 'دورة شرعية أسبوعية في أحكام الصلاة والطهارة',
-            'supervisor_id' => $teacher->id,
             'location' => 'القاعة الكبرى',
             'start_date' => now()->startOfMonth()->toDateString(),
             'status' => 'active',
+            'source' => ShariaCourse::SOURCE_MOSQUE,
             'created_by' => $manager->id,
         ]);
+
+        $shariaCourse->supervisors()->sync([$teacher->id]);
 
         $shariaLessons = collect([
             ['الطهارة وأحكام المياه', 'lesson', now()->toDateString(), '17:00', '18:00'],
@@ -420,6 +422,7 @@ class DatabaseSeeder extends Seeder
                 'phone' => '05500000'.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
                 'gender' => 'male',
                 'status' => 'active',
+                'memorization_status' => ['memorized', 'half_memorized', 'parts_memorized', 'not_memorized'][$index] ?? null,
             ]));
 
         $shariaStatuses = ['present', 'present', 'absent', 'late'];

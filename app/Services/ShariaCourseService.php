@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Enums\ShariaAttendanceStatus;
+use App\Enums\ShariaMemorizationStatus;
 use App\Models\ShariaCourse;
 use App\Models\ShariaCourseAttendance;
 use App\Models\ShariaCourseLesson;
 use App\Models\ShariaCourseStudent;
+use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -113,16 +115,86 @@ class ShariaCourseService
         return $summary;
     }
 
-    /** The supervisor or any lesson/lecture teacher may access the course. */
+    /** The supervisor (any of them) or any lesson/lecture teacher may access the course. */
     public function assertCourseAccess(Teacher $teacher, ShariaCourse $course): void
     {
-        if ($course->supervisor_id === $teacher->id) {
+        if ($course->supervisors()->whereKey($teacher->id)->exists()) {
             return;
         }
 
         $teaches = $course->lessons()->where('teacher_id', $teacher->id)->exists();
 
         abort_unless($teaches, 403, 'لا تملك صلاحية الوصول لهذه الدورة');
+    }
+
+    /**
+     * تسجيل طلاب موجودين (من جدول students) في الدورة — ينسخ بياناتهم
+     * الأساسية ويتجاهل من هو مسجَّل سابقاً.
+     *
+     * @param  array<int, string>  $studentIds
+     * @return int عدد الطلاب المضافين
+     */
+    public function syncEnrolledStudents(ShariaCourse $course, array $studentIds, User $actor): int
+    {
+        $studentIds = array_values(array_unique(array_filter($studentIds)));
+
+        if ($studentIds === []) {
+            return 0;
+        }
+
+        $existing = $course->students()
+            ->whereIn('student_id', $studentIds)
+            ->pluck('student_id')
+            ->all();
+
+        $students = Student::withoutGlobalScopes(['tenant', 'study_session'])
+            ->whereIn('id', array_diff($studentIds, $existing))
+            ->where('tenant_id', $course->tenant_id)
+            ->get();
+
+        $added = 0;
+
+        foreach ($students as $student) {
+            $course->students()->create([
+                'tenant_id' => $course->tenant_id,
+                'student_id' => $student->id,
+                'name' => $student->name,
+                'phone' => $student->guardian_phone,
+                'gender' => $student->gender,
+                'birth_date' => $student->birth_date,
+                'guardian_phone' => $student->guardian_phone,
+                'status' => ShariaCourseStudent::STATUS_ACTIVE,
+            ]);
+
+            $added++;
+        }
+
+        if ($added > 0) {
+            $this->audit->log('sharia_course.students_enrolled', 'sharia_course', $course->id, $course->tenant_id, after: [
+                'students' => $added,
+            ], actor: $actor);
+        }
+
+        return $added;
+    }
+
+    /** تحديث حالة حفظ طالب في الدورة (مدير الجامع أو مشرف الدورة). */
+    public function updateMemorization(
+        ShariaCourseStudent $student,
+        ?ShariaMemorizationStatus $status,
+        ?string $notes,
+        User $actor,
+    ): void {
+        $before = $student->getAttributes();
+
+        $student->update([
+            'memorization_status' => $status,
+            'memorization_notes' => $notes,
+            'memorization_updated_by' => $actor->id,
+            'memorization_updated_at' => now(),
+        ]);
+
+        $this->audit->logModel('sharia_course.memorization_updated', $student, $before, actor: $actor);
     }
 
     /**
@@ -163,7 +235,7 @@ class ShariaCourseService
     {
         return ShariaCourse::query()
             ->where(fn (Builder $query) => $query
-                ->where('supervisor_id', $teacher->id)
+                ->whereHas('supervisors', fn (Builder $supervisors) => $supervisors->whereKey($teacher->id))
                 ->orWhereHas('lessons', fn (Builder $lessons) => $lessons->where('teacher_id', $teacher->id)));
     }
 }

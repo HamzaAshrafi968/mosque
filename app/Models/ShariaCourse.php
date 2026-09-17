@@ -9,21 +9,26 @@ use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ShariaCourse extends Model
 {
     use FlushesTenantCache, HasFactory, MultiTenantTrait, UuidTrait;
 
+    public const SOURCE_MOSQUE = 'mosque';
+
+    public const SOURCE_SUPER_ADMIN = 'super_admin';
+
     protected $fillable = [
         'tenant_id',
         'name',
         'description',
-        'supervisor_id',
         'location',
         'start_date',
         'end_date',
         'status',
+        'source',
         'created_by',
     ];
 
@@ -36,9 +41,10 @@ class ShariaCourse extends Model
         ];
     }
 
-    public function supervisor(): BelongsTo
+    /** مشرفو الدورة (يمكن أن يكونوا أكثر من واحد). */
+    public function supervisors(): BelongsToMany
     {
-        return $this->belongsTo(Teacher::class, 'supervisor_id');
+        return $this->belongsToMany(Teacher::class, 'sharia_course_supervisor', 'course_id', 'teacher_id')->withTimestamps();
     }
 
     public function creator(): BelongsTo
@@ -65,5 +71,11 @@ class ShariaCourse extends Model
     public function isActive(): bool
     {
         return $this->status === ShariaCourseStatus::Active;
+    }
+
+    /** أُنشئت من مدير الجوامع (لا من إدارة الجامع). */
+    public function isFromSuperAdmin(): bool
+    {
+        return $this->source === self::SOURCE_SUPER_ADMIN;
     }
 }

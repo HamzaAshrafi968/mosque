@@ -7,6 +7,7 @@ use App\Enums\QuranListeningItemStatus;
 use App\Enums\QuranListeningTestResult;
 use App\Models\QuranListeningPlan;
 use App\Models\QuranListeningPlanItem;
+use App\Models\QuranMemorizationBatch;
 use App\Models\QuranReviewSession;
 use App\Models\Student;
 use App\Models\StudySession;
@@ -188,7 +189,7 @@ class QuranListeningController extends BaseTeacherController
             'items.khamsaReviewItem',
             'items.listeningSession:id,date,from_page,to_page',
             'tests.items',
-            'tests.testedBy:id,name',
+            'tests.examiner:id,name',
         ]);
 
         return [
@@ -201,6 +202,7 @@ class QuranListeningController extends BaseTeacherController
                 ->limit(10)
                 ->get(['id', 'date', 'from_page', 'to_page', 'mastery_percentage']),
             'reciters' => $this->audio->reciters(),
+            'canTest' => ! QuranMemorizationBatch::query()->where('plan_id', $plan->id)->exists(),
         ];
     }
 

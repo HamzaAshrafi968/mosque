@@ -15,8 +15,13 @@ class CreatePageQuranReviewSessionAction
 {
     public function __construct(private readonly QuranPageService $pages) {}
 
-    public function execute(array $data, string $teacherId, string $tenantId, Request $request): array
-    {
+    public function execute(
+        array $data,
+        string $teacherId,
+        string $tenantId,
+        Request $request,
+        int $maxPages = QuranPageService::MAX_REVIEW_PAGES,
+    ): array {
         $fromPage = (int) $data['from_page'];
         $toPage = (int) $data['to_page'];
 
@@ -26,9 +31,9 @@ class CreatePageQuranReviewSessionAction
             ]);
         }
 
-        if (($toPage - $fromPage + 1) > QuranPageService::MAX_REVIEW_PAGES) {
+        if (($toPage - $fromPage + 1) > $maxPages) {
             throw ValidationException::withMessages([
-                'to_page' => 'الحد الأقصى لعدد صفحات الاستماع الواحدة هو '.QuranPageService::MAX_REVIEW_PAGES.' صفحات',
+                'to_page' => 'الحد الأقصى لعدد صفحات الاستماع الواحدة هو '.$maxPages.' صفحات',
             ]);
         }
 

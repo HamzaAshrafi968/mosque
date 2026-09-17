@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ShariaCourse;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\AuthorizationService;
@@ -62,6 +63,13 @@ class EnsurePermission
         return function (User $user, ?Model $subject): bool {
             if (! $subject instanceof Model) {
                 return true;
+            }
+
+            // ShariaCourse ownership is "one of its supervisors" (pivot), so it
+            // cannot be resolved through a single owner column.
+            if ($subject instanceof ShariaCourse) {
+                return $user->teacher !== null
+                    && $subject->supervisors()->whereKey($user->teacher->id)->exists();
             }
 
             $references = [

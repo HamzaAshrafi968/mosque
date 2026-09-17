@@ -89,9 +89,6 @@
                     @if ($item->wordErrorCount)
                         <span class="text-[11px] text-red-600">{{ $item->wordErrorCount }} خطأ محدد</span>
                     @endif
-                    @if ($showActions && $item->editUrl)
-                        <a href="{{ $item->editUrl }}" class="text-xs font-bold text-emerald-700 hover:underline">تعديل</a>
-                    @endif
                 </div>
             @endif
 

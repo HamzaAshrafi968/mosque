@@ -362,45 +362,23 @@ class QuranListeningService
             throw ValidationException::withMessages(['results' => ['لا توجد أجزاء جاهزة للاختبار — يجب تسجيل الاستماع أولاً']]);
         }
 
-        $batch = $this->gating->batchForPlan($plan);
-
-        if ($batch) {
-            $listenedIds = $planItems
-                ->filter(fn (QuranListeningPlanItem $item) => $item->isListened())
-                ->keys()
-                ->map(fn ($id) => (string) $id)
-                ->all();
-
-            if (array_diff($listenedIds, array_map('strval', array_keys($submitted))) !== []) {
-                throw ValidationException::withMessages([
-                    'results' => ['يجب تسجيل نتيجة لكل عنصر مُستمع قبل إنهاء اختبار الدفعة'],
-                ]);
-            }
+        if ($this->gating->batchForPlan($plan)) {
+            throw ValidationException::withMessages([
+                'results' => ['اختبار دفعة الحفظ اختبار تراكمي يُسجَّل من مركز «دفعات الحفظ»'],
+            ]);
         }
 
-        $passedCount = collect($submitted)
-            ->filter(fn (array $row) => $row['result'] === QuranListeningTestResult::Pass)
-            ->count();
+        $overall = collect($submitted)->every(fn (array $row) => $row['result'] === QuranListeningTestResult::Pass)
+            ? QuranListeningTestResult::Pass
+            : QuranListeningTestResult::Fail;
 
-        $score = round($passedCount / max(1, count($submitted)) * 100, 2);
-        $passingPercentage = $batch ? $this->settings->minimumPassingPercentage() : null;
-
-        $overall = $batch
-            ? ($score >= $passingPercentage ? QuranListeningTestResult::Pass : QuranListeningTestResult::Fail)
-            : (collect($submitted)->every(fn (array $row) => $row['result'] === QuranListeningTestResult::Pass)
-                ? QuranListeningTestResult::Pass
-                : QuranListeningTestResult::Fail);
-
-        return DB::transaction(function () use ($plan, $submitted, $overall, $actor, $notes, $batch, $score, $passingPercentage) {
+        return DB::transaction(function () use ($plan, $submitted, $overall, $actor, $notes) {
             $test = QuranListeningTest::create([
                 'plan_id' => $plan->id,
-                'batch_id' => $batch?->id,
                 'student_id' => $plan->student_id,
                 'tested_by' => $actor->id,
                 'tested_at' => now(),
                 'result' => $overall,
-                'score' => $batch ? $score : null,
-                'passing_percentage' => $passingPercentage,
                 'notes' => $notes,
             ]);
 
@@ -438,13 +416,9 @@ class QuranListeningService
 
             $this->audit->logModel('quran_listening.test.recorded', $test, actor: $actor);
 
-            if ($batch) {
-                $this->gating->recordBatchOutcome($batch, $test, $actor);
-            } else {
-                $this->notifyTestResult($plan, $test, $submitted);
+            $this->notifyTestResult($plan, $test, $submitted);
 
-                $this->maybeComplete($plan, $actor);
-            }
+            $this->maybeComplete($plan, $actor);
 
             return $test->load('items');
         });

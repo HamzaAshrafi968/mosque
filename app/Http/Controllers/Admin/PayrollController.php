@@ -34,7 +34,7 @@ class PayrollController extends Controller
         $search = $request->string('q')->toString();
 
         $teachers = Teacher::query()
-            ->with(['studySession:id,name', 'workHours'])
+            ->with(['studySession:id,name', 'studySessions:id,name', 'workHours'])
             ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
             ->orderBy('name')
             ->paginate(25)

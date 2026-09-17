@@ -152,6 +152,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('quran/khamsa/memorization', [Admin\QuranKhamsaController::class, 'storeMemorization'])->name('quran.khamsa.memorization.store')->middleware('permission:quran.memorization.manage');
     Route::delete('quran/khamsa/memorization', [Admin\QuranKhamsaController::class, 'destroyMemorization'])->name('quran.khamsa.memorization.destroy')->middleware('permission:quran.memorization.manage');
     Route::post('quran/khamsa/items/{item}/complete', [Admin\QuranKhamsaController::class, 'complete'])->name('quran.khamsa.items.complete')->middleware('permission:quran_khamsa.complete');
+    Route::get('quran/khamsa/{review}/review', [Admin\QuranKhamsaController::class, 'review'])->name('quran.khamsa.review')->middleware('permission:quran_khamsa.complete');
+    Route::post('quran/khamsa/{review}/review', [Admin\QuranKhamsaController::class, 'storeReview'])->name('quran.khamsa.review.store')->middleware('permission:quran_khamsa.complete');
     Route::get('quran/khamsa/{review}', [Admin\QuranKhamsaController::class, 'show'])->name('quran.khamsa.show')->middleware('permission:quran_khamsa.view');
     Route::post('quran/khamsa/{review}/cancel', [Admin\QuranKhamsaController::class, 'cancel'])->name('quran.khamsa.cancel')->middleware('permission:quran_khamsa.update');
 
@@ -166,14 +168,20 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('quran/listening/{plan}/test', [Admin\QuranListeningController::class, 'test'])->name('quran.listening.test')->middleware('permission:quran_listening.test');
     Route::post('quran/listening/{plan}/cancel', [Admin\QuranListeningController::class, 'cancel'])->name('quran.listening.cancel')->middleware('permission:quran_listening.update');
 
-    // ---- دفعات الحفظ: كل جزأين دفعة → مراجعة 5 → اختبار بحد نجاح الجامع ----
+    // ---- دفعات الحفظ: كل جزأين دفعة → خمسات → اختبار تراكمي بحد نجاح الجامع ----
     Route::get('quran/batches', [Admin\QuranBatchController::class, 'index'])->name('quran.batches.index')->middleware('permission:quran_batch.view');
     Route::get('quran/batches/session-start', [Admin\QuranBatchController::class, 'sessionStart'])->name('quran.batches.session-start')->middleware('permission:quran.tasmee.create,quran_review.create');
     Route::post('quran/batches/{batch}/repeat', [Admin\QuranBatchController::class, 'repeat'])->name('quran.batches.repeat')->middleware('permission:quran_batch.update');
+    Route::post('quran/batches/{batch}/test', [Admin\QuranBatchController::class, 'test'])->name('quran.batches.test')->middleware('permission:quran_listening.test');
+    Route::post('quran/batches/{batch}/retake', [Admin\QuranBatchController::class, 'retake'])->name('quran.batches.retake')->middleware('permission:quran_batch.update');
 
     // ---- إعدادات برنامج القرآن (حد النجاح في اختبار الدفعات) ----
     Route::get('settings/quran', [Admin\QuranSettingsController::class, 'edit'])->name('settings.quran.edit')->middleware('permission:quran_settings.view');
     Route::patch('settings/quran', [Admin\QuranSettingsController::class, 'update'])->name('settings.quran.update')->middleware('permission:quran_settings.update');
+
+    // ---- إعدادات نقاط المكافآت: قواعد لكل دوام (حفظ/خمسات/اختبار) ----
+    Route::get('settings/rewards', [Admin\RewardPointSettingsController::class, 'edit'])->name('settings.rewards.edit')->middleware('permission:quran_settings.view');
+    Route::patch('settings/rewards', [Admin\RewardPointSettingsController::class, 'update'])->name('settings.rewards.update')->middleware('permission:quran_settings.update');
 
     Route::get('reward-points', [Admin\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
 
@@ -269,7 +277,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('sharia-courses/lessons/{lesson}', [Admin\ShariaCourseController::class, 'destroyLesson'])->name('sharia-courses.lessons.destroy')->middleware('permission:sharia_courses.update');
 
     Route::post('sharia-courses/{course}/students', [Admin\ShariaCourseController::class, 'storeStudent'])->name('sharia-courses.students.store')->middleware('permission:sharia_courses.update');
+    Route::post('sharia-courses/{course}/students/existing', [Admin\ShariaCourseController::class, 'storeExistingStudents'])->name('sharia-courses.students.existing')->middleware('permission:sharia_courses.update');
     Route::patch('sharia-courses/students/{student}', [Admin\ShariaCourseController::class, 'updateStudent'])->name('sharia-courses.students.update')->middleware('permission:sharia_courses.update');
+    Route::patch('sharia-courses/students/{student}/memorization', [Admin\ShariaCourseController::class, 'updateMemorization'])->name('sharia-courses.students.memorization')->middleware('permission:sharia_courses.memorization');
     Route::delete('sharia-courses/students/{student}', [Admin\ShariaCourseController::class, 'destroyStudent'])->name('sharia-courses.students.destroy')->middleware('permission:sharia_courses.update');
 
     Route::post('sharia-courses/{course}/attendance', [Admin\ShariaCourseController::class, 'storeAttendance'])->name('sharia-courses.attendance.store')->middleware('permission:sharia_courses.attendance');
@@ -334,6 +344,8 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::post('quran/khamsa/memorization', [Teacher\QuranKhamsaController::class, 'storeMemorization'])->name('quran.khamsa.memorization.store')->middleware('permission:quran.memorization.manage');
     Route::delete('quran/khamsa/memorization', [Teacher\QuranKhamsaController::class, 'destroyMemorization'])->name('quran.khamsa.memorization.destroy')->middleware('permission:quran.memorization.manage');
     Route::post('quran/khamsa/items/{item}/complete', [Teacher\QuranKhamsaController::class, 'complete'])->name('quran.khamsa.items.complete')->middleware('permission:quran_khamsa.complete');
+    Route::get('quran/khamsa/{review}/review', [Teacher\QuranKhamsaController::class, 'review'])->name('quran.khamsa.review')->middleware('permission:quran_khamsa.complete');
+    Route::post('quran/khamsa/{review}/review', [Teacher\QuranKhamsaController::class, 'storeReview'])->name('quran.khamsa.review.store')->middleware('permission:quran_khamsa.complete');
     Route::get('quran/khamsa/{review}', [Teacher\QuranKhamsaController::class, 'show'])->name('quran.khamsa.show')->middleware('permission:quran_khamsa.view');
     Route::post('quran/khamsa/{review}/cancel', [Teacher\QuranKhamsaController::class, 'cancel'])->name('quran.khamsa.cancel')->middleware('permission:quran_khamsa.update');
 
@@ -348,10 +360,12 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::post('quran/listening/{plan}/test', [Teacher\QuranListeningController::class, 'test'])->name('quran.listening.test')->middleware('permission:quran_listening.test');
     Route::post('quran/listening/{plan}/cancel', [Teacher\QuranListeningController::class, 'cancel'])->name('quran.listening.cancel')->middleware('permission:quran_listening.update');
 
-    // ---- دفعات الحفظ: كل جزأين دفعة → مراجعة 5 → اختبار بحد نجاح الجامع ----
+    // ---- دفعات الحفظ: كل جزأين دفعة → خمسات → اختبار تراكمي بحد نجاح الجامع ----
     Route::get('quran/batches', [Teacher\QuranBatchController::class, 'index'])->name('quran.batches.index')->middleware('permission:quran_batch.view');
     Route::get('quran/batches/session-start', [Teacher\QuranBatchController::class, 'sessionStart'])->name('quran.batches.session-start')->middleware('permission:quran.tasmee.create,quran_review.create');
     Route::post('quran/batches/{batch}/repeat', [Teacher\QuranBatchController::class, 'repeat'])->name('quran.batches.repeat')->middleware('permission:quran_batch.update');
+    Route::post('quran/batches/{batch}/test', [Teacher\QuranBatchController::class, 'test'])->name('quran.batches.test')->middleware('permission:quran_listening.test');
+    Route::post('quran/batches/{batch}/retake', [Teacher\QuranBatchController::class, 'retake'])->name('quran.batches.retake')->middleware('permission:quran_batch.update');
 
     Route::get('reward-points', [Teacher\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
     Route::get('reward-points/create', [Teacher\RewardPointController::class, 'create'])->name('reward-points.create')->middleware('permission:reward_points.create');
@@ -400,6 +414,7 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('sharia-courses', [Teacher\ShariaCourseController::class, 'index'])->name('sharia-courses.index')->middleware('permission:sharia_courses.view');
     Route::get('sharia-courses/{course}', [Teacher\ShariaCourseController::class, 'show'])->name('sharia-courses.show')->middleware('permission:sharia_courses.view');
     Route::post('sharia-courses/{course}/attendance', [Teacher\ShariaCourseController::class, 'storeAttendance'])->name('sharia-courses.attendance.store')->middleware('permission:sharia_courses.attendance');
+    Route::patch('sharia-courses/students/{student}/memorization', [Teacher\ShariaCourseController::class, 'updateMemorization'])->name('sharia-courses.students.memorization')->middleware('permission:sharia_courses.memorization');
 });
 
 Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('super-admin.')->group(function () {
@@ -429,6 +444,12 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('su
     Route::get('mosques/{mosque}/roles/{role}/edit', [SuperAdmin\MosqueRoleController::class, 'edit'])->name('mosques.roles.edit');
     Route::patch('mosques/{mosque}/roles/{role}', [SuperAdmin\MosqueRoleController::class, 'updatePermissions'])->name('mosques.roles.update');
     Route::delete('mosques/{mosque}/roles/{role}', [SuperAdmin\MosqueRoleController::class, 'destroy'])->name('mosques.roles.destroy');
+
+    // ---- الدورات الشرعية: إنشاء مركزي وربط بجامع + إشعار مديره ----
+    Route::get('sharia-courses', [SuperAdmin\ShariaCourseController::class, 'index'])->name('sharia-courses.index');
+    Route::get('sharia-courses/create', [SuperAdmin\ShariaCourseController::class, 'create'])->name('sharia-courses.create');
+    Route::get('sharia-courses/options', [SuperAdmin\ShariaCourseController::class, 'options'])->name('sharia-courses.options');
+    Route::post('sharia-courses', [SuperAdmin\ShariaCourseController::class, 'store'])->name('sharia-courses.store');
 });
 
 // ---- Shared in-app notifications inbox (all authenticated roles) ----
@@ -465,6 +486,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::get('homeworks', [StudentPortal\PortalController::class, 'homeworks'])->name('homeworks');
     Route::post('homeworks/{homework}/submit', [StudentPortal\PortalController::class, 'submitHomework'])->name('homeworks.submit');
     Route::get('announcements', [StudentPortal\PortalController::class, 'announcements'])->name('announcements');
+    Route::get('reward-points', [StudentPortal\RewardPointController::class, 'index'])->name('reward-points');
     Route::get('quran-khamsa', [StudentPortal\KhamsaController::class, 'index'])->name('quran-khamsa');
 
     // ---- «ملفي القرآني»: الشاشة الموحدة (الإنجاز + الدفعة الحالية + الدورة) ----

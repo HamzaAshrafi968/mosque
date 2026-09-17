@@ -51,7 +51,7 @@ class QuranProfileController extends BaseStudentController
         }
 
         $currentBatch = $currentState['batch'] ?? null;
-        $currentBatch?->load(['plan', 'review5', 'lastTest']);
+        $currentBatch?->load(['plan', 'review5', 'retakeReview5', 'lastTest']);
 
         $plans = QuranListeningPlan::query()
             ->with([
@@ -64,7 +64,7 @@ class QuranProfileController extends BaseStudentController
                 'items.khamsaReviewItem',
                 'items.listeningSession:id,date,from_page,to_page',
                 'tests.items',
-                'tests.testedBy:id,name',
+                'tests.examiner:id,name',
             ])
             ->where('student_id', $student->id)
             ->orderByRaw("case status when 'active' then 0 when 'completed' then 1 else 2 end")
@@ -103,7 +103,7 @@ class QuranProfileController extends BaseStudentController
             'items.khamsaReviewItem',
             'items.listeningSession:id,date,from_page,to_page',
             'tests.items',
-            'tests.testedBy:id,name',
+            'tests.examiner:id,name',
         ]);
 
         $review = $currentBatch?->review5;
@@ -120,6 +120,18 @@ class QuranProfileController extends BaseStudentController
             'items.quranReviewSession:id,date,from_page,to_page,mastery_percentage',
         ]);
 
+        $retakeReview = $currentBatch?->retakeReview5;
+
+        $retakeReview?->load([
+            'student:id,name',
+            'teacher:id,name',
+            'studySession:id,name',
+            'items.completedBy:id,name',
+            'items.quranReviewSession:id,date,from_page,to_page,mastery_percentage',
+        ]);
+
+        $failedJuz = $currentBatch ? $this->gating->failedJuzNumbers($currentBatch) : [];
+
         $timeline = $this->timeline->forStudent($student);
 
         return view('student.quran-profile', [
@@ -129,6 +141,8 @@ class QuranProfileController extends BaseStudentController
             'currentBatch' => $currentBatch,
             'plan' => $plan,
             'review' => $review,
+            'retakeReview' => $retakeReview,
+            'failedJuz' => $failedJuz,
             'listeningItems' => $plan ? $plan->items->where('status', QuranListeningItemStatus::Listened) : collect(),
             'reciters' => $this->audio->reciters(),
             'memorizedJuz' => $this->gating->memorizedJuzNumbers($student),

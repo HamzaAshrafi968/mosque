@@ -15,6 +15,8 @@
     $sessions = $listeningSessions ?? collect();
     $khamsaRoute = $khamsaRoute ?? null;
     $embedded = $embedded ?? false;
+    $showPlayer = $showPlayer ?? false;
+    $showListeningTable = $showPlayer || ($canListen ?? false);
 @endphp
 
 <div class="space-y-6">
@@ -77,100 +79,102 @@
         <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-900">{{ $plan->notes }}</div>
     @endif
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="bg-gray-50 text-gray-600">
-                        <th class="px-4 py-3 text-right">العنصر والصفحات</th>
-                        <th class="px-4 py-3 text-right">الحالة</th>
-                        <th class="px-4 py-3 text-right">المحاولات</th>
-                        <th class="px-4 py-3 text-right">الاستماع / التشغيل</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @foreach($plan->items as $item)
-                    <tr class="border-t align-top">
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="flex items-center gap-2">
-                                <span @class([
-                                    'px-2 py-0.5 rounded-full text-[11px] font-bold',
-                                    'bg-sky-100 text-sky-800' => ! $item->isReview(),
-                                    'bg-gold-100 text-gold-800' => $item->isReview(),
-                                ])>{{ $item->isReview() ? 'مراجعة 5' : 'جديد' }}</span>
-                                <span class="font-bold text-gray-800">{{ $item->isReview() ? $item->label() : 'الجزء '.$item->juz }}</span>
-                            </div>
-                            <div class="text-xs text-gray-400 mt-0.5">صفحات {{ $item->from_page }}–{{ $item->to_page }} ({{ $item->pagesCount() }} صفحات)</div>
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ $statusClasses[$item->status->value] ?? 'bg-gray-100 text-gray-600' }}">
-                                {{ $item->status->label() }}
-                            </span>
-                            @if($item->last_result)
-                                <div class="text-[11px] text-gray-400 mt-1">آخر نتيجة: {{ $item->last_result->label() }}</div>
-                            @endif
-                            @if($item->passed_at)
-                                <div class="text-[11px] text-gray-400 mt-1">{{ $item->passed_at->format('Y-m-d') }} — {{ $item->passedBy?->name }}</div>
-                            @endif
-                            @if($item->isReview() && $item->khamsaReviewItem)
-                                <div class="text-[11px] mt-1 {{ $item->khamsaReviewItem->isCompleted() ? 'text-emerald-600' : 'text-gray-400' }}">
-                                    مراجعة 5: {{ $item->khamsaReviewItem->status->label() }}
+    @if($showListeningTable)
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600">
+                            <th class="px-4 py-3 text-right">العنصر والصفحات</th>
+                            <th class="px-4 py-3 text-right">الحالة</th>
+                            <th class="px-4 py-3 text-right">المحاولات</th>
+                            <th class="px-4 py-3 text-right">الاستماع / التشغيل</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($plan->items as $item)
+                        <tr class="border-t align-top">
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <div class="flex items-center gap-2">
+                                    <span @class([
+                                        'px-2 py-0.5 rounded-full text-[11px] font-bold',
+                                        'bg-sky-100 text-sky-800' => ! $item->isReview(),
+                                        'bg-gold-100 text-gold-800' => $item->isReview(),
+                                    ])>{{ $item->isReview() ? 'مراجعة 5' : 'جديد' }}</span>
+                                    <span class="font-bold text-gray-800">{{ $item->isReview() ? $item->label() : 'الجزء '.$item->juz }}</span>
                                 </div>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap text-gray-600">{{ $item->attempts }}</td>
-                        <td class="px-4 py-3">
-                            <div class="flex flex-wrap items-center gap-2">
-                                @if(! $item->isLocked())
-                                    <button type="button" data-player-start
-                                        data-audio-url="{{ $audioRoute($item) }}"
-                                        data-progress-url="{{ $progressRoute($item) }}"
-                                        data-item-label="{{ $item->label() }}"
-                                        class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold">▶ تشغيل التلاوة</button>
-                                @else
-                                    <span class="text-xs text-gray-400">🔒 يُفتح بعد نجاح الأجزاء السابقة</span>
+                                <div class="text-xs text-gray-400 mt-0.5">صفحات {{ $item->from_page }}–{{ $item->to_page }} ({{ $item->pagesCount() }} صفحات)</div>
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ $statusClasses[$item->status->value] ?? 'bg-gray-100 text-gray-600' }}">
+                                    {{ $item->status->label() }}
+                                </span>
+                                @if($item->last_result)
+                                    <div class="text-[11px] text-gray-400 mt-1">آخر نتيجة: {{ $item->last_result->label() }}</div>
                                 @endif
+                                @if($item->passed_at)
+                                    <div class="text-[11px] text-gray-400 mt-1">{{ $item->passed_at->format('Y-m-d') }} — {{ $item->passedBy?->name }}</div>
+                                @endif
+                                @if($item->isReview() && $item->khamsaReviewItem)
+                                    <div class="text-[11px] mt-1 {{ $item->khamsaReviewItem->isCompleted() ? 'text-emerald-600' : 'text-gray-400' }}">
+                                        مراجعة 5: {{ $item->khamsaReviewItem->status->label() }}
+                                    </div>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-gray-600">{{ $item->attempts }}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @if(! $item->isLocked() && $showPlayer)
+                                        <button type="button" data-player-start
+                                            data-audio-url="{{ $audioRoute($item) }}"
+                                            data-progress-url="{{ $progressRoute($item) }}"
+                                            data-item-label="{{ $item->label() }}"
+                                            class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold">▶ تشغيل التلاوة</button>
+                                    @elseif($item->isLocked())
+                                        <span class="text-xs text-gray-400">🔒 يُفتح بعد نجاح الأجزاء السابقة</span>
+                                    @endif
 
-                                @if($canListen && $item->canBeListened())
-                                    <form method="POST" action="{{ $listenRoute($item) }}" class="flex flex-wrap items-center gap-2">
-                                        @csrf
-                                        @if($sessions->isNotEmpty())
-                                            <select name="quran_review_session_id" class="border border-gray-300 rounded-lg px-2 py-1 text-[11px] max-w-[14rem]">
-                                                <option value="">ربط جلسة «الاستماع مع المعلم» (اختياري)</option>
-                                                @foreach($sessions as $session)
-                                                    <option value="{{ $session->id }}">
-                                                        {{ $session->date?->format('Y-m-d') }} — صفحات {{ $session->from_page }}–{{ $session->to_page }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        @endif
-                                        <button class="px-3 py-1.5 rounded-lg bg-gold-500 hover:bg-gold-600 text-pine-950 text-xs font-bold">
-                                            {{ $item->isNeedsRepeat() ? 'أعدت الاستماع' : 'تم الاستماع' }}
-                                        </button>
-                                    </form>
-                                @endif
+                                    @if($canListen && $item->canBeListened())
+                                        <form method="POST" action="{{ $listenRoute($item) }}" class="flex flex-wrap items-center gap-2">
+                                            @csrf
+                                            @if($sessions->isNotEmpty())
+                                                <select name="quran_review_session_id" class="border border-gray-300 rounded-lg px-2 py-1 text-[11px] max-w-[14rem]">
+                                                    <option value="">ربط جلسة «الاستماع مع المعلم» (اختياري)</option>
+                                                    @foreach($sessions as $session)
+                                                        <option value="{{ $session->id }}">
+                                                            {{ $session->date?->format('Y-m-d') }} — صفحات {{ $session->from_page }}–{{ $session->to_page }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            @endif
+                                            <button class="px-3 py-1.5 rounded-lg bg-gold-500 hover:bg-gold-600 text-pine-950 text-xs font-bold">
+                                                {{ $item->isNeedsRepeat() ? 'أعدت الاستماع' : 'تم الاستماع' }}
+                                            </button>
+                                        </form>
+                                    @endif
 
-                                @if($item->listeningSession)
-                                    <span class="text-[11px] text-emerald-700">الاستماع مع المعلم: {{ $item->listeningSession->date?->format('Y-m-d') }}</span>
-                                @endif
+                                    @if($item->listeningSession)
+                                        <span class="text-[11px] text-emerald-700">الاستماع مع المعلم: {{ $item->listeningSession->date?->format('Y-m-d') }}</span>
+                                    @endif
 
-                                @if($item->listened_at && ! $item->isPassed())
-                                    <span class="text-[11px] text-gray-400">استُمع {{ $item->listened_at->format('Y-m-d') }}</span>
-                                @endif
-                                @if($item->listen_seconds > 0)
-                                    <span class="text-[11px] text-gray-400">({{ intdiv($item->listen_seconds, 60) }} دقيقة تشغيل)</span>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                @endforeach
-                </tbody>
-            </table>
+                                    @if($item->listened_at && ! $item->isPassed())
+                                        <span class="text-[11px] text-gray-400">استُمع {{ $item->listened_at->format('Y-m-d') }}</span>
+                                    @endif
+                                    @if($item->listen_seconds > 0)
+                                        <span class="text-[11px] text-gray-400">({{ intdiv($item->listen_seconds, 60) }} دقيقة تشغيل)</span>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
+    @endif
 
     @if($canTest && $plan->isActive())
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 space-y-4">
+        <div id="batch-test" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 space-y-4 scroll-mt-6">
             <div>
                 <h3 class="font-bold text-gray-800">تسجيل اختبار الدفعة</h3>
                 <p class="text-xs text-gray-500 mt-1">كل عنصر مُستمع يظهر هنا: حدّد «ناجح» أو «يحتاج إعادة» — ولا يُفتح العنصر التالي حتى تنجح كل العناصر المفتوحة، ونجاح «مراجعة 5» يُنهي الخمسة المرتبطة تلقائياً.</p>
@@ -246,8 +250,8 @@
                                 'bg-red-100 text-red-700' => ! $test->isPass(),
                             ])>{{ $test->result->label() }}</span>
                             <span class="text-gray-500">{{ $test->tested_at?->format('Y-m-d H:i') }}</span>
-                            @if($test->testedBy)
-                                <span class="text-gray-400">بواسطة {{ $test->testedBy->name }}</span>
+                            @if($test->examiner)
+                                <span class="text-gray-400">بواسطة {{ $test->examiner->name }}</span>
                             @endif
                             @if($test->notes)
                                 <span class="text-gray-500">— {{ $test->notes }}</span>
@@ -271,5 +275,7 @@
         </div>
     @endif
 
-    @include('quran.listening.player')
+    @if($showPlayer)
+        @include('quran.listening.player')
+    @endif
 </div>

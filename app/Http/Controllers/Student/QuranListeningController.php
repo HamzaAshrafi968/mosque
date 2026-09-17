@@ -42,7 +42,7 @@ class QuranListeningController extends BaseStudentController
             'items.khamsaReviewItem',
             'items.listeningSession:id,date,from_page,to_page',
             'tests.items',
-            'tests.testedBy:id,name',
+            'tests.examiner:id,name',
         ]);
 
         return view('student.quran-listening.show', [

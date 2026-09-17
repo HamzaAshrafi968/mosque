@@ -12,11 +12,22 @@ class RewardPoint extends Model
 {
     use HasFactory, MultiTenantTrait, UuidTrait;
 
+    /** مصادر المنح التلقائي (source_type) — تُستخدم لحماية التكرار. */
+    public const SOURCE_TASMEE = 'quran_recitation_session';
+
+    public const SOURCE_KHAMSA_ITEM = 'quran_khamsa_review_item';
+
+    public const SOURCE_TEST = 'quran_listening_test';
+
     protected $fillable = [
         'tenant_id',
         'student_id',
         'awarded_by',
         'quran_review_session_id',
+        'study_session_id',
+        'source_type',
+        'source_id',
+        'source_pages',
         'points',
         'reason',
         'type',
@@ -27,6 +38,7 @@ class RewardPoint extends Model
     {
         return [
             'points' => 'integer',
+            'source_pages' => 'integer',
         ];
     }
 
@@ -43,5 +55,15 @@ class RewardPoint extends Model
     public function quranReviewSession(): BelongsTo
     {
         return $this->belongsTo(QuranReviewSession::class);
+    }
+
+    public function studySession(): BelongsTo
+    {
+        return $this->belongsTo(StudySession::class);
+    }
+
+    public function isAutomatic(): bool
+    {
+        return $this->source_type !== null || $this->quran_review_session_id !== null;
     }
 }

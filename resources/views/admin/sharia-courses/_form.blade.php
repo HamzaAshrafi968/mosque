@@ -1,5 +1,6 @@
 @php
     $course = $course ?? null;
+    $selectedSupervisors = old('supervisor_ids', $course ? $course->supervisors->pluck('id')->all() : []);
 @endphp
 
 <form method="POST" action="{{ $course ? route('admin.sharia-courses.update', $course) : route('admin.sharia-courses.store') }}" class="space-y-4">
@@ -15,14 +16,19 @@
                    class="w-full border border-gray-300 rounded-lg px-3 py-2">
         </div>
 
-        <div>
-            <label class="block text-sm font-bold text-gray-700 mb-1">المشرف</label>
-            <select name="supervisor_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">— بدون —</option>
-                @foreach($teachers as $teacher)
-                    <option value="{{ $teacher->id }}" @selected(old('supervisor_id', $course?->supervisor_id) === $teacher->id)>{{ $teacher->name }}</option>
-                @endforeach
-            </select>
+        <div class="md:col-span-2">
+            <label class="block text-sm font-bold text-gray-700 mb-1">المشرفون <span class="text-xs text-gray-400 font-normal">— يمكن اختيار أكثر من مشرف</span></label>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-56 overflow-y-auto border border-gray-200 rounded-xl p-3">
+                @forelse($teachers as $teacher)
+                    <label class="flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-2 py-1.5">
+                        <input type="checkbox" name="supervisor_ids[]" value="{{ $teacher->id }}" @checked(in_array($teacher->id, $selectedSupervisors, true)) class="accent-emerald-600">
+                        <span class="font-bold">{{ $teacher->name }}</span>
+                    </label>
+                @empty
+                    <span class="text-sm text-gray-400">لا يوجد معلمون نشطون</span>
+                @endforelse
+            </div>
+            <input type="hidden" name="supervisor_ids[]" value="">
         </div>
 
         <div>

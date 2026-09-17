@@ -159,6 +159,12 @@ class Teacher extends Model
         return $this->hasMany(FaithMeeting::class, 'supervisor_id');
     }
 
+    /** الدورات الشرعية التي يشرف عليها الأستاذ (يمكن أن تكون عدة دورات). */
+    public function supervisedShariaCourses(): BelongsToMany
+    {
+        return $this->belongsToMany(ShariaCourse::class, 'sharia_course_supervisor', 'teacher_id', 'course_id')->withTimestamps();
+    }
+
     public function coRunMeetings(): HasMany
     {
         return $this->hasMany(FaithMeeting::class, 'teacher_id');

@@ -12,6 +12,7 @@
         'reciters' => $reciters,
         'canTest' => false,
         'canListen' => true,
+        'showPlayer' => true,
         'indexRoute' => route('student.quran-profile'),
         'listenRoute' => fn ($item) => route('student.quran-listening.items.listen', $item),
         'audioRoute' => fn ($item) => route('student.quran-listening.items.audio', $item),

@@ -184,6 +184,7 @@ final class PermissionCatalog
         ['sharia_courses', 'update', 'تعديل دورة شرعية'],
         ['sharia_courses', 'delete', 'حذف دورة شرعية'],
         ['sharia_courses', 'attendance', 'تسجيل حضور الدورات الشرعية'],
+        ['sharia_courses', 'memorization', 'تحديث حالة حفظ طلاب الدورات الشرعية'],
     ];
 
     /** Default grants for the per-mosque manager role: code => scope. */
@@ -225,7 +226,7 @@ final class PermissionCatalog
         'hafiz_profile.view' => 'mosque', 'hafiz_profile.update' => 'mosque',
         'faith_meetings.view' => 'mosque', 'faith_meetings.create' => 'mosque', 'faith_meetings.update' => 'mosque', 'faith_meetings.attendance' => 'mosque',
         'work_hours.view' => 'mosque', 'work_hours.manage' => 'mosque',
-        'sharia_courses.view' => 'mosque', 'sharia_courses.create' => 'mosque', 'sharia_courses.update' => 'mosque', 'sharia_courses.delete' => 'mosque', 'sharia_courses.attendance' => 'mosque',
+        'sharia_courses.view' => 'mosque', 'sharia_courses.create' => 'mosque', 'sharia_courses.update' => 'mosque', 'sharia_courses.delete' => 'mosque', 'sharia_courses.attendance' => 'mosque', 'sharia_courses.memorization' => 'mosque',
     ];
 
     /** Default grants for the teacher role: code => scope. */
@@ -259,7 +260,7 @@ final class PermissionCatalog
         'hafiz_profile.view' => 'own',
         'faith_meetings.view' => 'own', 'faith_meetings.create' => 'own', 'faith_meetings.update' => 'own', 'faith_meetings.attendance' => 'own',
         'work_hours.view' => 'own',
-        'sharia_courses.view' => 'own', 'sharia_courses.update' => 'own', 'sharia_courses.attendance' => 'own',
+        'sharia_courses.view' => 'own', 'sharia_courses.update' => 'own', 'sharia_courses.attendance' => 'own', 'sharia_courses.memorization' => 'own',
     ];
 
     /** Default grants for the guardian portal role: code => scope (read-only). */

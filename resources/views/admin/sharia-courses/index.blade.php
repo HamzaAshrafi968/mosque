@@ -48,9 +48,20 @@
                     <tr class="border-t">
                         <td class="px-4 py-3 whitespace-nowrap">
                             <a href="{{ route('admin.sharia-courses.show', $course) }}" class="font-bold text-gray-800 hover:text-emerald-700">{{ $course->name }}</a>
-                            @if($course->location)<div class="text-xs text-gray-400">{{ $course->location }}</div>@endif
+                            <div class="flex items-center gap-2 mt-1">
+                                @if($course->isFromSuperAdmin())
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-800">من مدير الجوامع</span>
+                                @endif
+                                @if($course->location)<span class="text-xs text-gray-400">{{ $course->location }}</span>@endif
+                            </div>
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $course->supervisor?->name ?? '—' }}</td>
+                        <td class="px-4 py-3">
+                            @forelse($course->supervisors as $supervisor)
+                                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 mb-0.5">{{ $supervisor->name }}</span>
+                            @empty
+                                <span class="text-gray-300">—</span>
+                            @endforelse
+                        </td>
                         <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
                             {{ $course->start_date?->format('Y-m-d') ?? '—' }} ← {{ $course->end_date?->format('Y-m-d') ?? '—' }}
                         </td>

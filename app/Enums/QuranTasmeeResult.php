@@ -18,4 +18,15 @@ enum QuranTasmeeResult: string
             self::NeedsReview => 'يحتاج مراجعة',
         };
     }
+
+    /** التقدير المقترح من نسبة الإتقان (نفس عتبات واجهة التسميع: 95/85/70). */
+    public static function fromMastery(float $mastery): self
+    {
+        return match (true) {
+            $mastery >= 95 => self::Excellent,
+            $mastery >= 85 => self::VeryGood,
+            $mastery >= 70 => self::Good,
+            default => self::NeedsReview,
+        };
+    }
 }

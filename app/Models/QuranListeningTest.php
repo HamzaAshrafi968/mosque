@@ -55,7 +55,7 @@ class QuranListeningTest extends Model
         return $this->belongsTo(Student::class)->withoutGlobalScope('study_session');
     }
 
-    public function tested_by(): BelongsTo
+    public function examiner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'tested_by');
     }

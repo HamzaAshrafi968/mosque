@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Teacher;
 use App\Contracts\Repositories\RewardPointRepositoryInterface;
 use App\Http\Requests\Api\V1\Teacher\StoreRewardPointRequest;
 use App\Http\Resources\Api\V1\RewardPointResource;
+use App\Models\Student;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,9 +23,12 @@ class RewardPointController extends BaseTeacherController
 
     public function store(StoreRewardPointRequest $request, RewardPointRepositoryInterface $rewardPointRepository): JsonResponse
     {
+        $student = Student::query()->find($request->validated('student_id'));
+
         $rewardPoint = $rewardPointRepository->create([
             ...$request->validated(),
             'awarded_by' => $request->user()->id,
+            'study_session_id' => $student?->study_session_id,
         ]);
 
         return $this->created(new RewardPointResource($rewardPoint));
@@ -35,7 +39,7 @@ class RewardPointController extends BaseTeacherController
         $point = $rewardPointRepository->findOrFail($id);
 
         abort_unless(
-            $point->awarded_by === $request->user()->id && $point->quran_review_session_id === null,
+            $point->awarded_by === $request->user()->id && ! $point->isAutomatic(),
             403
         );
 

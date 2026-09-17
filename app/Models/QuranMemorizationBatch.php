@@ -32,6 +32,7 @@ class QuranMemorizationBatch extends Model
         'to_juz',
         'status',
         'review_5_id',
+        'retake_review_id',
         'plan_id',
         'last_test_id',
         'passed_at',
@@ -73,6 +74,12 @@ class QuranMemorizationBatch extends Model
     public function review5(): BelongsTo
     {
         return $this->belongsTo(QuranKhamsaReview::class, 'review_5_id')->withoutGlobalScope('study_session');
+    }
+
+    /** مراجعة «خمسات إعادة رسوب الاختبار» المولّدة عند الرسوب (إن وُجدت). */
+    public function retakeReview5(): BelongsTo
+    {
+        return $this->belongsTo(QuranKhamsaReview::class, 'retake_review_id')->withoutGlobalScope('study_session');
     }
 
     public function plan(): BelongsTo

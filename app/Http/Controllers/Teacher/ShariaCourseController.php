@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Enums\ShariaAttendanceStatus;
 use App\Enums\ShariaLessonType;
+use App\Enums\ShariaMemorizationStatus;
 use App\Models\ShariaCourse;
 use App\Models\ShariaCourseLesson;
+use App\Models\ShariaCourseStudent;
 use App\Services\ShariaCourseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,7 +16,7 @@ use Illuminate\View\View;
 
 class ShariaCourseController extends BaseTeacherController
 {
-    private const TABS = ['lessons', 'attendance', 'report'];
+    private const TABS = ['lessons', 'students', 'attendance', 'report'];
 
     public function __construct(private readonly ShariaCourseService $service) {}
 
@@ -23,7 +25,7 @@ class ShariaCourseController extends BaseTeacherController
         $teacher = $this->currentTeacher($request);
 
         $courses = $this->service->coursesFor($teacher)
-            ->with('supervisor:id,name')
+            ->with(['supervisors' => fn ($query) => $query->withoutGlobalScope('study_session')->select('teachers.id', 'teachers.name')])
             ->withCount(['students', 'lessons'])
             ->orderByDesc('created_at')
             ->paginate(15);
@@ -38,13 +40,15 @@ class ShariaCourseController extends BaseTeacherController
 
         $tab = in_array($request->input('tab'), self::TABS, true) ? $request->input('tab') : 'lessons';
 
-        $course->load('supervisor:id,name');
+        $course->load(['supervisors' => fn ($query) => $query->withoutGlobalScope('study_session')->select('teachers.id', 'teachers.name')]);
 
         $data = [
             'course' => $course,
             'tab' => $tab,
             'lessonTypes' => ShariaLessonType::cases(),
             'attendanceStatuses' => ShariaAttendanceStatus::cases(),
+            'memorizationStatuses' => ShariaMemorizationStatus::cases(),
+            'isSupervisor' => $course->supervisors->contains('id', $teacher->id),
         ];
 
         if ($tab === 'lessons') {
@@ -52,6 +56,13 @@ class ShariaCourseController extends BaseTeacherController
                 ->with('teacher:id,name')
                 ->orderByDesc('date')
                 ->orderBy('start_time')
+                ->get();
+        }
+
+        if ($tab === 'students') {
+            $data['students'] = $course->students()
+                ->withCount('attendances')
+                ->orderBy('name')
                 ->get();
         }
 
@@ -74,6 +85,37 @@ class ShariaCourseController extends BaseTeacherController
         }
 
         return view('teacher.sharia-courses.show', $data);
+    }
+
+    /** تحديث حالة حفظ طالب — مشرفو الدورة فقط. */
+    public function updateMemorization(Request $request, ShariaCourseStudent $student): RedirectResponse
+    {
+        $teacher = $this->currentTeacher($request);
+        $course = $student->course;
+
+        $this->service->assertCourseAccess($teacher, $course);
+
+        abort_unless(
+            $course->supervisors()->whereKey($teacher->id)->exists(),
+            403,
+            'تحديث حالة الحفظ متاح لمشرفي الدورة فقط'
+        );
+
+        $data = $request->validate([
+            'memorization_status' => ['nullable', Rule::enum(ShariaMemorizationStatus::class)],
+            'memorization_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $this->service->updateMemorization(
+            $student,
+            $data['memorization_status'] !== null ? ShariaMemorizationStatus::from($data['memorization_status']) : null,
+            $data['memorization_notes'] ?? null,
+            $request->user(),
+        );
+
+        return redirect()
+            ->route('teacher.sharia-courses.show', ['course' => $course, 'tab' => 'students'])
+            ->with('success', 'تم تحديث حالة الحفظ');
     }
 
     public function storeAttendance(Request $request, ShariaCourse $course): RedirectResponse

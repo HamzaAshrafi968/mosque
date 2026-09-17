@@ -227,4 +227,65 @@ class AudioAnnouncementTest extends TestCase
         $this->assertNotNull($announcement->expires_at);
         $this->assertStringContainsString($announcement->audio_path, $response->json('data.audio_url'));
     }
+
+    public function test_browser_recorded_voice_message_is_accepted_and_stored_as_webm(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.announcements.store'), $this->payload([
+                'title' => 'رسالة صوتية مسجلة',
+                'audio' => UploadedFile::fake()->create('voice-message.webm', 256, 'video/webm'),
+            ]))
+            ->assertSessionHas('success');
+
+        $announcement = Announcement::withoutGlobalScope('tenant')
+            ->where('title', 'رسالة صوتية مسجلة')
+            ->firstOrFail();
+
+        $this->assertTrue($announcement->hasAudio());
+        $this->assertStringEndsWith('.webm', $announcement->audio_path);
+        Storage::disk('public')->assertExists($announcement->audio_path);
+        $this->assertNotNull($announcement->expires_at);
+    }
+
+    public function test_recorded_voice_message_needs_no_text_body(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.announcements.store'), [
+                'title' => 'تسميع صوتي بلا نص',
+                'audience' => 'all',
+                'audio' => UploadedFile::fake()->create('voice.webm', 128, 'audio/webm'),
+            ])
+            ->assertSessionHas('success');
+
+        $announcement = Announcement::withoutGlobalScope('tenant')
+            ->where('title', 'تسميع صوتي بلا نص')
+            ->firstOrFail();
+
+        $this->assertTrue($announcement->hasAudio());
+        $this->assertStringEndsWith('.webm', $announcement->audio_path);
+        $this->assertNull($announcement->body);
+    }
+
+    public function test_api_manager_can_publish_recorded_webm_voice_message(): void
+    {
+        Storage::fake('public');
+        Sanctum::actingAs($this->admin());
+
+        $response = $this->post('/api/v1/admin/announcements', $this->payload([
+            'title' => 'رسالة صوتية API',
+            'audio' => UploadedFile::fake()->create('voice-message.webm', 256, 'video/webm'),
+        ]));
+
+        $response->assertCreated()->assertJsonPath('data.has_audio', true);
+
+        $announcement = Announcement::withoutGlobalScope('tenant')
+            ->where('title', 'رسالة صوتية API')
+            ->firstOrFail();
+
+        $this->assertStringEndsWith('.webm', $announcement->audio_path);
+    }
 }

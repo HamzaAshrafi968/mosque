@@ -355,17 +355,20 @@ id            uuid PK
 tenant_id     uuid FK tenants (cascade)
 name          string
 description   text nullable
-supervisor_id uuid nullable FK teachers (set null)
 location      string nullable
 start_date    date nullable
 end_date      date nullable
 status        string default active    draft | active | completed | cancelled
+source        string default mosque    mosque | super_admin   -- §4.9
 created_by    uuid nullable FK users
 created_at
 updated_at
 
 index (tenant_id, status)
+index (tenant_id, source)
 ```
+
+> تحديث §4.9: حُذف `supervisor_id` واستُبدل بجدول وسيط `sharia_course_supervisor` (مشرفون متعددون).
 
 ### جدول `sharia_course_lessons`
 
@@ -387,27 +390,33 @@ updated_at
 index (tenant_id, course_id, date)
 ```
 
-### جدول `sharia_course_students` (سجل مستقل)
+### جدول `sharia_course_students` (سجل مستقل + ربط اختياري بالطلاب)
 
 ```text
-id              uuid PK
-tenant_id       uuid FK tenants (cascade)
-course_id       uuid FK sharia_courses (cascade)
-name            string
-phone           string nullable
-gender          string nullable   male | female
-birth_date      date nullable
-guardian_phone  string nullable
-notes           text nullable
-status          string default active   active | inactive
+id                     uuid PK
+tenant_id              uuid FK tenants (cascade)
+course_id              uuid FK sharia_courses (cascade)
+student_id             uuid nullable FK students (set null)   -- §4.9
+name                   string
+phone                  string nullable
+gender                 string nullable   male | female
+birth_date             date nullable
+guardian_phone         string nullable
+notes                  text nullable
+status                 string default active   active | inactive
+memorization_status    string nullable   not_memorized | parts_memorized | half_memorized | memorized   -- §4.9
+memorization_notes     text nullable
+memorization_updated_by uuid nullable FK users
+memorization_updated_at timestamp nullable
 created_at
 updated_at
 
 index (tenant_id, course_id, status)
 index (tenant_id, course_id, name)
+unique (course_id, student_id)          -- عند وجود student_id
 ```
 
-- **لا علاقة بـ `students` إطلاقاً** — الطلاب هنا كيان مستقل كما هو مطلوب.
+- **الإضافة اليدوية تبقى سجلاً مستقلاً** عن `students` (`student_id = null`)، بينما «تسجيل طالب موجود» ينسخ بياناته ويربطه بـ `student_id` (يُحدَّث عند حذف الطالب إلى null مع الاحتفاظ بالاسم).
 - لا يُسمح بحذف طالب له سجلات حضور إلا بحذف متسلسل (cascade) أو أرشفته (`status = inactive`)؛ القرار: الحذف الفعلي لصف الطالب يحذف حضوره معه (cascade) مع تأكيد في الواجهة وتسجيل Audit.
 
 ### جدول `sharia_course_attendance`
@@ -439,6 +448,7 @@ index  (tenant_id, student_id)
 App\Enums\ShariaCourseStatus: draft | active | completed | cancelled  + label()
 App\Enums\ShariaLessonType:   lesson | lecture                          + label()
 App\Enums\ShariaAttendanceStatus: present | absent | late | excused     + label()
+App\Enums\ShariaMemorizationStatus: not_memorized | parts_memorized | half_memorized | memorized  + label() + badgeClass()  -- §4.9
 ```
 
 ### النماذج
@@ -463,9 +473,10 @@ App\Enums\ShariaAttendanceStatus: present | absent | late | excused     + label(
 | `sharia_courses.update` | تعديل دورة/دروس/طلاب | `mosque` | `own` (دوراته) |
 | `sharia_courses.delete` | حذف دورة | `mosque` | — |
 | `sharia_courses.attendance` | تسجيل الحضور | `mosque` | `own` (دوراته) |
+| `sharia_courses.memorization` | تحديث حالة حفظ طلاب الدورة | `mosque` | `own` (دوراته) — §4.9 |
 
 - تُضاف إلى `PermissionCatalog` وافتراضيات الأدوار.
-- المعلم لا يرى إلا الدورات التي `supervisor_id = سجل المعلم` أو التي له فيها درس/محاضرة.
+- المعلم لا يرى إلا الدورات التي هو أحد `supervisors` (pivot) أو التي له فيها درس/محاضرة.
 
 ## 4.5 المسارات والواجهات
 
@@ -485,18 +496,30 @@ PATCH  admin/sharia-courses/lessons/{lesson}             admin.sharia-courses.le
 DELETE admin/sharia-courses/lessons/{lesson}             admin.sharia-courses.lessons.destroy
 
 POST   admin/sharia-courses/{course}/students            admin.sharia-courses.students.store
+POST   admin/sharia-courses/{course}/students/existing   admin.sharia-courses.students.existing        -- §4.9
 PATCH  admin/sharia-courses/students/{student}           admin.sharia-courses.students.update
+PATCH  admin/sharia-courses/students/{student}/memorization  admin.sharia-courses.students.memorization  -- §4.9
 DELETE admin/sharia-courses/students/{student}           admin.sharia-courses.students.destroy
 
 POST   admin/sharia-courses/{course}/attendance          admin.sharia-courses.attendance.store
 ```
 
+### مدير الجوامع (إنشاء مركزي — §4.9)
+
+```text
+GET  super-admin/sharia-courses                          super-admin.sharia-courses.index
+GET  super-admin/sharia-courses/create                   super-admin.sharia-courses.create
+GET  super-admin/sharia-courses/options?mosque_id=       super-admin.sharia-courses.options   (JSON)
+POST super-admin/sharia-courses                          super-admin.sharia-courses.store
+```
+
 ### المعلم (المشرف)
 
 ```text
-GET  teacher/sharia-courses                              teacher.sharia-courses.index
-GET  teacher/sharia-courses/{course}                     teacher.sharia-courses.show
-POST teacher/sharia-courses/{course}/attendance          teacher.sharia-courses.attendance.store
+GET   teacher/sharia-courses                             teacher.sharia-courses.index
+GET   teacher/sharia-courses/{course}                    teacher.sharia-courses.show
+POST  teacher/sharia-courses/{course}/attendance         teacher.sharia-courses.attendance.store
+PATCH teacher/sharia-courses/students/{student}/memorization  teacher.sharia-courses.students.memorization  -- §4.9
 ```
 
 ### الواجهات
@@ -534,12 +557,50 @@ sharia_course.attendance_saved
 - معلم غير مشرف → 403؛ معلم من جامع آخر → 404.
 - حذف دورة يحذف ملحقاتها (cascade).
 
+`tests/Feature/ShariaCourseCentralTest.php` (§4.9): الإنشاء المركزي + إشعار مدير الجامع + العزل، مشرفون متعددون، خيارات الجامع، تسجيل الطلاب الموجودين مرة واحدة، وحالة الحفظ (مدير/مشرف/غير مشرف).
+
 ## 4.8 Definition of Done
 
 - [ ] 4 جداول + 4 نماذج + Enums.
 - [ ] إدارة كاملة للمدير + عرض/حضور للمشرف.
 - [ ] طلاب مستقلون تماماً + حضور/غياب + تقرير.
 - [ ] صلاحيات + تدقيق + اختبارات خضراء.
+
+## 4.9 تحديث: الإنشاء المركزي ومشرفون متعددون وربط الطلاب وحالة الحفظ
+
+### البيانات
+
+- **مشرفون متعددون**: `sharia_course_supervisor` (course_id + teacher_id + timestamps، primary مركب) مع ترحيل `supervisor_id` القديم ثم حذفه (migrations `2026_09_17_000001` / `000002`). العلاقات: `ShariaCourse::supervisors()` (BelongsToMany) و`Teacher::supervisedShariaCourses()`.
+- **مصدر الدورة**: `sharia_courses.source` = `mosque` (إدارة الجامع) أو `super_admin` (مدير الجوامع) — migration `2026_09_17_000004`، مع شارة «من مدير الجوامع» في الواجهات.
+- **ربط الطلاب**: `sharia_course_students.student_id` nullable FK → `students` مع `unique (course_id, student_id)` (migration `2026_09_17_000003`)؛ الطالب الموجود يُنسخ اسمه/جنسه/تاريخ ميلاده/هاتف وليه، والمضاف يدوياً يبقى بلا رابط.
+- **حالة الحفظ**: `memorization_status` + `memorization_notes` + `memorization_updated_by/at` على سجل الطالب، بقيم `ShariaMemorizationStatus`: لم يحفظ / حفظ أجزاء منه / حفظ النصف / حفظ كامل.
+
+### الخدمة
+
+- `ShariaCourseService::assertCourseAccess` و`coursesFor` تفحصان pivot المشرفين بدل العمود المحذوف.
+- `syncEnrolledStudents(ShariaCourse, array $studentIds, User $actor)`: تسجيل الطلاب الموجودين idempotent (يتجاهل المسجَّل، ويرفض طالباً من جامع آخر) مع Audit.
+- `updateMemorization(ShariaCourseStudent, ?ShariaMemorizationStatus, ?string, User)`: يحفظ الحالة والملاحظات ومن حدّثها ومتى + Audit.
+- `EnsurePermission` يعامل `ShariaCourse` بمنطق «ملكية = أحد مشرفي الـpivot» لنطاق `own` (بعد حذف `supervisor_id`)، ويبقى `assertCourseAccess` حارس المعلم الفعلي.
+
+### واجهة مدير الجوامع
+
+- `SuperAdmin\ShariaCourseController` (index/create/options/store) مع `withoutGlobalScope('tenant')` و`tenant_id` صريح عند الإنشاء.
+- نموذج الإنشاء: اختيار الجامع (المكان) → تحميل المشرفين والطلاب عبر JSON (`options`) → تحديد مشرفين متعددين + طلاب موجودين (checkbox grid + فلتر) + إضافة طلاب جدد inline + خصائص الدورة (اسم/وصف/مكان/تواريخ/حالة).
+- عند الحفظ: إنشاء الدورة + مزامنة المشرفين + تسجيل الطلاب + إشعار كل مديري الجامع المستهدف (`role = admin`) عبر `PortalNotification` مباشرة (لا عبر `NotificationService` لتفادي فلترة نطاق الجامع الحالي لمدير الجوامع) بعنوان «دورة شرعية جديدة».
+- `super-admin/sharia-courses/index.blade.php` + `create.blade.php` + رابط Sidebar «الدورات الشرعية».
+
+### واجهات الجامع
+
+- تبويب «الطلاب» في الإدارة والمعلم: قسم «تسجيل طلاب موجودين» + جدول حالة الحفظ (شارة ملوّنة + تعديل للمدير أو مشرفي الدورة فقط).
+- `admin.sharia-courses.students.existing` و`*.students.memorization` (admin + teacher) بصلاحية `sharia_courses.memorization` (backfill `2026_09_17_000005`).
+
+### DoD التحديث
+
+- [x] pivot مشرفين + ترحيل البيانات وحذف العمود.
+- [x] إنشاء مركزي من مدير الجوامع + إشعار مدير الجامع + عزل الجامعات.
+- [x] طلاب موجودون (ربط) + طلاب جدد (سجل مستقل) + منع التكرار.
+- [x] حالة الحفظ لكل طالب + صلاحية + Audit + واجهات admin/teacher.
+- [x] `ShariaCourseCentralTest` + تحديث `ShariaCoursesTest` و`UserPermissionOverrideTest`.
 
 ---
 

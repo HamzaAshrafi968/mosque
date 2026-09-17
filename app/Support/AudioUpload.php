@@ -35,6 +35,9 @@ final class AudioUpload
         'audio/ogg' => 'ogg',
         'audio/opus' => 'opus',
         'audio/webm' => 'webm',
+        // Browsers record audio-only WebM (MediaRecorder + Opus); libmagic
+        // often detects those files as `video/webm` because of the container.
+        'video/webm' => 'webm',
         'audio/flac' => 'flac',
         'audio/x-flac' => 'flac',
         'audio/x-ms-wma' => 'wma',
@@ -46,7 +49,9 @@ final class AudioUpload
         return [
             $required ? 'required' : 'nullable',
             'file',
-            'mimetypes:audio/*',
+            // `video/webm` is allowed because audio-only browser recordings
+            // (MediaRecorder + Opus) are frequently detected as such.
+            'mimetypes:audio/*,video/webm',
             'max:'.self::MAX_KILOBYTES,
         ];
     }
@@ -67,6 +72,16 @@ final class AudioUpload
 
     private static function extensionFor(UploadedFile $file): string
     {
-        return self::EXTENSIONS[$file->getMimeType()] ?? 'mp3';
+        // Prefer the MIME detected from the file contents, then fall back to
+        // the MIME sent by the browser (normalizing `audio/webm;codecs=opus`
+        // style values), and finally to mp3.
+        return self::EXTENSIONS[$file->getMimeType()]
+            ?? self::EXTENSIONS[self::normalizeMime($file->getClientMimeType())]
+            ?? 'mp3';
+    }
+
+    private static function normalizeMime(?string $mime): string
+    {
+        return strtolower(trim(explode(';', (string) $mime)[0]));
     }
 }

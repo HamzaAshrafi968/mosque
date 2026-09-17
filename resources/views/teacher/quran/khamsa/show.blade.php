@@ -14,6 +14,7 @@
         'cancelRoute' => route('teacher.quran.khamsa.cancel', $review),
         'memorizationStoreRoute' => route('teacher.quran.khamsa.memorization.store'),
         'memorizationDestroyRoute' => route('teacher.quran.khamsa.memorization.destroy'),
+        'testUrl' => $testUrl,
     ])
 </div>
 @endsection

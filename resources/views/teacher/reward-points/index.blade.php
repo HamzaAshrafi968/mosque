@@ -31,6 +31,7 @@
                     <thead>
                         <tr class="bg-gradient-to-r from-gray-50 to-amber-50/50 border-b border-gray-200">
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">👨‍🎓 الطالب</th>
+                            <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">🌅 الدوام</th>
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">🏆 النقاط</th>
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">📋 النوع</th>
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">📝 السبب</th>
@@ -48,6 +49,13 @@
                                         </div>
                                         <span class="font-semibold text-gray-800">{{ $point->student->name }}</span>
                                     </div>
+                                </td>
+                                <td class="px-5 py-4 text-gray-600">
+                                    @if($point->studySession)
+                                        <span class="text-xs font-semibold">{{ $point->studySession->name }}</span>
+                                    @else
+                                        <span class="text-gray-400">—</span>
+                                    @endif
                                 </td>
                                 <td class="px-5 py-4">
                                     <span class="font-bold text-lg {{ $point->type === 'earned' ? 'text-emerald-600' : 'text-red-600' }}">
@@ -72,7 +80,7 @@
                                 </td>
                                 <td class="px-5 py-4 text-gray-500 text-xs">{{ $point->created_at->format('Y-m-d') }}</td>
                                 <td class="px-5 py-4 text-center">
-                                    @if(!$point->quranReviewSession)
+                                    @if(! $point->isAutomatic())
                                         <form method="POST" action="{{ route('teacher.reward-points.destroy', $point->id) }}" onsubmit="return confirm('هل أنت متأكد من حذف هذه النقاط؟')">
                                             @csrf
                                             @method('DELETE')
@@ -80,6 +88,8 @@
                                                 🗑️ حذف
                                             </button>
                                         </form>
+                                    @else
+                                        <span class="text-[11px] text-gray-400">تلقائي</span>
                                     @endif
                                 </td>
                             </tr>

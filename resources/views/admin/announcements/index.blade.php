@@ -17,14 +17,65 @@
                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">{{ old('body') }}</textarea>
             <p class="text-xs text-gray-400 mt-1">يمكنك الاكتفاء بالملف الصوتي دون كتابة محتوى.</p>
         </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">ملف صوتي (اختياري)</label>
-            <input type="file" name="audio" accept="audio/*"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-700 file:px-3 file:py-1.5 file:text-white">
-            <p class="text-xs text-gray-400 mt-1">MP3 / WAV / M4A / OGG — بحد أقصى 20 ميجابايت. يُحذف الإعلان الصوتي تلقائيًا بعد أسبوع من النشر.</p>
+        <div data-voice-recorder class="rounded-xl border border-gray-200 bg-gray-50/70 p-3.5 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <label class="block text-sm font-medium text-gray-700">إعلان صوتي (اختياري)</label>
+                <button type="button" data-voice-start
+                        class="inline-flex items-center gap-2 rounded-full bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold px-4 py-2 transition active:scale-95">
+                    <x-icon name="mic" class="w-4 h-4" />
+                    تسجيل صوتي
+                </button>
+            </div>
+
+            <div data-voice-idle>
+                <input type="file" name="audio" accept="audio/*" data-voice-input
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-700 file:px-3 file:py-1.5 file:text-white">
+            </div>
+
+            <div data-voice-recording class="hidden rounded-xl border border-red-200 bg-red-50 px-3.5 py-3">
+                <div class="flex flex-wrap items-center gap-3">
+                    <span class="relative flex h-3 w-3 shrink-0">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
+                    </span>
+                    <span class="text-sm font-bold text-red-700">جاري التسجيل…</span>
+                    <span data-voice-timer class="font-mono text-sm font-bold text-red-700 tabular-nums">00:00</span>
+                    <div class="ms-auto flex items-center gap-2">
+                        <button type="button" data-voice-stop
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 transition">
+                            <x-icon name="stop" class="w-3.5 h-3.5" />
+                            إيقاف
+                        </button>
+                        <button type="button" data-voice-cancel
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 transition">
+                            <x-icon name="x" class="w-3.5 h-3.5" />
+                            إلغاء
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div data-voice-preview class="hidden rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3">
+                <div class="flex flex-wrap items-center gap-3">
+                    <span class="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-800 shrink-0">
+                        <x-icon name="volume" class="w-4 h-4" />
+                        رسالة صوتية
+                    </span>
+                    <audio data-voice-audio controls preload="metadata" class="h-9 flex-1 min-w-[180px]"></audio>
+                    <span data-voice-duration class="text-xs font-bold text-emerald-700 tabular-nums"></span>
+                    <button type="button" data-voice-remove
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-white border border-red-200 hover:bg-red-50 text-red-700 text-xs font-bold px-3 py-2 transition">
+                        <x-icon name="trash" class="w-3.5 h-3.5" />
+                        حذف
+                    </button>
+                </div>
+            </div>
+
             @error('audio')
                 <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
             @enderror
+            <p data-voice-error class="hidden text-xs text-red-600"></p>
+            <p class="text-xs text-gray-400">اضغط «تسجيل صوتي» وتحدّث مباشرة من الميكروفون، أو ارفع ملفًا جاهزًا. MP3 / WAV / M4A / OGG / WEBM — بحد أقصى 20 ميجابايت. يُحذف الإعلان الصوتي تلقائيًا بعد أسبوع من النشر.</p>
             <label class="inline-flex items-center gap-2 mt-2 text-sm text-gray-600">
                 <input type="checkbox" name="auto_delete" value="1" @checked(old('_token') ? old('auto_delete') : true)
                        class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-500">

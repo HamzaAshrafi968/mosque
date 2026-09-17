@@ -174,7 +174,9 @@ class QuranListeningAudioTest extends TestCase
             ->get(route('student.quran-listening.show', $plan))
             ->assertOk()
             ->assertSee('خطة استماع')
+            ->assertSee('العنصر والصفحات')
             ->assertSee('صفحات 15–21')
+            ->assertSee('الاستماع / التشغيل')
             ->assertSee('تم الاستماع')
             ->assertSee('data-listening-player', false)
             ->assertSee('مقفل');

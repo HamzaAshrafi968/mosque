@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\QuranTasmeeResult;
 use App\Enums\QuranTasmeeType;
 use App\Services\QuranKhamsaService;
+use App\Services\RewardPointAutoService;
 use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
@@ -52,11 +53,13 @@ class QuranRecitationSession extends Model
     /**
      * تسميع «جديد» قد يُكمل تغطية جزء كامل → يُسجَّل الجزء محفوظاً تلقائياً
      * (يفتح خمساته في «مراجعة 5»). الإضافة فقط، ولا حذف تلقائي.
+     * ويُمنح تلقائياً نقاط الحفظ التراكمية وفق قاعدة دوام الطالب.
      */
     protected static function booted(): void
     {
         static::saved(function (QuranRecitationSession $session) {
             app(QuranKhamsaService::class)->syncMemorizationFromTasmee($session);
+            app(RewardPointAutoService::class)->awardForTasmee($session);
         });
     }
 

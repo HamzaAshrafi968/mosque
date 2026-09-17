@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\QuranKhamsaItemStatus;
 use App\Enums\QuranKhamsaReviewStatus;
+use App\Enums\QuranKhamsaReviewType;
 use App\Traits\MultiTenantTrait;
 use App\Traits\StudySessionScopedTrait;
 use App\Traits\UuidTrait;
@@ -29,6 +30,7 @@ class QuranKhamsaReview extends Model
         'assigned_at',
         'due_date',
         'status',
+        'type',
         'notes',
     ];
 
@@ -38,6 +40,7 @@ class QuranKhamsaReview extends Model
             'assigned_at' => 'date',
             'due_date' => 'date',
             'status' => QuranKhamsaReviewStatus::class,
+            'type' => QuranKhamsaReviewType::class,
         ];
     }
 
@@ -74,6 +77,12 @@ class QuranKhamsaReview extends Model
     public function isCancelled(): bool
     {
         return $this->status === QuranKhamsaReviewStatus::Cancelled;
+    }
+
+    /** هل هذه مراجعة «خمسات إعادة رسوب الاختبار»؟ */
+    public function isRetake(): bool
+    {
+        return $this->type === QuranKhamsaReviewType::RetakeAfterFail;
     }
 
     /** @return array{total: int, completed: int, percentage: int} */

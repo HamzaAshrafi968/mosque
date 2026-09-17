@@ -226,7 +226,7 @@ class TasmeeBatchIntegrationTest extends TestCase
             ->assertRedirect(route('teacher.quran.batches.index', ['student_id' => $student->id]));
     }
 
-    public function test_center_shows_memorization_progress_and_tasmee_history(): void
+    public function test_center_shows_memorization_progress_without_recitation_log(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [, $teacher] = $this->teacher($mosque, $session);
@@ -240,9 +240,9 @@ class TasmeeBatchIntegrationTest extends TestCase
             ->assertOk()
             ->assertSee('التسميع مع المعلم')
             ->assertSee('5 / 41 صفحة')
-            ->assertSee('صفحات 1–5')
-            ->assertSee('ممتاز')
-            ->assertSee('الدفعة 1');
+            ->assertSee('الدفعة 1')
+            ->assertDontSee('صفحات 1–5')
+            ->assertDontSee('ممتاز');
     }
 
     public function test_create_page_shows_batch_card_and_suggests_next_pages(): void
@@ -262,7 +262,7 @@ class TasmeeBatchIntegrationTest extends TestCase
             ->assertSee('value="10"', false);
     }
 
-    public function test_teacher_center_shows_own_tasmee_history_and_progress(): void
+    public function test_teacher_center_shows_own_progress_without_recitation_log(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [$teacherUser, $teacher] = $this->teacher($mosque, $session);
@@ -286,7 +286,7 @@ class TasmeeBatchIntegrationTest extends TestCase
             ->assertOk()
             ->assertSee('التسميع مع المعلم')
             ->assertSee('5 / 41 صفحة')
-            ->assertSee('صفحات 1–5');
+            ->assertDontSee('صفحات 1–5');
     }
 
     public function test_student_profile_shows_tasmee_history_and_page_progress(): void

@@ -214,6 +214,307 @@ document.querySelectorAll('[data-dismiss-parent]').forEach((btn) => {
 });
 
 /* ============================================================
+   8) مسجّل الرسائل الصوتية (مثل واتساب)
+============================================================ */
+function initVoiceRecorders() {
+    const MAX_SECONDS = 15 * 60;
+
+    const pickMimeType = () => {
+        if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+            return '';
+        }
+        const candidates = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/ogg;codecs=opus',
+            'audio/ogg',
+            'audio/mp4',
+        ];
+        return candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
+    };
+
+    const extensionFor = (type) => {
+        const base = (type || '').split(';')[0];
+        if (base.includes('ogg')) return 'ogg';
+        if (base.includes('mp4')) return 'm4a';
+        if (base.includes('mpeg')) return 'mp3';
+        return 'webm';
+    };
+
+    const formatTime = (seconds) => {
+        const minutes = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const rest = String(seconds % 60).padStart(2, '0');
+        return `${minutes}:${rest}`;
+    };
+
+    const micErrorMessage = (error) => {
+        switch (error?.name) {
+            case 'NotAllowedError':
+            case 'SecurityError':
+                return 'تم رفض الوصول إلى الميكروفون. اسمح للمتصفح باستخدام الميكروفون ثم حاول مرة أخرى.';
+            case 'NotFoundError':
+            case 'DevicesNotFoundError':
+                return 'لم يتم العثور على ميكروفون متصل بالجهاز.';
+            case 'NotReadableError':
+            case 'TrackStartError':
+                return 'الميكروفون مستخدم من قِبل تطبيق آخر. أغلق التطبيقات الأخرى وحاول مرة أخرى.';
+            default:
+                return 'تعذّر بدء التسجيل. تأكد من منح إذن الميكروفون وأن الموقع يعمل عبر اتصال آمن (HTTPS).';
+        }
+    };
+
+    document.querySelectorAll('[data-voice-recorder]').forEach((root) => {
+        const input = root.querySelector('[data-voice-input]');
+        const startBtn = root.querySelector('[data-voice-start]');
+        const stopBtn = root.querySelector('[data-voice-stop]');
+        const cancelBtn = root.querySelector('[data-voice-cancel]');
+        const removeBtn = root.querySelector('[data-voice-remove]');
+        const recordingPanel = root.querySelector('[data-voice-recording]');
+        const previewPanel = root.querySelector('[data-voice-preview]');
+        const timerEl = root.querySelector('[data-voice-timer]');
+        const durationEl = root.querySelector('[data-voice-duration]');
+        const audioEl = root.querySelector('[data-voice-audio]');
+        const errorEl = root.querySelector('[data-voice-error]');
+        const form = root.closest('form');
+
+        if (!input || !startBtn || typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.title = 'التسجيل الصوتي غير مدعوم في هذا المتصفح';
+            }
+            return;
+        }
+
+        let recorder = null;
+        let stream = null;
+        let chunks = [];
+        let seconds = 0;
+        let ticker = null;
+        let objectUrl = null;
+        let recorderOwnsInput = false;
+        let state = 'idle';
+        let submitPending = false;
+
+        const showError = (message) => {
+            if (!errorEl) return;
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        };
+
+        const clearError = () => {
+            if (!errorEl) return;
+            errorEl.textContent = '';
+            errorEl.classList.add('hidden');
+        };
+
+        const setState = (next) => {
+            state = next;
+            startBtn.disabled = next !== 'idle';
+            recordingPanel?.classList.toggle('hidden', next !== 'recording');
+            previewPanel?.classList.toggle('hidden', next !== 'preview');
+            input.disabled = next === 'recording';
+        };
+
+        const stopTicker = () => {
+            if (ticker) {
+                clearInterval(ticker);
+                ticker = null;
+            }
+        };
+
+        const releaseStream = () => {
+            stream?.getTracks().forEach((track) => track.stop());
+            stream = null;
+        };
+
+        const resetRecorder = () => {
+            stopTicker();
+            releaseStream();
+            recorder = null;
+            chunks = [];
+            seconds = 0;
+            if (timerEl) timerEl.textContent = '00:00';
+        };
+
+        const clearPreview = () => {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+                objectUrl = null;
+            }
+            if (audioEl) {
+                audioEl.pause();
+                audioEl.removeAttribute('src');
+                audioEl.load();
+            }
+            if (durationEl) durationEl.textContent = '';
+        };
+
+        const discardRecording = () => {
+            clearPreview();
+            if (recorderOwnsInput) {
+                input.value = '';
+                recorderOwnsInput = false;
+            }
+        };
+
+        const attachFile = (file) => {
+            try {
+                const transfer = new DataTransfer();
+                transfer.items.add(file);
+                input.files = transfer.files;
+                recorderOwnsInput = true;
+                return true;
+            } catch (error) {
+                showError('تعذّر إرفاق التسجيل في هذا المتصفح. استخدم خيار رفع ملف صوتي بدلًا من ذلك.');
+                return false;
+            }
+        };
+
+        const buildRecording = () => {
+            const type = (recorder?.mimeType || chunks[0]?.type || 'audio/webm').split(';')[0] || 'audio/webm';
+            const blob = new Blob(chunks, { type });
+            const name = `voice-message-${Date.now()}.${extensionFor(type)}`;
+
+            return new File([blob], name, { type });
+        };
+
+        const finishRecording = (discard = false) => {
+            const built = discard ? null : buildRecording();
+            const wasSubmitPending = submitPending;
+            const duration = seconds;
+            resetRecorder();
+
+            if (!built) {
+                setState('idle');
+                return;
+            }
+
+            if (!attachFile(built)) {
+                setState('idle');
+                return;
+            }
+
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            objectUrl = URL.createObjectURL(built);
+            if (audioEl) audioEl.src = objectUrl;
+            if (durationEl) durationEl.textContent = formatTime(duration);
+            setState('preview');
+            clearError();
+
+            if (wasSubmitPending) {
+                submitPending = false;
+                form?.submit();
+            }
+        };
+
+        const stopRecording = () => {
+            if (state !== 'recording' || !recorder) return;
+            state = 'processing';
+            startBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = true;
+            if (cancelBtn) cancelBtn.disabled = true;
+            recorder.stop();
+        };
+
+        const cancelRecording = () => {
+            if (state !== 'recording' || !recorder) return;
+            state = 'cancelling';
+            recorder.stop();
+        };
+
+        startBtn.addEventListener('click', async () => {
+            if (state !== 'idle') return;
+            clearError();
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (error) {
+                showError(micErrorMessage(error));
+                return;
+            }
+
+            const mimeType = pickMimeType();
+            try {
+                recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+            } catch (error) {
+                try {
+                    recorder = new MediaRecorder(stream);
+                } catch (fallbackError) {
+                    releaseStream();
+                    showError('تعذّر بدء التسجيل في هذا المتصفح.');
+                    return;
+                }
+            }
+
+            chunks = [];
+            seconds = 0;
+            if (timerEl) timerEl.textContent = '00:00';
+
+            recorder.addEventListener('dataavailable', (event) => {
+                if (event.data?.size) chunks.push(event.data);
+            });
+
+            recorder.addEventListener('stop', () => {
+                const discard = state === 'cancelling';
+                if (stopBtn) stopBtn.disabled = false;
+                if (cancelBtn) cancelBtn.disabled = false;
+                finishRecording(discard);
+            });
+
+            recorder.addEventListener('error', () => {
+                showError('حدث خطأ أثناء التسجيل. حاول مرة أخرى.');
+                finishRecording(true);
+            });
+
+            recorder.start();
+            setState('recording');
+
+            ticker = setInterval(() => {
+                seconds += 1;
+                if (timerEl) timerEl.textContent = formatTime(seconds);
+                if (seconds >= MAX_SECONDS) {
+                    stopRecording();
+                }
+            }, 1000);
+        });
+
+        stopBtn?.addEventListener('click', stopRecording);
+        cancelBtn?.addEventListener('click', cancelRecording);
+
+        removeBtn?.addEventListener('click', () => {
+            discardRecording();
+            setState('idle');
+            clearError();
+        });
+
+        input.addEventListener('change', () => {
+            if (state === 'recording') return;
+            if (!input.files?.length) {
+                if (recorderOwnsInput) discardRecording();
+                return;
+            }
+            if (recorderOwnsInput) {
+                recorderOwnsInput = false;
+                clearPreview();
+            }
+            setState('idle');
+            clearError();
+        });
+
+        form?.addEventListener('submit', (event) => {
+            if (state === 'recording') {
+                event.preventDefault();
+                submitPending = true;
+                stopRecording();
+            } else if (state === 'processing') {
+                event.preventDefault();
+                submitPending = true;
+            }
+        });
+    });
+}
+
+/* ============================================================
    التشغيل عند الجاهزية
 ============================================================ */
 if (document.readyState === 'loading') {
@@ -223,6 +524,7 @@ if (document.readyState === 'loading') {
         initFlashToasts();
         initPasswordToggles();
         initPhotoPreviews();
+        initVoiceRecorders();
     });
 } else {
     revealOnScroll();
@@ -230,4 +532,5 @@ if (document.readyState === 'loading') {
     initFlashToasts();
     initPasswordToggles();
     initPhotoPreviews();
+    initVoiceRecorders();
 }

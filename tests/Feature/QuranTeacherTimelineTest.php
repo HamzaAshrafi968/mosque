@@ -239,7 +239,7 @@ class QuranTeacherTimelineTest extends TestCase
         $this->assertSame('الأستاذ الأول', $items->first()->teacherName);
     }
 
-    public function test_batches_center_renders_the_unified_timeline_with_badges_and_filters(): void
+    public function test_batches_center_renders_listening_only_log_without_filters(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [, $teacher] = $this->teacher($mosque, $session);
@@ -252,12 +252,12 @@ class QuranTeacherTimelineTest extends TestCase
             ->get(route('admin.quran.batches.index', ['student_id' => $student->id]))
             ->assertOk()
             ->assertSee('التسميع مع المعلم')
-            ->assertSee('تسميع جديد')
             ->assertSee('استماع مع المعلم')
             ->assertSee('صفحات 21–25')
             ->assertSee('عرض الجلسة')
-            ->assertSee('تعديل')
-            ->assertSee('timeline_type=listening', false);
+            ->assertDontSee('تسميع جديد')
+            ->assertDontSee('تسميع مراجعة')
+            ->assertDontSee('timeline_type=', false);
     }
 
     public function test_student_profile_renders_the_unified_log_read_only(): void

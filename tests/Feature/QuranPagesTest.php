@@ -318,7 +318,7 @@ class QuranPagesTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.quran.batches.index', ['student_id' => $student->id]))
             ->assertOk()
-            ->assertSee('2 خطأ محدد');
+            ->assertDontSee('2 خطأ محدد');
     }
 
     public function test_tasmee_update_replaces_word_error_statuses(): void
