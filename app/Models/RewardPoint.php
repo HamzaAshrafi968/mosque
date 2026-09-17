@@ -19,6 +19,10 @@ class RewardPoint extends Model
 
     public const SOURCE_TEST = 'quran_listening_test';
 
+    public const SOURCE_LISTENING_PLAN = 'quran_listening_plan';
+
+    public const SOURCE_SHARIA_MEMORIZATION = 'sharia_course_student';
+
     protected $fillable = [
         'tenant_id',
         'student_id',

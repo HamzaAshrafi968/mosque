@@ -7,11 +7,7 @@
     <h1 class="text-2xl font-bold text-gray-800 mb-2">إعدادات برنامج القرآن</h1>
     <p class="text-sm text-gray-500 mb-6">القواعد التي يعتمد عليها النظام في تحديد النجاح والرسوب — تُطبَّق على الاختبارات الجديدة فقط، ولا تغيّر نتائج الاختبارات السابقة.</p>
 
-    @if (session('success'))
-        <div class="mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 text-sm font-bold">
-            {{ session('success') }}
-        </div>
-    @endif
+    @include('admin.settings._tabs')
 
     <form method="POST" action="{{ route('admin.settings.quran.update') }}" class="bg-white rounded-2xl shadow p-6 space-y-6">
         @csrf

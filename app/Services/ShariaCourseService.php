@@ -195,6 +195,8 @@ class ShariaCourseService
         ]);
 
         $this->audit->logModel('sharia_course.memorization_updated', $student, $before, actor: $actor);
+
+        app(RewardPointAutoService::class)->awardForShariaMemorization($student, $actor);
     }
 
     /**

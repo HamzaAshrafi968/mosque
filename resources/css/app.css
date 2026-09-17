@@ -309,6 +309,57 @@
 }
 
 /* ============================================================
+   مفتاح تشغيل/إيقاف (toggle switch)
+============================================================ */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+.toggle-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-switch .toggle-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: #d1d5db;
+    transition: background 0.25s ease;
+    cursor: pointer;
+}
+.toggle-switch .toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    inset-inline-start: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(5, 32, 25, 0.3);
+    transition: transform 0.25s ease;
+}
+.toggle-switch input:checked + .toggle-track {
+    background: linear-gradient(135deg, #2b9c71, #176949);
+}
+.toggle-switch input:checked + .toggle-track::after {
+    transform: translateX(-20px);
+}
+.toggle-switch input:focus-visible + .toggle-track {
+    outline: 2px solid rgba(221, 181, 62, 0.7);
+    outline-offset: 2px;
+}
+.toggle-switch input:disabled + .toggle-track {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ============================================================
    عناصر النظام العامة
 ============================================================ */
 body {

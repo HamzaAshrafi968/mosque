@@ -3,18 +3,14 @@
 @section('title', 'إعدادات نقاط المكافآت')
 
 @section('content')
-<div class="max-w-5xl mx-auto">
+<div class="max-w-6xl mx-auto">
     <h1 class="text-2xl font-bold text-gray-800 mb-2">إعدادات نقاط المكافآت</h1>
     <p class="text-sm text-gray-500 mb-6">
-        لكل دوام نقاطه الخاصة. تُمنح النقاط تلقائياً عند: حفظ صفحات جديدة، إتمام خمسة مراجعة، واجتياز اختبار دفعة الحفظ.
-        اترك خانة النقاط فارغة أو صفراً لتعطيل القاعدة لهذا الدوام.
+        لكل دوام نقاطه الخاصة. فعّل القاعدة التي تريدها وحدّد قيمتها، واتركها مُطفأة لتعطيلها.
+        تعديل القواعد لا يغيّر النقاط الممنوحة سابقاً.
     </p>
 
-    @if (session('success'))
-        <div class="mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 text-sm font-bold">
-            {{ session('success') }}
-        </div>
-    @endif
+    @include('admin.settings._tabs')
 
     @if ($sessions->isEmpty())
         <div class="bg-white rounded-2xl shadow p-10 text-center text-gray-500">
@@ -25,91 +21,163 @@
             @csrf
             @method('PATCH')
 
+            <div class="bg-white rounded-2xl shadow p-6 flex flex-wrap items-center gap-5">
+                <span class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 grid place-items-center text-2xl">⚙️</span>
+                <div class="flex-1 min-w-56">
+                    <div class="font-bold text-gray-800">المنح التلقائي للنقاط</div>
+                    <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                        المفتاح العام للنظام كله. عند إيقافه تتوقف كل القواعد التلقائية فوراً دون حذفها،
+                        وتبقى النقاط الممنوحة سابقاً كما هي.
+                    </p>
+                </div>
+                <label class="toggle-switch" title="تشغيل/إيقاف المنح التلقائي">
+                    <input type="hidden" name="automatic_enabled" value="0">
+                    <input type="checkbox" name="automatic_enabled" value="1" @checked(old('automatic_enabled', $automaticEnabled))>
+                    <span class="toggle-track"></span>
+                </label>
+                <span class="text-xs font-bold {{ old('automatic_enabled', $automaticEnabled) ? 'text-emerald-700' : 'text-gray-400' }}">
+                    {{ old('automatic_enabled', $automaticEnabled) ? 'مفعّل' : 'موقوف' }}
+                </span>
+            </div>
+
             @foreach ($sessions as $session)
-                @php($rules = $rulesBySession[$session->id])
-                <div class="bg-white rounded-2xl shadow p-6">
-                    <div class="flex items-center gap-3 mb-5">
+                @php
+                    $rules = $rulesBySession[$session->id];
+                    $total = $totals[$session->id] ?? null;
+                @endphp
+                <div class="bg-white rounded-2xl shadow p-6" data-session-panel="{{ $session->id }}">
+                    <div class="flex flex-wrap items-center gap-3 mb-5">
                         <span class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl">🏆</span>
-                        <div>
+                        <div class="flex-1 min-w-40">
                             <h2 class="font-bold text-gray-800">دوام {{ $session->name }}</h2>
-                            <p class="text-xs text-gray-400">نقاط المكافآت الخاصة بهذا الدوام</p>
+                            <p class="text-xs text-gray-400">
+                                @if ($total)
+                                    مُنح تلقائياً حتى الآن: <span class="font-bold text-amber-700">{{ $total['points'] }}</span> نقطة
+                                    ({{ $total['awards'] }} عملية)
+                                @else
+                                    لم تُمنح نقاط تلقائية في هذا الدوام بعد
+                                @endif
+                            </p>
                         </div>
+                        <button type="button" data-copy-session="{{ $session->id }}"
+                            class="text-[11px] font-bold rounded-lg border border-gray-200 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-800 text-gray-500 px-3 py-1.5 transition">
+                            نسخ قواعد هذا الدوام للكل
+                        </button>
                     </div>
 
-                    <div class="grid md:grid-cols-3 gap-5">
-                        <div class="rounded-xl border border-gray-200 bg-gray-50/50 p-4">
-                            <div class="font-bold text-sm text-gray-700 mb-3">📖 حفظ صفحات جديدة</div>
-                            <div class="flex flex-wrap items-center gap-2 text-sm">
-                                <span class="text-gray-500">كل</span>
-                                <input type="number" name="rules[{{ $session->id }}][tasmee_pages][pages_count]"
-                                    value="{{ old("rules.{$session->id}.tasmee_pages.pages_count", $rules['tasmee_pages']['pages_count']) }}"
-                                    min="1" max="604" placeholder="5"
-                                    class="w-20 rounded-lg border-gray-300 focus:border-emerald-500 focus:ring-emerald-500">
-                                <span class="text-gray-500">صفحة =</span>
-                                <input type="number" name="rules[{{ $session->id }}][tasmee_pages][points]"
-                                    value="{{ old("rules.{$session->id}.tasmee_pages.points", $rules['tasmee_pages']['points']) }}"
-                                    min="0" placeholder="10"
-                                    class="w-20 rounded-lg border-gray-300 focus:border-emerald-500 focus:ring-emerald-500">
-                                <span class="text-gray-500">نقطة</span>
-                            </div>
-                            @error("rules.{$session->id}.tasmee_pages.pages_count")
-                                <p class="text-xs text-red-600 mt-2">{{ $message }}</p>
-                            @enderror
-                            @error("rules.{$session->id}.tasmee_pages.points")
-                                <p class="text-xs text-red-600 mt-2">{{ $message }}</p>
-                            @enderror
-                            <p class="text-[11px] text-gray-400 mt-3 leading-relaxed">
-                                تراكمي مع ترحيل الباقي: من حفظ ٣ صفحات ثم ٢ لاحقاً تكتمل الخمسة وتُمنح نقاطها.
-                            </p>
-                        </div>
+                    <div class="space-y-3">
+                        @foreach ($definitions as $type => $definition)
+                            @php
+                                $rule = $rules[$type] ?? ['pages_count' => null, 'points' => null];
+                                $enabled = old("rules.{$session->id}.{$type}.enabled", $rule['points'] !== null && $rule['points'] > 0);
+                            @endphp
+                            <div class="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+                                <div class="flex flex-wrap items-start justify-between gap-4">
+                                    <div class="flex items-start gap-3 min-w-0 flex-1">
+                                        <label class="toggle-switch mt-0.5" title="تفعيل/تعطيل القاعدة">
+                                            <input type="hidden" name="rules[{{ $session->id }}][{{ $type }}][enabled]" value="0">
+                                            <input type="checkbox" name="rules[{{ $session->id }}][{{ $type }}][enabled]" value="1" @checked($enabled)>
+                                            <span class="toggle-track"></span>
+                                        </label>
+                                        <div class="min-w-0">
+                                            <div class="font-bold text-sm text-gray-700">{{ $definition['title'] }}</div>
+                                            <p class="text-[11px] text-gray-400 mt-1 leading-relaxed">{{ $definition['description'] }}</p>
+                                            @error("rules.{$session->id}.{$type}.points")
+                                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                                            @enderror
+                                            @error("rules.{$session->id}.{$type}.enabled")
+                                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    </div>
 
-                        <div class="rounded-xl border border-gray-200 bg-gray-50/50 p-4">
-                            <div class="font-bold text-sm text-gray-700 mb-3">✅ إتمام خمسة مراجعة</div>
-                            <div class="flex flex-wrap items-center gap-2 text-sm">
-                                <span class="text-gray-500">لكل خمسة =</span>
-                                <input type="number" name="rules[{{ $session->id }}][khamsa_review][points]"
-                                    value="{{ old("rules.{$session->id}.khamsa_review.points", $rules['khamsa_review']['points']) }}"
-                                    min="0" placeholder="2"
-                                    class="w-20 rounded-lg border-gray-300 focus:border-emerald-500 focus:ring-emerald-500">
-                                <span class="text-gray-500">نقطة</span>
+                                    <div class="flex flex-wrap items-center gap-2 text-sm shrink-0">
+                                        @if ($definition['has_pages'])
+                                            <span class="text-gray-500">كل</span>
+                                            <input type="number" name="rules[{{ $session->id }}][{{ $type }}][pages_count]"
+                                                value="{{ old("rules.{$session->id}.{$type}.pages_count", $rule['pages_count']) }}"
+                                                min="1" max="604" placeholder="{{ $definition['pages_placeholder'] }}"
+                                                class="w-20 rounded-lg border-gray-300 focus:border-emerald-500 focus:ring-emerald-500">
+                                            <span class="text-gray-500">صفحة =</span>
+                                        @else
+                                            <span class="text-gray-500">عند التحقق =</span>
+                                        @endif
+                                        <input type="number" name="rules[{{ $session->id }}][{{ $type }}][points]"
+                                            value="{{ old("rules.{$session->id}.{$type}.points", $rule['points']) }}"
+                                            min="0" placeholder="{{ $definition['placeholder'] }}"
+                                            class="w-20 rounded-lg border-gray-300 focus:border-emerald-500 focus:ring-emerald-500">
+                                        <span class="text-gray-500">نقطة</span>
+                                    </div>
+                                </div>
+                                @error("rules.{$session->id}.{$type}.pages_count")
+                                    <p class="text-xs text-red-600 mt-2">{{ $message }}</p>
+                                @enderror
                             </div>
-                            @error("rules.{$session->id}.khamsa_review.points")
-                                <p class="text-xs text-red-600 mt-2">{{ $message }}</p>
-                            @enderror
-                            <p class="text-[11px] text-gray-400 mt-3 leading-relaxed">
-                                تُمنح عند إنهاء الخمسة من شاشة «مراجعة 5» أو تلقائياً عند اجتياز اختبار الدفعة.
-                            </p>
-                        </div>
-
-                        <div class="rounded-xl border border-gray-200 bg-gray-50/50 p-4">
-                            <div class="font-bold text-sm text-gray-700 mb-3">🎓 اجتياز اختبار الدفعة</div>
-                            <div class="flex flex-wrap items-center gap-2 text-sm">
-                                <span class="text-gray-500">عند النجاح =</span>
-                                <input type="number" name="rules[{{ $session->id }}][test_pass][points]"
-                                    value="{{ old("rules.{$session->id}.test_pass.points", $rules['test_pass']['points']) }}"
-                                    min="0" placeholder="20"
-                                    class="w-20 rounded-lg border-gray-300 focus:border-emerald-500 focus:ring-emerald-500">
-                                <span class="text-gray-500">نقطة</span>
-                            </div>
-                            @error("rules.{$session->id}.test_pass.points")
-                                <p class="text-xs text-red-600 mt-2">{{ $message }}</p>
-                            @enderror
-                            <p class="text-[11px] text-gray-400 mt-3 leading-relaxed">
-                                تُمنح مرة واحدة لكل اختبار ناجح فقط، ولا شيء عند الرسوب.
-                            </p>
-                        </div>
+                        @endforeach
                     </div>
                 </div>
             @endforeach
 
             <div class="rounded-xl bg-gray-50 border border-gray-200 p-4 text-xs text-gray-500 leading-relaxed">
-                تعديل القواعد لا يغيّر النقاط الممنوحة سابقاً — الصفحات المكافأة محفوظة لقطة لكل عملية منح.
+                المنح التلقائي محمي من التكرار لكل مصدر (جلسة/خمسة/اختبار/خطة/دورة)، ولا يمكن حذفه من الأستاذ.
+                تغيير القواعد يسري على الأحداث الجديدة فقط.
             </div>
 
             <div class="flex justify-end">
-                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-5 py-2.5 rounded-lg">حفظ القواعد</button>
+                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-6 py-2.5 rounded-lg">
+                    حفظ إعدادات النقاط
+                </button>
             </div>
         </form>
     @endif
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-copy-session]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const sourceId = button.dataset.copySession;
+                const source = document.querySelector('[data-session-panel="' + sourceId + '"]');
+
+                if (! source) {
+                    return;
+                }
+
+                document.querySelectorAll('[data-session-panel]').forEach(function (target) {
+                    if (target === source) {
+                        return;
+                    }
+
+                    const targetId = target.dataset.sessionPanel;
+
+                    source.querySelectorAll('input[name]').forEach(function (input) {
+                        const suffix = input.name.replace('rules[' + sourceId + ']', '');
+                        const twin = target.querySelector('input[name="rules[' + targetId + ']' + suffix + '"]');
+
+                        if (! twin) {
+                            return;
+                        }
+
+                        if (input.type === 'checkbox') {
+                            twin.checked = input.checked;
+                        } else {
+                            twin.value = input.value;
+                        }
+                    });
+                });
+
+                const original = button.textContent;
+                button.textContent = 'تم النسخ لكل الدوامات ✓';
+                button.classList.add('border-emerald-300', 'bg-emerald-50', 'text-emerald-800');
+
+                setTimeout(function () {
+                    button.textContent = original;
+                    button.classList.remove('border-emerald-300', 'bg-emerald-50', 'text-emerald-800');
+                }, 1800);
+            });
+        });
+    });
+</script>
+@endpush

@@ -659,6 +659,8 @@ class QuranListeningService
 
         $this->audit->logModel('quran_listening.plan.completed', $plan, actor: $actor);
 
+        app(RewardPointAutoService::class)->awardForListeningPlan($plan, $actor);
+
         if ($plan->student) {
             $this->notifications->notifyStudentCircle(
                 $plan->student,

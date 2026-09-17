@@ -3,13 +3,16 @@
 namespace App\Services;
 
 use App\Enums\QuranTasmeeType;
+use App\Enums\ShariaMemorizationStatus;
 use App\Models\QuranKhamsaReview;
 use App\Models\QuranKhamsaReviewItem;
+use App\Models\QuranListeningPlan;
 use App\Models\QuranListeningTest;
 use App\Models\QuranMemorizationBatch;
 use App\Models\QuranRecitationSession;
 use App\Models\RewardPoint;
 use App\Models\RewardPointRule;
+use App\Models\ShariaCourseStudent;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -18,17 +21,26 @@ use Illuminate\Support\Facades\DB;
  * منح نقاط المكافآت تلقائياً وفق قواعد كل دوام (reward_point_rules):
  *
  * - حفظ صفحات جديدة: تراكمي مع ترحيل الباقي. تُحسب الصفحات المغطاة فعلياً
- *   (دمج نطاقات تسميع «جديد»)، وتُخصم الصفحات التي سبق مكافأتها (source_pages)،
+ *   (دمج نطاق تسميع «جديد»)، وتُخصم الصفحات التي سبق مكافأتها (source_pages)،
  *   ثم كل ما يكمل عدد الصفحات المحدد في القاعدة يُمنح نقاطه.
  * - إتمام خمسة مراجعة: نقاط لكل خمسة تُنجَز (يدوياً أو آلياً عند نجاح الاختبار).
  * - اجتياز اختبار دفعة الحفظ: نقاط مرة واحدة لكل اختبار ناجح.
+ * - إتمام خطة الاستماع والاختبار: نقاط مرة واحدة لكل خطة تُنجَز بالكامل.
+ * - حفظ الدورة الشرعية كاملاً: نقاط مرة واحدة لكل طالب عند وصوله «حفظ كامل».
  *
- * المنح التلقائي لا يُخصم رجعياً أبداً، وتعديل القاعدة لا يمس النقاط السابقة.
+ * المنح التلقائي لا يُخصم رجعياً أبداً، وتعديل القاعدة لا يمس النقاط السابقة،
+ * ويمكن إيقاف المنح كله من مفتاح «المنح التلقائي» في إعدادات النقاط.
  */
 class RewardPointAutoService
 {
+    public function __construct(private readonly RewardPointSettingsService $settings) {}
+
     public function ruleFor(?string $studySessionId, string $type): ?RewardPointRule
     {
+        if (! $this->settings->isEnabled()) {
+            return null;
+        }
+
         if ($studySessionId === null || $studySessionId === '') {
             return null;
         }
@@ -160,6 +172,80 @@ class RewardPointAutoService
             'type' => 'earned',
             'reason' => 'اجتياز '.$batch->label(),
             'notes' => 'نقاط تلقائية من اختبار دفعة الحفظ',
+        ]);
+    }
+
+    /** نقاط إتمام خطة الاستماع والاختبار (مرة واحدة لكل خطة مكتملة). */
+    public function awardForListeningPlan(QuranListeningPlan $plan, User $actor): void
+    {
+        $student = $this->student($plan->student_id);
+
+        if (! $student) {
+            return;
+        }
+
+        $sessionId = $plan->study_session_id ?: $student->study_session_id;
+
+        $rule = $this->ruleFor($sessionId, RewardPointRule::TYPE_LISTENING_PLAN);
+
+        if (! $rule?->isActive()) {
+            return;
+        }
+
+        if ($this->alreadyAwarded(RewardPoint::SOURCE_LISTENING_PLAN, $plan->id)) {
+            return;
+        }
+
+        RewardPoint::create([
+            'student_id' => $student->id,
+            'awarded_by' => $actor->id,
+            'study_session_id' => $sessionId,
+            'source_type' => RewardPoint::SOURCE_LISTENING_PLAN,
+            'source_id' => $plan->id,
+            'points' => $rule->points,
+            'type' => 'earned',
+            'reason' => 'إتمام خطة الاستماع'.($plan->title ? ' — '.$plan->title : ''),
+            'notes' => 'نقاط تلقائية من إتمام خطة الاستماع والاختبار',
+        ]);
+    }
+
+    /** نقاط حفظ الدورة الشرعية كاملاً (مرة واحدة لكل طالب في الدورة). */
+    public function awardForShariaMemorization(ShariaCourseStudent $enrolled, User $actor): void
+    {
+        if ($enrolled->student_id === null) {
+            return;
+        }
+
+        if ($enrolled->memorization_status !== ShariaMemorizationStatus::Memorized) {
+            return;
+        }
+
+        $student = $this->student($enrolled->student_id);
+
+        if (! $student) {
+            return;
+        }
+
+        $rule = $this->ruleFor($student->study_session_id, RewardPointRule::TYPE_SHARIA_MEMORIZATION);
+
+        if (! $rule?->isActive()) {
+            return;
+        }
+
+        if ($this->alreadyAwarded(RewardPoint::SOURCE_SHARIA_MEMORIZATION, $enrolled->id)) {
+            return;
+        }
+
+        RewardPoint::create([
+            'student_id' => $student->id,
+            'awarded_by' => $actor->id,
+            'study_session_id' => $student->study_session_id,
+            'source_type' => RewardPoint::SOURCE_SHARIA_MEMORIZATION,
+            'source_id' => $enrolled->id,
+            'points' => $rule->points,
+            'type' => 'earned',
+            'reason' => 'حفظ الدورة الشرعية كاملاً',
+            'notes' => 'نقاط تلقائية من إتمام حفظ الدورة الشرعية',
         ]);
     }
 

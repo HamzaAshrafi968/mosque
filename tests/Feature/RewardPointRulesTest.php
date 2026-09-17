@@ -2,18 +2,24 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ShariaMemorizationStatus;
 use App\Models\QuranMemorizationBatch;
 use App\Models\QuranRecitationSession;
 use App\Models\RewardPoint;
 use App\Models\RewardPointRule;
+use App\Models\ShariaCourse;
+use App\Models\ShariaCourseStudent;
 use App\Models\Student;
 use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\QuranKhamsaService;
+use App\Services\QuranListeningService;
 use App\Services\QuranMemorizationGatingService;
+use App\Services\RewardPointSettingsService;
 use App\Services\RoleService;
+use App\Services\ShariaCourseService;
 use App\Services\StudySessionService;
 use Tests\TestCase;
 
@@ -378,5 +384,181 @@ class RewardPointRulesTest extends TestCase
             ->assertOk()
             ->assertSee('مكافأة تميز')
             ->assertSee('+7');
+    }
+
+    public function test_new_rule_types_and_master_switch_are_saved_from_settings(): void
+    {
+        [$mosque, $admin, $first, $second] = $this->mosque();
+
+        $this->actingAs($admin)
+            ->patch(route('admin.settings.rewards.update'), [
+                'automatic_enabled' => 0,
+                'rules' => [
+                    $first->id => [
+                        'listening_plan_complete' => ['enabled' => 1, 'points' => 15],
+                        'sharia_memorization_complete' => ['enabled' => 1, 'points' => 25],
+                    ],
+                    $second->id => [
+                        'listening_plan_complete' => ['enabled' => 0, 'points' => 15],
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('reward_point_rules', [
+            'study_session_id' => $first->id,
+            'rule_type' => RewardPointRule::TYPE_LISTENING_PLAN,
+            'points' => 15,
+        ]);
+        $this->assertDatabaseHas('reward_point_rules', [
+            'study_session_id' => $first->id,
+            'rule_type' => RewardPointRule::TYPE_SHARIA_MEMORIZATION,
+            'points' => 25,
+        ]);
+        $this->assertDatabaseMissing('reward_point_rules', [
+            'study_session_id' => $second->id,
+            'rule_type' => RewardPointRule::TYPE_LISTENING_PLAN,
+        ]);
+        $this->assertDatabaseHas('tenant_settings', [
+            'key' => RewardPointSettingsService::KEY_ENABLED,
+            'value' => '0',
+        ]);
+    }
+
+    public function test_disabled_rule_is_removed_even_when_it_has_points(): void
+    {
+        [$mosque, $admin, $first] = $this->mosque();
+        $this->rule($first, RewardPointRule::TYPE_TEST_PASS, 20);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.settings.rewards.update'), [
+                'rules' => [
+                    $first->id => [
+                        'test_pass' => ['enabled' => 0, 'points' => 20],
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('reward_point_rules', [
+            'study_session_id' => $first->id,
+            'rule_type' => RewardPointRule::TYPE_TEST_PASS,
+        ]);
+    }
+
+    public function test_master_switch_stops_and_resumes_automatic_awards(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        [, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->rule($session, RewardPointRule::TYPE_TASMEE_PAGES, 10, 5);
+
+        app(RewardPointSettingsService::class)->setEnabled(false);
+
+        $this->tasmee($student, $teacher, 1, 5);
+        $this->assertDatabaseCount('reward_points', 0);
+
+        app(RewardPointSettingsService::class)->setEnabled(true);
+
+        $this->tasmee($student, $teacher, 6, 10);
+        $this->assertSame(1, RewardPoint::where('student_id', $student->id)->count());
+    }
+
+    public function test_listening_plan_completion_awards_points_once(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        [, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->rule($session, RewardPointRule::TYPE_LISTENING_PLAN, 15);
+
+        $listening = app(QuranListeningService::class);
+
+        $plan = $listening->createPlan([
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'study_session_id' => $session->id,
+            'gate_size' => 1,
+            'items' => [['type' => 'new', 'juz' => 1, 'from_page' => 1, 'to_page' => 5]],
+        ], $admin);
+
+        $item = $plan->items()->firstOrFail();
+
+        $listening->markListened($item, $admin);
+        $listening->recordTest($plan, [$item->id => ['result' => 'pass']], $admin);
+
+        $this->assertDatabaseHas('reward_points', [
+            'student_id' => $student->id,
+            'points' => 15,
+            'source_type' => RewardPoint::SOURCE_LISTENING_PLAN,
+            'source_id' => $plan->id,
+            'study_session_id' => $session->id,
+        ]);
+        $this->assertSame(1, RewardPoint::where('source_type', RewardPoint::SOURCE_LISTENING_PLAN)->count());
+    }
+
+    public function test_sharia_memorization_completion_awards_points_once(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+
+        $this->rule($session, RewardPointRule::TYPE_SHARIA_MEMORIZATION, 25);
+
+        $course = ShariaCourse::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'دورة الفقه',
+            'status' => 'active',
+            'created_by' => $admin->id,
+        ]);
+
+        $enrolled = ShariaCourseStudent::create([
+            'tenant_id' => $mosque->id,
+            'course_id' => $course->id,
+            'student_id' => $student->id,
+            'name' => $student->name,
+            'status' => 'active',
+        ]);
+
+        $service = app(ShariaCourseService::class);
+
+        $service->updateMemorization($enrolled, ShariaMemorizationStatus::HalfMemorized, null, $admin);
+        $this->assertSame(0, RewardPoint::where('source_type', RewardPoint::SOURCE_SHARIA_MEMORIZATION)->count());
+
+        $service->updateMemorization($enrolled, ShariaMemorizationStatus::Memorized, null, $admin);
+        $service->updateMemorization($enrolled, ShariaMemorizationStatus::Memorized, 'تأكيد', $admin);
+
+        $this->assertDatabaseHas('reward_points', [
+            'student_id' => $student->id,
+            'points' => 25,
+            'source_type' => RewardPoint::SOURCE_SHARIA_MEMORIZATION,
+            'source_id' => $enrolled->id,
+            'study_session_id' => $session->id,
+        ]);
+        $this->assertSame(1, RewardPoint::where('source_type', RewardPoint::SOURCE_SHARIA_MEMORIZATION)->count());
+    }
+
+    public function test_settings_center_lists_all_sections_for_the_manager(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.index'))
+            ->assertOk()
+            ->assertSee('مركز الإعدادات')
+            ->assertSee('برنامج القرآن')
+            ->assertSee('نقاط المكافآت')
+            ->assertSee('الحسابات والصلاحيات')
+            ->assertSee('الدوامات');
+    }
+
+    public function test_teacher_cannot_open_the_settings_center(): void
+    {
+        [$mosque, , $session] = $this->mosque();
+        [$teacherUser] = $this->teacher($mosque, $session);
+
+        $this->actingAs($teacherUser)
+            ->get(route('admin.settings.index'))
+            ->assertForbidden();
     }
 }

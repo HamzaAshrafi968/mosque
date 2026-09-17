@@ -191,11 +191,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('quran/batches/{batch}/placement-test', [Admin\QuranBatchController::class, 'placementTest'])->name('quran.batches.placement-test')->middleware('permission:quran_listening.test');
     Route::post('quran/batches/{batch}/retake', [Admin\QuranBatchController::class, 'retake'])->name('quran.batches.retake')->middleware('permission:quran_batch.update');
 
+    // ---- مركز الإعدادات: برنامج القرآن + نقاط المكافآت + الصلاحيات ----
+    Route::get('settings', [Admin\SettingsController::class, 'index'])->name('settings.index')->middleware('permission:quran_settings.view,users.view');
+
     // ---- إعدادات برنامج القرآن (حد النجاح في اختبار الدفعات) ----
     Route::get('settings/quran', [Admin\QuranSettingsController::class, 'edit'])->name('settings.quran.edit')->middleware('permission:quran_settings.view');
     Route::patch('settings/quran', [Admin\QuranSettingsController::class, 'update'])->name('settings.quran.update')->middleware('permission:quran_settings.update');
 
-    // ---- إعدادات نقاط المكافآت: قواعد لكل دوام (حفظ/خمسات/اختبار) ----
+    // ---- إعدادات نقاط المكافآت: قواعد لكل دوام (حفظ/خمسات/اختبار/خطة/دورة) ----
     Route::get('settings/rewards', [Admin\RewardPointSettingsController::class, 'edit'])->name('settings.rewards.edit')->middleware('permission:quran_settings.view');
     Route::patch('settings/rewards', [Admin\RewardPointSettingsController::class, 'update'])->name('settings.rewards.update')->middleware('permission:quran_settings.update');
 
