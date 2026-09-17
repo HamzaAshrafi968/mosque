@@ -158,18 +158,18 @@ class ClassroomController extends Controller
 
         $roster = $this->attendanceMetrics->rosterStats($section);
 
-        $rosterStudents = Student::query()
-            ->active()
-            ->where('section_id', $section->id)
-            ->orderBy('name')
-            ->pluck('id');
-
+        // الطلاب النشطون (حسب الدوام النشط) المرشحون للانضمام: غير المقيدين
+        // بشعبة أو المقيدين بشعبة أخرى (يُنقلون)، مع استبعاد طلاب هذه الشعبة
+        // فهم معروضون في الجدول أعلاه.
         $availableStudents = Student::query()
             ->active()
-            ->where(fn ($q) => $q->whereNull('section_id'))
-            ->whereNotIn('id', $rosterStudents)
+            ->where(fn ($q) => $q->whereNull('section_id')->orWhere('section_id', '!=', $section->id))
+            ->with([
+                'section' => fn ($q) => $q->withoutGlobalScope('study_session')->select('id', 'name', 'classroom_id'),
+                'classroom' => fn ($q) => $q->withoutGlobalScope('study_session')->select('id', 'name'),
+            ])
             ->orderBy('name')
-            ->get(['id', 'name', 'guardian_name']);
+            ->get(['id', 'name', 'gender', 'photo', 'guardian_name', 'guardian_phone', 'section_id', 'classroom_id']);
 
         $availableTeachers = Teacher::query()
             ->where('is_active', true)
@@ -210,24 +210,80 @@ class ClassroomController extends Controller
         return redirect()->route('admin.classrooms.show', $section->classroom)->with('success', 'تم حذف الشعبة');
     }
 
-    /** Enroll an existing student into this section. */
+    /**
+     * Enroll one or many selected students into this section. Students already
+     * active in another section are transferred (history preserved).
+     */
     public function enrollStudent(Request $request, Section $section): RedirectResponse
     {
-        $data = $request->validate(['student_id' => ['required', 'uuid']]);
+        $data = $request->validate([
+            'student_id' => ['nullable', 'uuid'],
+            'student_ids' => ['nullable', 'array'],
+            'student_ids.*' => ['uuid', Rule::exists('students', 'id')->where('tenant_id', config('app.current_tenant_id'))],
+        ]);
 
-        $student = Student::find($data['student_id']);
+        $ids = collect($data['student_ids'] ?? [])
+            ->push($data['student_id'] ?? null)
+            ->filter()
+            ->unique()
+            ->values();
 
-        if (! $student) {
-            return back()->withErrors(['student_id' => 'الطالب غير موجود'])->withInput();
+        if ($ids->isEmpty()) {
+            return back()->withErrors(['student_ids' => 'اختر طالباً واحداً على الأقل'])->withInput();
         }
 
-        try {
-            $this->enrollment->enroll($student, $section);
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
+        $enrolled = 0;
+        $transferred = 0;
+        $skipped = 0;
+        $failures = [];
+
+        foreach ($ids as $id) {
+            $student = Student::find($id);
+
+            if (! $student) {
+                continue;
+            }
+
+            try {
+                $current = $this->enrollment->currentMembership($student);
+
+                if ($current && $current->section_id === $section->id) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                if ($current) {
+                    $this->enrollment->transfer($student, $section);
+                    $transferred++;
+                } else {
+                    $this->enrollment->enroll($student, $section);
+                    $enrolled++;
+                }
+            } catch (ValidationException $e) {
+                $failures[$student->name] = collect($e->errors())->flatten()->first();
+            }
         }
 
-        return back()->with('success', 'تم تسجيل الطالب في الشعبة');
+        $summary = [];
+
+        if ($enrolled > 0) {
+            $summary[] = "تم تسجيل {$enrolled} طالب في الشعبة";
+        }
+
+        if ($transferred > 0) {
+            $summary[] = "تم نقل {$transferred} طالب من شعبة أخرى";
+        }
+
+        if ($skipped > 0) {
+            $summary[] = "{$skipped} طالب مسجل بالفعل في الشعبة";
+        }
+
+        if ($failures !== []) {
+            return back()->withErrors($failures)->withInput();
+        }
+
+        return back()->with('success', $summary === [] ? 'لم يتم تغيير أي تسجيل' : implode('، ', $summary));
     }
 
     /** Remove a student from this section (keeps the membership history). */
