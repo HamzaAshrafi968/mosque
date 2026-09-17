@@ -14,8 +14,10 @@ use App\Http\Requests\Api\V1\Admin\ScheduleRequest;
 use App\Http\Resources\Api\V1\ProgramResource;
 use App\Http\Resources\Api\V1\ScheduleResource;
 use App\Services\ProgramService;
+use App\Services\ScheduleConflictService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ScheduleController extends BaseApiController
 {
@@ -51,11 +53,22 @@ class ScheduleController extends BaseApiController
         ]);
     }
 
-    public function store(ScheduleRequest $request, ResolveScheduleProgramAction $resolveProgram): JsonResponse
+    public function store(ScheduleRequest $request, ResolveScheduleProgramAction $resolveProgram, ScheduleConflictService $conflicts): JsonResponse
     {
-        $schedule = $this->scheduleRepository->create(
-            $resolveProgram->execute($request->validated())
-        );
+        $slot = $resolveProgram->execute($request->validated());
+
+        $schedule = null;
+
+        $conflicts->withScheduleLock(array_filter([
+            ! empty($slot['teacher_id']) ? 'teacher:'.$slot['teacher_id'] : null,
+            ! empty($slot['section_id']) ? 'section:'.$slot['section_id'] : null,
+            ! empty($slot['classroom_id']) ? 'classroom:'.$slot['classroom_id'] : null,
+        ]), function () use ($slot, $conflicts, &$schedule) {
+            DB::transaction(function () use ($slot, $conflicts, &$schedule) {
+                $conflicts->assertSlot($slot);
+                $schedule = $this->scheduleRepository->create($slot);
+            });
+        });
 
         return $this->created(
             ScheduleResource::make($schedule->load(['program', 'programPeriod', 'studySession'])),

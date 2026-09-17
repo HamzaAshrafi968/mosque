@@ -94,6 +94,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('schedules', [Admin\ScheduleController::class, 'store'])->name('schedules.store')->middleware('permission:schedule.create');
     Route::post('schedules/generate', [Admin\ScheduleController::class, 'generate'])->name('schedules.generate')->middleware('permission:schedule.create');
     Route::delete('schedules/{schedule}', [Admin\ScheduleController::class, 'destroy'])->name('schedules.destroy')->middleware('permission:schedule.delete');
+    Route::post('schedules/{schedule}/cancel', [Admin\ScheduleController::class, 'cancel'])->name('schedules.cancel')->middleware('permission:schedule.update');
+    Route::post('schedules/{schedule}/postpone', [Admin\ScheduleController::class, 'postpone'])->name('schedules.postpone')->middleware('permission:schedule.update');
+    Route::delete('schedules/exceptions/{session}', [Admin\ScheduleController::class, 'restore'])->name('schedules.restore')->middleware('permission:schedule.update');
 
     // ---- تخصصات الجداول (programs: التحفيظ، الإجازة، اختبارات الحفظ، الشرعية، القرآنية) ----
     Route::get('programs', [Admin\ProgramController::class, 'index'])->name('programs.index')->middleware('permission:programs.view');
@@ -296,6 +299,9 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('dashboard', [Teacher\DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('schedule', [Teacher\ScheduleController::class, 'index'])->name('schedule')->middleware('permission:schedule.view');
+    Route::post('schedule/{schedule}/cancel', [Teacher\ScheduleController::class, 'cancel'])->name('schedule.cancel')->middleware('permission:schedule.update');
+    Route::post('schedule/{schedule}/postpone', [Teacher\ScheduleController::class, 'postpone'])->name('schedule.postpone')->middleware('permission:schedule.update');
+    Route::delete('schedule/exceptions/{session}', [Teacher\ScheduleController::class, 'restore'])->name('schedule.restore')->middleware('permission:schedule.update');
 
     Route::get('work-hours', [Teacher\WorkHourController::class, 'index'])->name('work-hours.index')->middleware('permission:work_hours.view');
 

@@ -25,7 +25,10 @@ use Illuminate\Validation\ValidationException;
  */
 class EnrollmentService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly ScheduleConflictService $conflicts,
+    ) {}
 
     /** Active enrollment row for a student (null when none). */
     public function currentMembership(Student $student): ?SectionStudent
@@ -58,6 +61,8 @@ class EnrollmentService
                 'section_id' => ['الطالب مسجل بالفعل في شعبة أخرى — استخدم النقل لتغيير شعبته'],
             ]);
         }
+
+        $this->assertNoScheduleConflict($student, $section);
 
         $membership = SectionStudent::firstOrNew([
             'tenant_id' => $student->tenant_id,
@@ -193,6 +198,26 @@ class EnrollmentService
             $this->transfer($student, $section);
         } else {
             $this->enroll($student, $section);
+        }
+    }
+
+    /**
+     * منع تسجيل طالب في شعبة يتعارض جدولها مع جدوله الحالي (شعبته الحالية
+     * أو أي تسجيل نشط آخر).
+     *
+     * @throws ValidationException
+     */
+    private function assertNoScheduleConflict(Student $student, Section $section): void
+    {
+        $details = $this->conflicts->studentConflictDetails($student, $section);
+
+        if ($details !== []) {
+            throw ValidationException::withMessages([
+                'section_id' => array_merge(
+                    ['لا يمكن التسجيل: جدول الشعبة الجديدة يتعارض مع جدول الطالب الحالي'],
+                    $details
+                ),
+            ]);
         }
     }
 

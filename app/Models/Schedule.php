@@ -5,8 +5,10 @@ namespace App\Models;
 use App\Traits\MultiTenantTrait;
 use App\Traits\StudySessionScopedTrait;
 use App\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Schedule extends Model
 {
@@ -61,5 +63,41 @@ class Schedule extends Model
     public function programPeriod(): BelongsTo
     {
         return $this->belongsTo(ProgramPeriod::class);
+    }
+
+    /** استثناءات هذه الحصة (إلغاء/تأجيل) في تواريخ محددة. */
+    public function exceptions(): HasMany
+    {
+        return $this->hasMany(ClassSession::class, 'schedule_id');
+    }
+
+    /**
+     * ترتيب الحصص حسب الدوام: حصص الدوام الأول ثم الثاني ثم غير المرتبطة،
+     * وداخل كل دوام حسب اليوم ثم وقت البداية.
+     */
+    public function scopeOrderByStudySession(Builder $query): Builder
+    {
+        $sessionIds = StudySession::query()->orderBy('name')->pluck('id')->all();
+
+        if ($sessionIds === []) {
+            return $query->orderBy('day_of_week')->orderBy('starts_at');
+        }
+
+        $cases = [];
+        $bindings = [];
+
+        foreach ($sessionIds as $index => $id) {
+            $cases[] = 'WHEN ? THEN ?';
+            $bindings[] = $id;
+            $bindings[] = $index;
+        }
+
+        return $query
+            ->orderByRaw(
+                'CASE '.$this->getTable().'.study_session_id '.implode(' ', $cases).' ELSE '.count($sessionIds).' END',
+                $bindings
+            )
+            ->orderBy('day_of_week')
+            ->orderBy('starts_at');
     }
 }

@@ -54,7 +54,6 @@ class PermissionQaTest extends TestCase
         'roles.update',
         'roles.view',
         'schedule.approve',
-        'schedule.update',
     ];
 
     // ------------------------------------------------------------- fixtures

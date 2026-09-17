@@ -29,8 +29,7 @@ class ScheduleRepository extends BaseRepository implements ScheduleRepositoryInt
             ->when(! empty($filters['teacher_id']), fn ($q) => $q->where('teacher_id', $filters['teacher_id']))
             ->when(! empty($filters['program_id']), fn ($q) => $q->where('program_id', $filters['program_id']))
             ->when(! empty($filters['study_session_id']), fn ($q) => $q->where('study_session_id', $filters['study_session_id']))
-            ->orderBy('day_of_week')
-            ->orderBy('starts_at')
+            ->orderByStudySession()
             ->get();
     }
 
@@ -46,8 +45,7 @@ class ScheduleRepository extends BaseRepository implements ScheduleRepositoryInt
                 'studySession:id,name',
             ])
             ->where('teacher_id', $teacherId)
-            ->orderBy('day_of_week')
-            ->orderBy('starts_at')
+            ->orderByStudySession()
             ->get()
             ->groupBy('day_of_week');
     }

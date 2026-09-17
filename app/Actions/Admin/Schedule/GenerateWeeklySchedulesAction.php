@@ -2,11 +2,12 @@
 
 namespace App\Actions\Admin\Schedule;
 
+use App\Exceptions\ScheduleConflictException;
 use App\Models\Schedule;
+use App\Services\ScheduleConflictService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 /**
  * يولّد جدولاً أسبوعياً لبرنامج/فترة (تخصص) واحد عبر عدة أيام بضغطة واحدة —
@@ -14,29 +15,21 @@ use Illuminate\Validation\ValidationException;
  *
  * - تُستنتج الأوقات من الفترة المختارة كما في إضافة الحصة المفردة.
  * - الصفوف المطابقة الموجودة مسبقاً تُتخطى (idempotent) ويُعاد عددها.
- * - يُرفض التعارض الحقيقي: انشغال المعلم أو الصف/الشعبة في نفس الوقت.
+ * - يُرفض التعارض الحقيقي عبر ScheduleConflictService: انشغال المعلم
+ *   (في أي دوام) أو تعارض الشعبة/الصف، داخل قفل ومعاملة واحدة.
  */
 class GenerateWeeklySchedulesAction
 {
-    private const DAY_NAMES = [
-        0 => 'الأحد',
-        1 => 'الاثنين',
-        2 => 'الثلاثاء',
-        3 => 'الأربعاء',
-        4 => 'الخميس',
-        5 => 'الجمعة',
-        6 => 'السبت',
-    ];
-
     public function __construct(
         private readonly ResolveScheduleProgramAction $resolveProgram,
+        private readonly ScheduleConflictService $conflicts,
     ) {}
 
     /**
      * @param  array<string, mixed>  $data
      * @return array{created: int, skipped: int}
      *
-     * @throws ValidationException
+     * @throws ScheduleConflictException
      */
     public function execute(array $data): array
     {
@@ -48,25 +41,33 @@ class GenerateWeeklySchedulesAction
         $startsAt = CarbonImmutable::parse($base['starts_at'])->format('H:i:s');
         $endsAt = CarbonImmutable::parse($base['ends_at'])->format('H:i:s');
 
-        $created = 0;
-        $skipped = 0;
+        $lockKeys = array_filter([
+            ! empty($base['teacher_id']) ? 'teacher:'.$base['teacher_id'] : null,
+            ! empty($base['section_id']) ? 'section:'.$base['section_id'] : null,
+            ! empty($base['classroom_id']) ? 'classroom:'.$base['classroom_id'] : null,
+        ]);
 
-        DB::transaction(function () use ($base, $days, $startsAt, $endsAt, &$created, &$skipped) {
-            foreach ($days as $day) {
-                if ($this->duplicateExists($base, $day, $startsAt, $endsAt)) {
-                    $skipped++;
+        return $this->conflicts->withScheduleLock($lockKeys, function () use ($base, $days, $startsAt, $endsAt) {
+            $created = 0;
+            $skipped = 0;
 
-                    continue;
+            DB::transaction(function () use ($base, $days, $startsAt, $endsAt, &$created, &$skipped) {
+                foreach ($days as $day) {
+                    if ($this->duplicateExists($base, $day, $startsAt, $endsAt)) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    $this->conflicts->assertSlot($base + ['day_of_week' => $day]);
+
+                    Schedule::create($base + ['day_of_week' => $day]);
+                    $created++;
                 }
+            });
 
-                $this->assertNoConflicts($base, $day, $startsAt, $endsAt);
-
-                Schedule::create($base + ['day_of_week' => $day]);
-                $created++;
-            }
+            return ['created' => $created, 'skipped' => $skipped];
         });
-
-        return ['created' => $created, 'skipped' => $skipped];
     }
 
     /** Exact same row already exists (safe to re-run the generator). */
@@ -83,37 +84,6 @@ class GenerateWeeklySchedulesAction
             ->whereTime('starts_at', $startsAt)
             ->whereTime('ends_at', $endsAt)
             ->exists();
-    }
-
-    /** @throws ValidationException */
-    private function assertNoConflicts(array $attributes, int $day, string $startsAt, string $endsAt): void
-    {
-        $overlaps = fn ($query) => $query
-            ->where('day_of_week', $day)
-            ->whereTime('starts_at', '<', $endsAt)
-            ->whereTime('ends_at', '>', $startsAt);
-
-        $teacherConflict = $overlaps(
-            $this->schedules()->where('teacher_id', $attributes['teacher_id'])
-        )->exists();
-
-        if ($teacherConflict) {
-            throw ValidationException::withMessages([
-                'teacher_id' => 'المعلم لديه حصة متعارضة يوم '.self::DAY_NAMES[$day].' ('.substr($startsAt, 0, 5).'–'.substr($endsAt, 0, 5).')',
-            ]);
-        }
-
-        $classroomConflict = $overlaps(
-            $this->schedules()
-                ->where('classroom_id', $attributes['classroom_id'])
-                ->where('section_id', $attributes['section_id'] ?? null)
-        )->exists();
-
-        if ($classroomConflict) {
-            throw ValidationException::withMessages([
-                'classroom_id' => 'يوجد حصة أخرى لنفس الصف/الشعبة يوم '.self::DAY_NAMES[$day].' ('.substr($startsAt, 0, 5).'–'.substr($endsAt, 0, 5).')',
-            ]);
-        }
     }
 
     private function schedules(): Builder
