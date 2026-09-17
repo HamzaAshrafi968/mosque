@@ -18,7 +18,7 @@
             <h3 class="font-black text-gray-800">🏛️ خصائص الدورة والجامع</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">الجامع (المكان) <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">الجامع (مكان انعقاد الدورة) <span class="text-red-500">*</span></label>
                     <select name="mosque_id" id="mosque-select" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
                         <option value="">— اختر الجامع —</option>
                         @foreach($mosques as $mosque)
@@ -30,10 +30,6 @@
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">اسم الدورة <span class="text-red-500">*</span></label>
                     <input type="text" name="name" required maxlength="255" value="{{ old('name') }}" placeholder="مثال: دورة الفقه المكثفة" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">المكان التفصيلي</label>
-                    <input type="text" name="location" maxlength="255" value="{{ old('location') }}" placeholder="افتراضياً: اسم الجامع" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">الحالة <span class="text-red-500">*</span></label>
