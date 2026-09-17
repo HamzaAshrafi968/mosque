@@ -9,6 +9,7 @@ use App\Services\StudentAcademicService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -61,6 +62,20 @@ class AudioAnnouncementTest extends TestCase
         Storage::disk('public')->assertExists($announcement->audio_path);
         $this->assertSame('2026-09-22 10:00:00', $announcement->expires_at->toDateTimeString());
         $this->assertStringContainsString($announcement->audio_path, $announcement->audioUrl());
+    }
+
+    public function test_audio_url_follows_the_current_request_base_path(): void
+    {
+        // The app may live in a sub-directory (XAMPP htdocs); the audio URL
+        // must follow the request root instead of a hard-coded APP_URL.
+        URL::forceRootUrl('http://localhost/mosque/public');
+
+        $announcement = new Announcement(['audio_path' => 'announcements/audio/voice.webm']);
+
+        $this->assertSame(
+            'http://localhost/mosque/public/storage/announcements/audio/voice.webm',
+            $announcement->audioUrl()
+        );
     }
 
     public function test_audio_announcement_can_opt_out_of_auto_delete(): void

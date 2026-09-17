@@ -14,8 +14,10 @@ trait HasAvatar
 {
     public function avatarUrl(): ?string
     {
+        // `asset()` honours the current request root, so photos keep working
+        // when the app is served from a sub-directory (e.g. XAMPP htdocs).
         return $this->photo
-            ? Storage::disk('public')->url($this->photo)
+            ? asset('storage/'.$this->photo)
             : null;
     }
 

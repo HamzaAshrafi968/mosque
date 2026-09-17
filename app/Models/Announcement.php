@@ -9,7 +9,6 @@ use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 class Announcement extends Model
 {
@@ -50,8 +49,10 @@ class Announcement extends Model
 
     public function audioUrl(): ?string
     {
+        // `asset()` honours the current request root, so audio keeps working
+        // when the app is served from a sub-directory (e.g. XAMPP htdocs).
         return $this->audio_path
-            ? Storage::disk('public')->url($this->audio_path)
+            ? asset('storage/'.$this->audio_path)
             : null;
     }
 
