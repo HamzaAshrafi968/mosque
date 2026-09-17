@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6">
-    <a href="{{ route('admin.quran.hafiz.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← ملفات الحفاظ</a>
+    <a href="{{ route('admin.quran.completions.index', ['status' => 'confirmed']) }}" class="text-sm text-emerald-700 hover:text-emerald-800">← الحفاظ</a>
 
     <div class="bg-gradient-to-l from-amber-600 to-orange-500 text-white rounded-2xl p-6 shadow-lg">
         <div class="flex flex-wrap items-center gap-6">

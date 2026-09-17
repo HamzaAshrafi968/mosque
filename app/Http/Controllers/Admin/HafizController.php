@@ -22,18 +22,13 @@ class HafizController extends Controller
         private readonly AuditLogger $audit,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
-        $profiles = HafizProfile::query()
-            ->with(['student:id,name,classroom_id', 'student.classroom:id,name'])
-            ->when($request->filled('q'), fn ($q) => $q->whereHas('student', fn ($s) => $s->where('name', 'like', '%'.$request->input('q').'%')))
-            ->orderByDesc('created_at')
-            ->paginate(20)
-            ->withQueryString();
-
-        return view('admin.quran.hafiz.index', [
-            'profiles' => $profiles,
-        ]);
+        // دُمجت «ملفات الحفاظ» في صفحة «إتمام الحفظ والحفاظ».
+        return redirect()->route('admin.quran.completions.index', array_filter([
+            'status' => 'confirmed',
+            'q' => $request->input('q'),
+        ]));
     }
 
     public function profile(Student $student): View

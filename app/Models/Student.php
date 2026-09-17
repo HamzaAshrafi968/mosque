@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\QuranCompletionStatus;
 use App\Enums\SectionStudentStatus;
 use App\Traits\FlushesTenantCache;
 use App\Traits\HasAvatar;
@@ -157,6 +158,14 @@ class Student extends Model
     public function quranCompletions(): HasMany
     {
         return $this->hasMany(QuranCompletion::class);
+    }
+
+    /** آخر إتمام حفظ مؤكد (سبب ترقية الطالب إلى حافظ). */
+    public function latestConfirmedCompletion(): HasOne
+    {
+        return $this->hasOne(QuranCompletion::class)
+            ->where('status', QuranCompletionStatus::Confirmed)
+            ->latestOfMany('confirmed_at');
     }
 
     /** الأجزاء المحفوظة (تفتح خمسات «مراجعة 5»). */

@@ -199,8 +199,6 @@ class PermissionQaTest extends TestCase
             'reward points' => ['admin.reward-points.index', 'reward_points.view'],
             'quran program' => ['admin.quran.index', 'quran.tasmee.view'],
             'quran tasmee' => ['admin.quran.tasmee.create', 'quran.tasmee.create'],
-            'quran completions' => ['admin.quran.completions.index', 'quran.completion.view'],
-            'hafiz profiles' => ['admin.quran.hafiz.index', 'hafiz_profile.view'],
             'qualifying' => ['admin.quran.qualifying.index', 'qualifying.view'],
             'ijazah' => ['admin.quran.ijazah.index', 'ijazah.view'],
             'hafiz exams' => ['admin.quran.exams.index', 'hafiz_exams.view'],
@@ -220,6 +218,35 @@ class PermissionQaTest extends TestCase
         $this->revoke($mosque, RoleService::ROLE_MOSQUE_MANAGER, $permission);
 
         $this->actingAs($manager)->get(route($routeName))->assertForbidden();
+    }
+
+    /** «إتمام الحفظ والحفاظ» صفحة موحّدة: أي من الصلاحيتين يكفي، والمنع عند غيابهما. */
+    public function test_merged_completions_and_hafiz_page_accepts_either_permission(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+
+        $this->actingAs($manager)->get(route('admin.quran.completions.index'))->assertOk();
+
+        $this->revoke($mosque, RoleService::ROLE_MOSQUE_MANAGER, 'quran.completion.view');
+        $this->actingAs($manager)->get(route('admin.quran.completions.index'))->assertOk();
+
+        $this->revoke($mosque, RoleService::ROLE_MOSQUE_MANAGER, 'hafiz_profile.view');
+        $this->actingAs($manager)->get(route('admin.quran.completions.index'))->assertForbidden();
+    }
+
+    /** قائمة الحفاظ القديمة تحوّل إلى التبويب الموحّد وتبقى محمية بصلاحيتها. */
+    public function test_legacy_hafiz_list_redirects_to_the_merged_page(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+
+        $this->actingAs($manager)->get(route('admin.quran.hafiz.index'))
+            ->assertRedirect(route('admin.quran.completions.index', ['status' => 'confirmed']));
+
+        $this->revoke($mosque, RoleService::ROLE_MOSQUE_MANAGER, 'hafiz_profile.view');
+
+        $this->actingAs($manager)->get(route('admin.quran.hafiz.index'))->assertForbidden();
     }
 
     public function test_manager_cannot_read_another_mosques_records_by_uuid(): void

@@ -675,9 +675,13 @@ class QuranProgramsTest extends TestCase
 
     public function test_super_admin_inside_a_mosque_can_create_meetings_and_program_records(): void
     {
-        [$mosque] = $this->mosque();
+        // Create the tenant-less مدير الجوامع before a mosque context exists,
+        // otherwise the tenant trait binds it to the current mosque.
+        config(['app.current_tenant_id' => null]);
         $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => User::ROLE_SUPER_ADMIN]);
         app(RoleService::class)->assignRole($superAdmin, RoleService::ROLE_SUPER_ADMIN);
+
+        [$mosque] = $this->mosque();
 
         [, $teacher] = $this->makeTeacher($mosque->id);
         $students = collect(range(1, 3))->map(fn () => $this->makeStudent($mosque->id));
@@ -741,6 +745,23 @@ class QuranProgramsTest extends TestCase
             'result' => 'passed',
             'evaluated_by' => $teacher->id,
         ])->assertRedirect()->assertSessionHasNoErrors();
+
+        // Quran completion recorded + confirmed while inside the mosque.
+        $completionStudent = $this->makeStudent($mosque->id);
+
+        $this->post(route('admin.quran.completions.store'), [
+            'student_id' => $completionStudent->id,
+            'completed_at' => now()->toDateString(),
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $completion = QuranCompletion::where('student_id', $completionStudent->id)->firstOrFail();
+
+        $this->post(route('admin.quran.completions.confirm', $completion))
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('quran_completions', ['id' => $completion->id, 'status' => 'confirmed']);
+        $this->assertDatabaseHas('hafiz_profiles', ['student_id' => $completionStudent->id]);
 
         $this->assertDatabaseHas('quran_recitation_sessions', ['student_id' => $students[0]->id]);
         $this->assertDatabaseHas('qualifying_weekly_evaluations', ['student_id' => $hafiz->id]);
@@ -879,7 +900,11 @@ class QuranProgramsTest extends TestCase
             ->assertOk()
             ->assertSee('البرنامج التأهيلي');
 
-        $this->actingAs($admin)->get(route('admin.quran.hafiz.index'))->assertOk()->assertSee($hafiz->name);
+        $this->actingAs($admin)->get(route('admin.quran.hafiz.index'))
+            ->assertRedirect(route('admin.quran.completions.index', ['status' => 'confirmed']));
+        $this->actingAs($admin)->get(route('admin.quran.completions.index', ['status' => 'confirmed']))
+            ->assertOk()
+            ->assertSee($hafiz->name);
         $this->actingAs($admin)->get(route('admin.quran.index'))->assertOk();
     }
 
@@ -901,7 +926,7 @@ class QuranProgramsTest extends TestCase
         foreach ([
             'admin.quran.index', 'admin.quran.batches.index', 'admin.quran.tasmee.create',
             'admin.quran.completions.index', 'admin.quran.completions.create',
-            'admin.quran.hafiz.index', 'admin.quran.qualifying.index', 'admin.quran.ijazah.index',
+            'admin.quran.qualifying.index', 'admin.quran.ijazah.index',
             'admin.quran.exams.index', 'admin.faith-meetings.index', 'admin.faith-meetings.create',
             'admin.faith-meetings.templates',
         ] as $route) {

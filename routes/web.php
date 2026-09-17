@@ -227,7 +227,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('quran/tasmee/{session}/edit', [Admin\QuranTasmeeController::class, 'edit'])->name('quran.tasmee.edit')->middleware('permission:quran.tasmee.update');
     Route::patch('quran/tasmee/{session}', [Admin\QuranTasmeeController::class, 'update'])->name('quran.tasmee.update')->middleware('permission:quran.tasmee.update');
 
-    Route::get('quran/completions', [Admin\QuranCompletionController::class, 'index'])->name('quran.completions.index')->middleware('permission:quran.completion.view');
+    // صفحة موحّدة: إتمام الحفظ + الحفاظ (دُمجت صفحة الحفاظ المستقلة هنا).
+    Route::get('quran/completions', [Admin\QuranCompletionController::class, 'index'])->name('quran.completions.index')->middleware('permission:quran.completion.view,hafiz_profile.view');
     Route::get('quran/completions/create', [Admin\QuranCompletionController::class, 'create'])->name('quran.completions.create')->middleware('permission:quran.completion.view');
     Route::post('quran/completions', [Admin\QuranCompletionController::class, 'store'])->name('quran.completions.store')->middleware('permission:quran.completion.view');
     Route::post('quran/completions/{completion}/confirm', [Admin\QuranCompletionController::class, 'confirm'])->name('quran.completions.confirm')->middleware('permission:quran.completion.confirm');

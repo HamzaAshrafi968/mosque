@@ -11,7 +11,6 @@
         </div>
         <div class="flex gap-2">
             <a href="{{ route('admin.quran.qualifying.evaluations.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تقييم أسبوعي</a>
-            <a href="{{ route('admin.quran.hafiz.index') }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">الحفاظ</a>
         </div>
     </div>
 

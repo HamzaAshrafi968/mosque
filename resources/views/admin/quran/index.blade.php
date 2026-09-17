@@ -17,7 +17,7 @@
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <a href="{{ route('admin.quran.hafiz.index') }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+        <a href="{{ route('admin.quran.completions.index', ['status' => 'confirmed']) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
             <div class="text-3xl font-extrabold text-emerald-700">{{ $stats['hafiz'] }}</div>
             <div class="text-xs text-gray-500 mt-1 font-bold">عدد الحفاظ</div>
         </a>
