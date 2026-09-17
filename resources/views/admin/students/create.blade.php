@@ -58,27 +58,10 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">أولياء الأمور (اختياري)</label>
-            @if($guardians->isEmpty())
-                <p class="text-sm text-gray-400 border border-dashed border-gray-200 rounded-lg px-3 py-2">
-                    لا يوجد أولياء أمور مسجّلون بعد — أضفهم من صفحة
-                    <a href="{{ route('admin.parents.index') }}" class="text-emerald-700 hover:underline">أولياء الأمور</a>.
-                </p>
-            @else
-                <div class="max-h-52 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
-                    @foreach($guardians as $guardian)
-                        <label class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-emerald-50/40">
-                            <input type="checkbox" name="guardian_ids[]" value="{{ $guardian->id }}" @checked(in_array($guardian->id, old('guardian_ids', [])))
-                                   class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
-                            <span class="text-sm font-medium text-gray-800">{{ $guardian->name }}</span>
-                            @if($guardian->phone)
-                                <span class="ms-auto text-xs text-gray-400" dir="ltr">{{ $guardian->phone }}</span>
-                            @endif
-                        </label>
-                    @endforeach
-                </div>
-                <p class="text-xs text-gray-400 mt-1">يمكنك اختيار أكثر من ولي أمر. تُدار القائمة من صفحة
-                    <a href="{{ route('admin.parents.index') }}" class="text-emerald-700 hover:underline">أولياء الأمور</a>.</p>
-            @endif
+            <x-guardian-picker
+                :selected="$selectedGuardians"
+                :search-url="route('admin.parents.search')"
+                :quick-store-url="$canCreateGuardian ? route('admin.parents.quick-store') : null" />
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>

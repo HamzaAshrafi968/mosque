@@ -10,6 +10,7 @@ use App\Models\ParentStudent;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\AuditLogger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,12 +44,65 @@ class ParentController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         return view('admin.parents.form', [
             'guardian' => null,
-            'students' => $this->studentsForPicker(),
+            'linkedStudents' => $this->linkedStudents($request, null),
         ]);
+    }
+
+    /** AJAX guardian lookup for the student form picker. */
+    public function search(Request $request): JsonResponse
+    {
+        $term = trim((string) $request->query('q', ''));
+        $exclude = array_values(array_filter((array) $request->query('exclude', []), 'is_string'));
+
+        if ($term === '') {
+            return response()->json(['results' => []]);
+        }
+
+        $guardians = Guardian::query()
+            ->active()
+            ->search($term)
+            ->when($exclude !== [], fn ($query) => $query->whereNotIn('id', $exclude))
+            ->orderBy('name')
+            ->limit(15)
+            ->get(['id', 'name', 'phone']);
+
+        return response()->json([
+            'results' => $guardians->map(fn (Guardian $guardian) => [
+                'id' => $guardian->id,
+                'name' => $guardian->name,
+                'meta' => $guardian->phone,
+            ])->all(),
+        ]);
+    }
+
+    /** Inline guardian creation from the student form ("إضافة ولي أمر جديد"). */
+    public function quickStore(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        $guardian = Guardian::create([
+            'tenant_id' => config('app.current_tenant_id'),
+            'name' => $data['name'],
+            'phone' => $data['phone'] ?? null,
+            'status' => 'active',
+        ]);
+
+        $this->audit->logModel('guardian.created', $guardian, actor: $request->user());
+
+        return response()->json([
+            'result' => [
+                'id' => $guardian->id,
+                'name' => $guardian->name,
+                'meta' => $guardian->phone,
+            ],
+        ], 201);
     }
 
     public function store(Request $request): RedirectResponse
@@ -69,13 +123,13 @@ class ParentController extends Controller
         return redirect()->route('admin.parents.edit', $guardian)->with('success', 'تمت إضافة ولي الأمر وربطه بالطلاب');
     }
 
-    public function edit(Guardian $guardian): View
+    public function edit(Request $request, Guardian $guardian): View
     {
         $guardian->load(['students:id,name,classroom_id', 'students.classroom:id,name']);
 
         return view('admin.parents.form', [
             'guardian' => $guardian,
-            'students' => $this->studentsForPicker(),
+            'linkedStudents' => $this->linkedStudents($request, $guardian),
         ]);
     }
 
@@ -99,7 +153,7 @@ class ParentController extends Controller
                     $guardian->user()->update(['photo' => $photo['photo']]);
                 }
 
-                $this->syncAccount($guardian, $data, $request, $photo);
+                $this->syncAccount($guardian, $data, $photo, $request);
                 $this->syncLinks($guardian, $data['student_ids'] ?? [], $data['relationships'] ?? []);
                 $this->audit->logModel('guardian.updated', $guardian, $before, actor: $request->user());
             });
@@ -140,7 +194,7 @@ class ParentController extends Controller
             ...$photo,
         ]);
 
-        $this->syncAccount($guardian, $data, $request, $photo);
+        $this->syncAccount($guardian, $data, $photo, $request);
         $this->syncLinks($guardian, $data['student_ids'] ?? [], $data['relationships'] ?? []);
 
         return $guardian;
@@ -231,13 +285,26 @@ class ParentController extends Controller
         }
     }
 
-    private function studentsForPicker()
+    /**
+     * Students shown in the link table: the current links, or the submitted
+     * selection when a validation error sent the form back.
+     */
+    private function linkedStudents(Request $request, ?Guardian $guardian)
     {
-        return Student::query()
-            ->active()
-            ->with('classroom:id,name')
-            ->orderBy('name')
-            ->get(['id', 'name', 'classroom_id']);
+        $oldIds = $request->old('student_ids');
+
+        if (is_array($oldIds)) {
+            $ids = array_values(array_filter($oldIds, 'is_string'));
+
+            return Student::query()
+                ->whereIn('id', $ids)
+                ->with('classroom:id,name')
+                ->get(['id', 'name', 'classroom_id'])
+                ->sortBy(fn (Student $student) => array_search($student->id, $ids, true))
+                ->values();
+        }
+
+        return $guardian ? $guardian->students : collect();
     }
 
     private function validated(Request $request): array

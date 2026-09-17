@@ -31,6 +31,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('dashboard', [Admin\DashboardController::class, 'index'])->name('dashboard');
 
     Route::patch('students/{student}/archive', [Admin\StudentController::class, 'archive'])->name('students.archive')->middleware('permission:students.archive');
+    Route::get('students/search', [Admin\StudentController::class, 'search'])->name('students.search')->middleware('permission:students.view,students.create,students.update,parents.view,parents.update');
     Route::resource('students', Admin\StudentController::class)
         ->middlewareFor(['index', 'create', 'show', 'edit'], 'permission:students.view')
         ->middlewareFor('store', 'permission:students.create')
@@ -38,7 +39,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
         ->middlewareFor('destroy', 'permission:students.delete');
     Route::post('students/{student}/transfer', [Admin\StudentController::class, 'transfer'])->name('students.transfer')->middleware('permission:students.transfer');
 
+    Route::get('parents/search', [Admin\ParentController::class, 'search'])->name('parents.search')->middleware('permission:parents.view,students.create,students.update');
+    Route::post('parents/quick', [Admin\ParentController::class, 'quickStore'])->name('parents.quick-store')->middleware('permission:parents.create');
+
     Route::resource('parents', Admin\ParentController::class)->except(['show'])
+        ->parameters(['parents' => 'guardian'])
         ->middlewareFor(['index', 'create', 'edit'], 'permission:parents.view')
         ->middlewareFor('store', 'permission:parents.create')
         ->middlewareFor('update', 'permission:parents.update')

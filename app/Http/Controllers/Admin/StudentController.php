@@ -61,13 +61,42 @@ class StudentController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         return view('admin.students.create', [
             'classrooms' => $this->classroomsTree(),
             'customFields' => $this->customFields->definitions(Student::CUSTOM_FIELD_ENTITY),
             'sessions' => StudySession::orderBy('name')->get(),
-            'guardians' => $this->guardiansForPicker(),
+            'selectedGuardians' => $this->guardiansForSelection($request, null),
+            'canCreateGuardian' => $this->authorization->can($request->user(), 'parents.create'),
+        ]);
+    }
+
+    /** AJAX student lookup for the guardian form "إضافة ابن" picker. */
+    public function search(Request $request): JsonResponse
+    {
+        $term = trim((string) $request->query('q', ''));
+        $exclude = array_values(array_filter((array) $request->query('exclude', []), 'is_string'));
+
+        if ($term === '') {
+            return response()->json(['results' => []]);
+        }
+
+        $students = Student::query()
+            ->active()
+            ->with('classroom:id,name')
+            ->where('name', 'like', '%'.$term.'%')
+            ->when($exclude !== [], fn ($query) => $query->whereNotIn('id', $exclude))
+            ->orderBy('name')
+            ->limit(15)
+            ->get(['id', 'name', 'classroom_id']);
+
+        return response()->json([
+            'results' => $students->map(fn (Student $student) => [
+                'id' => $student->id,
+                'name' => $student->name,
+                'meta' => $student->classroom?->name,
+            ])->all(),
         ]);
     }
 
@@ -79,7 +108,7 @@ class StudentController extends Controller
 
         $data = $this->applyAvatar($data, $request);
 
-        $student = Student::create(collect($data)->except(['custom_fields', 'portal_email', 'portal_password', 'guardian_ids', 'memorized_juz_numbers', 'memorized_juz_numbers_present'])->all());
+        $student = Student::create(collect($data)->except(['custom_fields', 'portal_email', 'portal_password', 'guardian_ids', 'guardian_ids_present', 'memorized_juz_numbers', 'memorized_juz_numbers_present'])->all());
 
         DB::transaction(function () use ($student, $customFieldPayload) {
             $this->customFields->save(Student::CUSTOM_FIELD_ENTITY, $student->id, $customFieldPayload);
@@ -154,6 +183,8 @@ class StudentController extends Controller
             'sessions' => StudySession::orderBy('name')->get(),
             'surahs' => $this->surahs(),
             'memorizedJuz' => $this->khamsa->memorizedJuzNumbers($student),
+            'selectedGuardians' => $this->guardiansForSelection($request, $student),
+            'canCreateGuardian' => $this->authorization->can($request->user(), 'parents.create'),
         ]);
     }
 
@@ -167,7 +198,7 @@ class StudentController extends Controller
 
         $data = $this->applyAvatar($data, $request, $student->photo);
 
-        $student->update(collect($data)->except(['custom_fields', 'section_id', 'portal_email', 'portal_password', 'guardian_ids', 'memorized_juz_numbers', 'memorized_juz_numbers_present'])->all());
+        $student->update(collect($data)->except(['custom_fields', 'section_id', 'portal_email', 'portal_password', 'guardian_ids', 'guardian_ids_present', 'memorized_juz_numbers', 'memorized_juz_numbers_present'])->all());
 
         if ($student->user_id && array_key_exists('photo', $data)) {
             $student->user()->update(['photo' => $data['photo']]);
@@ -181,6 +212,10 @@ class StudentController extends Controller
             $this->syncPortalAccount($student, $data, $request);
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
+        }
+
+        if ($request->boolean('guardian_ids_present')) {
+            $this->syncGuardians($student, $data['guardian_ids'] ?? []);
         }
 
         if ($data['section_id'] ?? null) {
@@ -256,31 +291,53 @@ class StudentController extends Controller
         return QuranSurah::orderBy('sort_order')->get(['id', 'name_arabic', 'num_ayahs']);
     }
 
-    private function guardiansForPicker()
+    /**
+     * Guardians shown as selected chips: the student's current links, or the
+     * submitted selection when a validation error sent the form back.
+     */
+    private function guardiansForSelection(Request $request, ?Student $student)
     {
-        return Guardian::query()
-            ->active()
-            ->orderBy('name')
-            ->get(['id', 'name', 'phone']);
-    }
+        $oldIds = $request->old('guardian_ids');
 
-    /** Link the new student to the selected existing guardians (optional, create-only). */
-    private function syncGuardians(Student $student, array $guardianIds): void
-    {
-        if ($guardianIds === []) {
-            return;
+        if (is_array($oldIds)) {
+            $ids = array_values(array_filter($oldIds, 'is_string'));
+
+            return Guardian::query()
+                ->whereIn('id', $ids)
+                ->get(['id', 'name', 'phone'])
+                ->sortBy(fn (Guardian $guardian) => array_search($guardian->id, $ids, true))
+                ->values();
         }
 
+        return $student ? $student->guardians : collect();
+    }
+
+    /** Reconcile the student's guardian links with the submitted selection. */
+    private function syncGuardians(Student $student, array $guardianIds): void
+    {
         $validIds = Guardian::query()->whereIn('id', $guardianIds)->pluck('id')->all();
-        $primary = true;
+        $selected = array_values(array_intersect($guardianIds, $validIds));
 
-        foreach (array_intersect($guardianIds, $validIds) as $guardianId) {
-            ParentStudent::updateOrCreate(
-                ['tenant_id' => $student->tenant_id, 'parent_id' => $guardianId, 'student_id' => $student->id],
-                ['relationship' => ParentStudentRelationship::Guardian, 'is_primary' => $primary],
-            );
+        $links = $student->guardianLinks();
 
-            $primary = false;
+        if ($selected === []) {
+            $links->delete();
+        } else {
+            $links->whereNotIn('parent_id', $selected)->delete();
+        }
+
+        foreach ($selected as $index => $guardianId) {
+            $link = $student->guardianLinks()->firstOrNew(['parent_id' => $guardianId]);
+
+            if ($link->exists) {
+                continue;
+            }
+
+            $link->fill([
+                'tenant_id' => $student->tenant_id,
+                'relationship' => ParentStudentRelationship::Guardian,
+                'is_primary' => $index === 0,
+            ])->save();
         }
     }
 
@@ -299,6 +356,7 @@ class StudentController extends Controller
             'guardian_phone' => ['nullable', 'string', 'max:30'],
             'guardian_ids' => ['nullable', 'array'],
             'guardian_ids.*' => ['uuid', Rule::exists('parents', 'id')->where('tenant_id', $tenantId)],
+            'guardian_ids_present' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string'],
             'portal_email' => ['nullable', 'email', 'max:255'],
             'portal_password' => ['nullable', 'string', 'min:6', 'max:255'],

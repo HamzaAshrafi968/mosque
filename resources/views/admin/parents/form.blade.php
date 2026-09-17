@@ -58,48 +58,85 @@
         </div>
 
         <div class="bg-white rounded-2xl shadow p-6">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">ربط الأبناء</h2>
-            @php
-                $linked = old('student_ids', $guardian ? $guardian->students->pluck('id')->all() : []);
-                $relationships = old('relationships', []);
-            @endphp
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-gray-50 text-gray-500 text-right">
-                            <th class="px-3 py-2 font-medium">ربط</th>
-                            <th class="px-3 py-2 font-medium">الطالب</th>
-                            <th class="px-3 py-2 font-medium">الصف</th>
-                            <th class="px-3 py-2 font-medium">صلة القرابة</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($students->groupBy('classroom.name') as $className => $group)
-                            <tr class="bg-emerald-50/50">
-                                <td colspan="4" class="px-3 py-1.5 text-xs font-bold text-emerald-800">{{ $className }}</td>
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <h2 class="text-lg font-bold text-gray-800">الأبناء المرتبطون</h2>
+                <span class="text-xs text-gray-400">تظهر هنا أبناء ولي الأمر فقط — استخدم البحث لإضافة ابن.</span>
+            </div>
+
+            <div data-search-picker
+                 data-search-url="{{ route('admin.students.search') }}"
+                 data-empty-label="لا يوجد طالب مطابق"
+                 class="space-y-3">
+                <div class="relative max-w-md">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">إضافة ابن</label>
+                    <input type="text" data-picker-input autocomplete="off" placeholder="ابحث باسم الطالب..."
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <div data-picker-results
+                         class="hidden absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 text-gray-500 text-right">
+                                <th class="px-3 py-2 font-medium">الطالب</th>
+                                <th class="px-3 py-2 font-medium">الصف</th>
+                                <th class="px-3 py-2 font-medium">صلة القرابة</th>
+                                <th class="px-3 py-2 font-medium"></th>
                             </tr>
-                            @foreach($group as $student)
-                                @php $checked = in_array($student->id, $linked); @endphp
-                                <tr class="border-t border-gray-100">
+                        </thead>
+                        <tbody data-picker-selected>
+                            @foreach($linkedStudents as $student)
+                                @php
+                                    $relationship = old("relationships.{$student->id}", $student->pivot?->relationship ?? 'guardian');
+                                @endphp
+                                <tr data-id="{{ $student->id }}" class="border-t border-gray-100">
                                     <td class="px-3 py-2">
-                                        <input type="checkbox" name="student_ids[]" value="{{ $student->id }}" {{ $checked ? 'checked' : '' }}
-                                               class="student-check rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                                        <input type="hidden" name="student_ids[]" value="{{ $student->id }}">
+                                        <span class="text-gray-800 font-medium">{{ $student->name }}</span>
                                     </td>
-                                    <td class="px-3 py-2 text-gray-800">{{ $student->name }}</td>
-                                    <td class="px-3 py-2 text-gray-500">{{ $className }}</td>
+                                    <td class="px-3 py-2 text-gray-500">{{ $student->classroom?->name ?? '—' }}</td>
                                     <td class="px-3 py-2">
-                                        <select name="relationships[{{ $student->id }}]" class="relationship-select border border-gray-300 rounded-lg px-2 py-1 text-xs {{ $checked ? '' : 'opacity-40' }}" {{ $checked ? '' : 'disabled' }}>
-                                            <option value="father" @selected(($relationships[$student->id] ?? '') === 'father')>أب</option>
-                                            <option value="mother" @selected(($relationships[$student->id] ?? '') === 'mother')>أم</option>
-                                            <option value="guardian" @selected(($relationships[$student->id] ?? '') === 'guardian' || ! isset($relationships[$student->id]))>ولي أمر</option>
-                                            <option value="other" @selected(($relationships[$student->id] ?? '') === 'other')>أخرى</option>
+                                        <select name="relationships[{{ $student->id }}]" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
+                                            <option value="father" @selected($relationship === 'father')>أب</option>
+                                            <option value="mother" @selected($relationship === 'mother')>أم</option>
+                                            <option value="guardian" @selected($relationship === 'guardian')>ولي أمر</option>
+                                            <option value="other" @selected($relationship === 'other')>أخرى</option>
                                         </select>
+                                    </td>
+                                    <td class="px-3 py-2 text-left">
+                                        <button type="button" data-picker-remove class="text-xs font-bold text-red-600 hover:text-red-800">إزالة</button>
                                     </td>
                                 </tr>
                             @endforeach
-                        @endforeach
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+
+                    <p data-picker-empty @class(['text-sm text-gray-400 text-center py-6', 'hidden' => $linkedStudents->isNotEmpty()])>
+                        لا يوجد أبناء مرتبطون بعد — ابحث باسم الطالب في الأعلى لإضافة ابن.
+                    </p>
+                </div>
+
+                <template data-picker-template>
+                    <tr data-id="__ID__" class="border-t border-gray-100">
+                        <td class="px-3 py-2">
+                            <input type="hidden" name="student_ids[]" value="__ID__">
+                            <span class="text-gray-800 font-medium">__NAME__</span>
+                        </td>
+                        <td class="px-3 py-2 text-gray-500">__META__</td>
+                        <td class="px-3 py-2">
+                            <select name="relationships[__ID__]" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
+                                <option value="father">أب</option>
+                                <option value="mother">أم</option>
+                                <option value="guardian" selected>ولي أمر</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                        </td>
+                        <td class="px-3 py-2 text-left">
+                            <button type="button" data-picker-remove class="text-xs font-bold text-red-600 hover:text-red-800">إزالة</button>
+                        </td>
+                    </tr>
+                </template>
             </div>
         </div>
 
@@ -112,18 +149,3 @@
     </form>
 </div>
 @endsection
-
-@push('scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('.student-check').forEach(function (checkbox) {
-            checkbox.addEventListener('change', function () {
-                var row = checkbox.closest('tr');
-                var select = row.querySelector('.relationship-select');
-                select.disabled = !checkbox.checked;
-                select.classList.toggle('opacity-40', !checkbox.checked);
-            });
-        });
-    });
-</script>
-@endpush

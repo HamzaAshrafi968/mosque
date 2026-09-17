@@ -58,14 +58,11 @@
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">اسم ولي الأمر</label>
-            <input type="text" name="guardian_name" value="{{ old('guardian_name', $student->guardian_name) }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">هاتف ولي الأمر</label>
-            <input type="text" name="guardian_phone" value="{{ old('guardian_phone', $student->guardian_phone) }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <label class="block text-sm font-medium text-gray-700 mb-1">أولياء الأمور (اختياري)</label>
+            <x-guardian-picker
+                :selected="$selectedGuardians"
+                :search-url="route('admin.parents.search')"
+                :quick-store-url="$canCreateGuardian ? route('admin.parents.quick-store') : null" />
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
