@@ -197,6 +197,63 @@
 }
 
 /* ============================================================
+   القائمة الجانبية: مجموعات منسدلة + وضع الطيّ
+============================================================ */
+.nav-group-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-group[data-open] > .nav-group-panel { grid-template-rows: 1fr; }
+.nav-group-panel > div { overflow: hidden; }
+.nav-group:not([data-open]) > .nav-group-panel > div { visibility: hidden; transition: visibility 0s 0.35s; }
+.nav-group[data-open] > .nav-group-panel > div { visibility: visible; transition: visibility 0s 0s; }
+.nav-group[data-open] .sidebar-chevron { transform: rotate(180deg); }
+
+.icon-when-collapsed { display: none; }
+body.sidebar-collapsed .icon-when-collapsed { display: inline-flex; }
+body.sidebar-collapsed .icon-when-expanded { display: none; }
+
+@media (min-width: 1024px) {
+    #sidebar { transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1), transform 0.3s ease-out; }
+    body.sidebar-collapsed #sidebar { width: 5.25rem; }
+    body.sidebar-collapsed .sidebar-header { flex-direction: column; gap: 0.625rem; padding: 0.875rem 0.5rem; }
+    body.sidebar-collapsed .sidebar-brand { justify-content: center; }
+    body.sidebar-collapsed .sidebar-brand-text,
+    body.sidebar-collapsed .sidebar-label,
+    body.sidebar-collapsed .sidebar-chevron,
+    body.sidebar-collapsed .nav-group-panel,
+    body.sidebar-collapsed .sidebar-user-meta,
+    body.sidebar-collapsed .sidebar-logout-label { display: none; }
+    body.sidebar-collapsed .sidebar-user { justify-content: center; }
+    body.sidebar-collapsed .sidebar-footer { padding: 0.75rem 0.5rem; }
+    body.sidebar-collapsed #sidebar nav > a,
+    body.sidebar-collapsed #sidebar nav .nav-group-toggle { justify-content: center; padding-inline: 0.625rem; gap: 0; }
+    body.sidebar-collapsed .nav-badge {
+        position: absolute;
+        top: 0.3rem;
+        inset-inline-end: 0.45rem;
+        min-width: 1.05rem;
+        height: 1.05rem;
+        padding: 0 0.25rem;
+        font-size: 9px;
+    }
+    body.sidebar-collapsed .nav-link-active::after,
+    body.sidebar-collapsed .nav-group-active::after {
+        content: '';
+        position: absolute;
+        inset-inline-end: 3px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 18px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #f0e09a, #ddb53e);
+        box-shadow: 0 0 8px rgba(221, 181, 62, 0.55);
+    }
+}
+
+/* ============================================================
    الأزرار واللمسات
 ============================================================ */
 .btn-shine {

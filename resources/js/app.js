@@ -7,6 +7,8 @@ const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('sidebar-overlay');
 const toggleBtn = document.getElementById('sidebar-toggle');
 const closeBtn = document.getElementById('sidebar-close');
+const collapseBtn = document.getElementById('sidebar-collapse');
+const COLLAPSE_KEY = 'mosque:sidebar-collapsed';
 
 function isDesktop() {
     return window.innerWidth >= 1024;
@@ -40,6 +42,7 @@ window.addEventListener('resize', () => {
         sidebar?.classList.remove('translate-x-0');
         overlay?.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
+        setSidebarCollapsed(readCollapsedPreference(), false);
     }
 });
 
@@ -50,6 +53,77 @@ sidebar?.addEventListener('click', (event) => {
         closeSidebar();
     }
 });
+
+/* --- طيّ القائمة الجانبية (سطح المكتب) --- */
+function readCollapsedPreference() {
+    try {
+        return localStorage.getItem(COLLAPSE_KEY) === '1';
+    } catch (error) {
+        return false;
+    }
+}
+
+function setSidebarCollapsed(collapsed, persist = true) {
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+
+    if (persist) {
+        try {
+            localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
+        } catch (error) {
+            /* تجاهل */
+        }
+    }
+
+    const label = collapsed ? 'توسيع القائمة' : 'طيّ القائمة';
+    collapseBtn?.setAttribute('title', label);
+    collapseBtn?.setAttribute('aria-label', label);
+
+    document.querySelectorAll('#sidebar [data-label]').forEach((el) => {
+        if (collapsed) el.setAttribute('title', el.dataset.label);
+        else el.removeAttribute('title');
+    });
+}
+
+function initSidebarCollapse() {
+    if (isDesktop() && readCollapsedPreference()) {
+        setSidebarCollapsed(true, false);
+    }
+
+    collapseBtn?.addEventListener('click', () => {
+        setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+    });
+}
+
+/* --- المجموعات المنسدلة داخل القائمة --- */
+function setGroupOpen(group, open) {
+    group.toggleAttribute('data-open', open);
+    group.querySelector('[data-nav-group-toggle]')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function initSidebarGroups() {
+    document.querySelectorAll('#sidebar [data-nav-group]').forEach((group) => {
+        const toggle = group.querySelector('[data-nav-group-toggle]');
+        if (!toggle) return;
+
+        toggle.addEventListener('click', () => {
+            if (document.body.classList.contains('sidebar-collapsed') && isDesktop()) {
+                setSidebarCollapsed(false);
+                setGroupOpen(group, true);
+                return;
+            }
+
+            const willOpen = !group.hasAttribute('data-open');
+
+            group.parentElement
+                ?.querySelectorAll(':scope > [data-nav-group][data-open]')
+                .forEach((sibling) => {
+                    if (sibling !== group) setGroupOpen(sibling, false);
+                });
+
+            setGroupOpen(group, willOpen);
+        });
+    });
+}
 
 /* ============================================================
    2) الكشف عن العناصر أثناء التمرير (Reveal)
@@ -515,22 +589,342 @@ function initVoiceRecorders() {
 }
 
 /* ============================================================
-   التشغيل عند الجاهزية
+   9) منتقي البحث (أولياء الأمور / الطلاب) + إضافة سريعة
 ============================================================ */
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        revealOnScroll();
-        initCounters();
-        initFlashToasts();
-        initPasswordToggles();
-        initPhotoPreviews();
-        initVoiceRecorders();
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function initSearchPickers() {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const DELAY_MS = 250;
+
+    document.querySelectorAll('[data-search-picker]').forEach((root) => {
+        const url = root.dataset.searchUrl;
+        const input = root.querySelector('[data-picker-input]');
+        const results = root.querySelector('[data-picker-results]');
+        const selected = root.querySelector('[data-picker-selected]');
+        const template = root.querySelector('template[data-picker-template]');
+        const emptyState = root.querySelector('[data-picker-empty]');
+        const emptyLabel = root.dataset.emptyLabel || 'لا توجد نتائج مطابقة';
+        const param = root.dataset.param || 'guardian_ids';
+
+        if (!url || !input || !results || !selected) return;
+
+        let timer = null;
+        let controller = null;
+
+        const selectedIds = () => Array.from(selected.querySelectorAll('[data-id]')).map((el) => el.dataset.id);
+
+        const syncEmptyState = () => {
+            if (!emptyState) return;
+            emptyState.classList.toggle('hidden', selected.querySelector('[data-id]') !== null);
+        };
+
+        const hideResults = () => {
+            results.classList.add('hidden');
+            results.innerHTML = '';
+        };
+
+        const showResultsMessage = (message) => {
+            results.innerHTML = '';
+            const item = document.createElement('div');
+            item.className = 'px-3 py-2 text-sm text-gray-400';
+            item.textContent = message;
+            results.appendChild(item);
+            results.classList.remove('hidden');
+        };
+
+        const buildChip = (item) => {
+            const chip = document.createElement('span');
+            chip.dataset.id = item.id;
+            chip.className = 'inline-flex items-center gap-2 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-full ps-3 pe-1.5 py-1 text-sm font-medium';
+
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = `${param}[]`;
+            hidden.value = item.id;
+            chip.appendChild(hidden);
+
+            const name = document.createElement('span');
+            name.textContent = item.name;
+            chip.appendChild(name);
+
+            if (item.meta) {
+                const meta = document.createElement('span');
+                meta.className = 'text-[11px] text-emerald-700/70';
+                meta.dir = 'ltr';
+                meta.textContent = item.meta;
+                chip.appendChild(meta);
+            }
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.dataset.pickerRemove = '';
+            remove.className = 'w-5 h-5 grid place-items-center rounded-full text-emerald-700 hover:bg-emerald-200/70 hover:text-red-700 transition';
+            remove.setAttribute('aria-label', 'إزالة');
+            remove.textContent = '×';
+            chip.appendChild(remove);
+
+            return chip;
+        };
+
+        const addItem = (item) => {
+            if (!item?.id || selectedIds().includes(String(item.id))) {
+                hideResults();
+                return;
+            }
+
+            if (template) {
+                selected.insertAdjacentHTML('beforeend', template.innerHTML
+                    .replaceAll('__ID__', escapeHtml(item.id))
+                    .replaceAll('__NAME__', escapeHtml(item.name))
+                    .replaceAll('__META__', escapeHtml(item.meta || '')));
+            } else {
+                selected.appendChild(buildChip(item));
+            }
+
+            input.value = '';
+            hideResults();
+            syncEmptyState();
+            input.focus();
+        };
+
+        const renderResults = (items) => {
+            results.innerHTML = '';
+
+            if (!items.length) {
+                showResultsMessage(emptyLabel);
+                return;
+            }
+
+            items.forEach((item) => {
+                const option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'w-full flex items-center gap-2 px-3 py-2 text-right text-sm hover:bg-emerald-50 transition';
+
+                const name = document.createElement('span');
+                name.className = 'font-medium text-gray-800';
+                name.textContent = item.name;
+                option.appendChild(name);
+
+                if (item.meta) {
+                    const meta = document.createElement('span');
+                    meta.className = 'ms-auto text-xs text-gray-400';
+                    meta.dir = 'ltr';
+                    meta.textContent = item.meta;
+                    option.appendChild(meta);
+                }
+
+                option.addEventListener('click', () => addItem(item));
+                results.appendChild(option);
+            });
+
+            results.classList.remove('hidden');
+        };
+
+        const runSearch = async () => {
+            const term = input.value.trim();
+
+            if (term === '') {
+                hideResults();
+                return;
+            }
+
+            controller?.abort();
+            controller = new AbortController();
+            showResultsMessage('جارٍ البحث...');
+
+            try {
+                const params = new URLSearchParams({ q: term });
+                selectedIds().forEach((id) => params.append('exclude[]', id));
+
+                const response = await fetch(`${url}?${params.toString()}`, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) {
+                    hideResults();
+                    return;
+                }
+
+                const payload = await response.json();
+                renderResults(payload.results ?? []);
+            } catch (error) {
+                if (error?.name !== 'AbortError') hideResults();
+            }
+        };
+
+        selected.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-picker-remove]');
+            if (!button) return;
+            button.closest('[data-id]')?.remove();
+            syncEmptyState();
+        });
+
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(runSearch, DELAY_MS);
+        });
+
+        input.addEventListener('focus', () => {
+            if (input.value.trim() !== '') runSearch();
+        });
+
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                hideResults();
+                input.blur();
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!root.contains(event.target)) hideResults();
+        });
+
+        const quickUrl = root.dataset.quickStoreUrl;
+        const quickForm = root.querySelector('[data-picker-quick-form]');
+        const quickName = root.querySelector('[data-picker-quick-name]');
+        const quickPhone = root.querySelector('[data-picker-quick-phone]');
+        const quickError = root.querySelector('[data-picker-quick-error]');
+
+        if (quickUrl && quickForm) {
+            const toggle = root.querySelector('[data-picker-quick-toggle]');
+            const cancel = root.querySelector('[data-picker-quick-cancel]');
+            const submit = root.querySelector('[data-picker-quick-submit]');
+
+            const showQuickError = (message) => {
+                if (!quickError) return;
+                quickError.textContent = message;
+                quickError.classList.toggle('hidden', !message);
+            };
+
+            const closeQuickForm = () => {
+                quickForm.classList.add('hidden');
+                if (quickName) quickName.value = '';
+                if (quickPhone) quickPhone.value = '';
+                showQuickError('');
+            };
+
+            toggle?.addEventListener('click', () => {
+                quickForm.classList.toggle('hidden');
+                if (!quickForm.classList.contains('hidden')) quickName?.focus();
+            });
+
+            cancel?.addEventListener('click', closeQuickForm);
+
+            submit?.addEventListener('click', async () => {
+                const name = quickName?.value.trim() ?? '';
+
+                if (name === '') {
+                    showQuickError('اكتب اسم ولي الأمر أولاً');
+                    return;
+                }
+
+                submit.disabled = true;
+                showQuickError('');
+
+                try {
+                    const response = await fetch(quickUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                        },
+                        body: JSON.stringify({ name, phone: quickPhone?.value.trim() || null }),
+                    });
+
+                    const payload = await response.json().catch(() => ({}));
+
+                    if (!response.ok) {
+                        showQuickError(payload?.errors?.name?.[0] || payload?.message || 'تعذّرت الإضافة، حاول مرة أخرى.');
+                        return;
+                    }
+
+                    addItem(payload.result);
+                    closeQuickForm();
+                } catch (error) {
+                    showQuickError('تعذّر الاتصال بالخادم، حاول مرة أخرى.');
+                } finally {
+                    submit.disabled = false;
+                }
+            });
+        }
+
+        syncEmptyState();
     });
-} else {
+}
+
+/* ============================================================
+   مؤقت الامتحان — عدّ تنازلي + تسليم تلقائي عند الصفر
+=========================================================== */
+function initExamTimers() {
+    document.querySelectorAll('[data-exam-timer]').forEach((element) => {
+        const form = document.querySelector(element.dataset.submitForm || '');
+        const raw = (element.dataset.remaining || '').trim();
+
+        if (!form || raw === '') {
+            element.textContent = 'بدون وقت';
+            return;
+        }
+
+        let remaining = parseInt(raw, 10);
+
+        if (Number.isNaN(remaining)) {
+            element.textContent = 'بدون وقت';
+            return;
+        }
+
+        const render = () => {
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            element.textContent = minutes + ':' + String(seconds).padStart(2, '0');
+            element.classList.toggle('text-red-600', remaining <= 60);
+        };
+
+        render();
+
+        const interval = setInterval(() => {
+            remaining -= 1;
+
+            if (remaining <= 0) {
+                clearInterval(interval);
+                element.textContent = '0:00';
+                form.submit();
+                return;
+            }
+
+            render();
+        }, 1000);
+    });
+}
+
+/* ============================================================
+   التشغيل عند الجاهزية
+=========================================================== */
+function initApp() {
+    initSidebarCollapse();
+    initSidebarGroups();
     revealOnScroll();
     initCounters();
     initFlashToasts();
     initPasswordToggles();
     initPhotoPreviews();
     initVoiceRecorders();
+    initSearchPickers();
+    initExamTimers();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
 }
