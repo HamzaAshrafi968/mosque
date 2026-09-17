@@ -2209,4 +2209,10 @@ Frontend
 5. **هجرات قاعدة البيانات** (حسب §53): أعمدة workflows للجداول والدرجات (status/status_by/status_at/rejection_reason)، room للجداول، exam status، homework status، students (student_number/phone/deleted_at)، teachers deleted_at، announcements (section_id)، `archived` في tenants.status، جداول الربط `classroom_teacher`/`section_teacher`، وجداول `notifications`/`audit_logs`/`custom_fields` وملحقاتها.
 6. **اختبارات الحالات**: بعد كل مرحلة يُضاف غطاء من §49 (Workflow Reject/Resubmit، Scope & Membership، Notifications، Export) في `tests/Feature/`.
 
+# 56. حالة التنفيذ — الجدول الدراسي والاختبارات الإلكترونية (2026-09-17)
+
+- **الجدول الدراسي**: `App\Services\ScheduleConflictService` يفحص كل كتابة (إضافة حصة/التوليد الأسبوعي/تسجيل الطلاب/نقل الصف بين الدوامات) ويمنع تداخل المعلم عبر كل الدوامات، وتعارض الشعبة/الصف، وتعارض جدول الطالب عند التسجيل؛ و`class_sessions` + `App\Services\SessionService` لإلغاء/تأجيل/استرجاع حصة **ليوم واحد** مع الإشعارات وسجل التدقيق؛ شبكة أسبوعية في `admin.schedules.index` وتنبيه تعارضات في جدول الأستاذ. **دورة اعتماد الجدول (§14) ما زالت غير منفذة.**
+- **الاختبارات الإلكترونية**: `ExamQuestion`/`ExamAttempt`/`ExamAnswer` + `App\Services\ExamService` (النشر بشرط سؤال واحد أو PDF ومطابقة مجموع العلامات، محاولة واحدة لكل طالب مع الاستئناف، الموعد النهائي من جهة السيرفر + 60 ثانية سماحية، تصحيح آلي بلا علامات سالبة، تصحيح يدوي للمقالي/الورقي، ومزامنة `Grade` بحالة `submitted` لتعمل دورة الاعتماد الحالية)؛ بوابة الطالب `/student/exams/{exam}/take` بمؤقت تنازلي وتسليم تلقائي وورقة نتيجة؛ منشئ الأسئلة الجماعي في `exams.show` (مشترك بين المدير والأستاذ) مع قفل التعديل بعد أول محاولة؛ صلاحية `exams.publish` (backfill `2026_09_17_000011`)؛ ونقاط API للإدارة/الأستاذ (النشر/الإغلاق/الأسئلة/النتائج/التصحيح اليدوي) — أداء الامتحان للطلاب عبر الويب فقط.
+- الاختبارات: `tests/Unit/ScheduleConflictServiceTest.php`، `tests/Feature/ScheduleConflictPreventionTest.php`، `tests/Feature/SessionScheduleTest.php`، `tests/Unit/ExamGradingTest.php`، `tests/Feature/ExamEngineTest.php`، `tests/Feature/StudentExamPortalTest.php`.
+
 ## End of Specification
