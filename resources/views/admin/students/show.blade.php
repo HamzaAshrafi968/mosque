@@ -5,7 +5,6 @@
 @section('content')
 @php
     $stats = $attendanceStats;
-    $balance = $finance['balance'] ?? 0;
 @endphp
 
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
@@ -88,6 +87,32 @@
         </div>
     </div>
 </div>
+
+@if($cycle !== [])
+    @include('quran.batches.cycle', [
+        'selectedStudent' => $student,
+        'indexRoute' => route('admin.quran.batches.index'),
+        'repeatUrl' => fn ($batch) => route('admin.quran.batches.repeat', $batch),
+        'batchTestUrl' => $currentBatch ? route('admin.quran.batches.test', $currentBatch) : null,
+        'placementTestUrl' => $currentBatch ? route('admin.quran.batches.placement-test', $currentBatch) : null,
+        'batchRetakeUrl' => $currentBatch ? route('admin.quran.batches.retake', $currentBatch) : null,
+        'journeyUrl' => fn ($student) => route('admin.quran.journey', $student),
+        'planUrl' => fn ($plan) => route('admin.quran.listening.show', $plan),
+        'khamsaUrl' => fn ($review) => route('admin.quran.khamsa.show', $review),
+        'reviewCompleteUrl' => fn ($item) => route('admin.quran.khamsa.items.complete', $item),
+        'reviewCancelUrl' => $review ? route('admin.quran.khamsa.cancel', $review) : null,
+        'retakeCancelUrl' => $retakeReview ? route('admin.quran.khamsa.cancel', $retakeReview) : null,
+        'memorizationStoreUrl' => route('admin.quran.khamsa.memorization.store'),
+        'memorizationDestroyUrl' => route('admin.quran.khamsa.memorization.destroy'),
+        'planListenUrl' => fn ($item) => route('admin.quran.listening.items.listen', $item),
+        'planAudioUrl' => fn ($item) => route('admin.quran.listening.items.audio', $item),
+        'planProgressUrl' => fn ($item) => route('admin.quran.listening.items.progress', $item),
+        'planTestUrl' => $plan ? route('admin.quran.listening.test', $plan) : null,
+        'planCancelUrl' => $plan ? route('admin.quran.listening.cancel', $plan) : null,
+        'sessionStartUrl' => fn ($student) => route('admin.quran.batches.session-start', ['student_id' => $student->id]),
+        'khamsaReviewUrl' => fn (\App\Models\QuranKhamsaReview $review) => route('admin.quran.khamsa.review', $review),
+    ])
+@endif
 
 @if($student->status === 'active')
     <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
@@ -201,58 +226,6 @@
         </div>
     </div>
 @endif
-
-<div class="bg-white rounded-xl shadow overflow-hidden mb-6">
-    <div class="px-4 py-3 bg-emerald-700 text-white font-bold flex justify-between items-center">
-        <span>💰 الملف المالي</span>
-        <a href="{{ route('admin.finance.show', ['personType' => 'student', 'person' => $student]) }}" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">عرض كامل</a>
-    </div>
-    <div class="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-        <div class="bg-gray-50 rounded-lg p-3">
-            <div class="text-xl font-bold text-gray-800">{{ number_format($finance['charges'], 2) }}</div>
-            <div class="text-xs text-gray-600">مستحقات</div>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-3">
-            <div class="text-xl font-bold text-emerald-700">{{ number_format($finance['payments'], 2) }}</div>
-            <div class="text-xs text-gray-600">مدفوعات</div>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-3">
-            <div class="text-xl font-bold text-sky-700">{{ number_format($finance['received'], 2) }}</div>
-            <div class="text-xs text-gray-600">تحويلات مستلمة</div>
-        </div>
-        <div @class(['rounded-lg p-3', $balance > 0 ? 'bg-red-50' : 'bg-emerald-50'])>
-            <div @class(['text-xl font-bold', $balance > 0 ? 'text-red-700' : 'text-emerald-700'])>
-                {{ number_format(abs($balance), 2) }}
-            </div>
-            <div class="text-xs text-gray-600">{{ $balance > 0 ? 'عليه (مطلوب)' : ($balance < 0 ? 'له (رصيد)' : 'رصيد صفري') }}</div>
-        </div>
-    </div>
-    @if($transactions->isNotEmpty())
-        <div class="border-t">
-            <table class="w-full text-sm">
-                <thead><tr class="bg-gray-50 text-gray-600 text-xs"><th class="px-4 py-2 text-right">التاريخ</th><th class="px-4 py-2 text-right">النوع</th><th class="px-4 py-2 text-right">البيان</th><th class="px-4 py-2 text-left">المبلغ</th></tr></thead>
-                <tbody>
-                    @foreach($transactions as $tx)
-                        @php $related = $tx->transaction_type === \App\Enums\FinancialTransactionType::Transfer ? $tx->relatedPerson : null; @endphp
-                        <tr>
-                            <td class="px-4 py-2 border-t whitespace-nowrap">{{ $tx->created_at->format('Y-m-d') }}</td>
-                            <td class="px-4 py-2 border-t whitespace-nowrap">{{ $tx->transaction_type->label() }} <span class="text-xs text-gray-400">({{ $tx->direction === \App\Enums\FinancialDirection::MoneyIn ? 'وارد' : 'صادر' }})</span></td>
-                            <td class="px-4 py-2 border-t text-gray-600 text-xs">
-                                {{ $tx->description ?? '—' }}
-                                @if($related)
-                                    ← {{ $tx->direction === \App\Enums\FinancialDirection::MoneyOut ? 'إلى: ' : 'من: ' }}{{ $related->name }}
-                                @endif
-                            </td>
-                            <td @class(['px-4 py-2 border-t font-bold text-left whitespace-nowrap', $tx->direction === \App\Enums\FinancialDirection::MoneyIn ? 'text-emerald-700' : 'text-red-700']) dir="ltr">
-                                {{ $tx->direction === \App\Enums\FinancialDirection::MoneyIn ? '+' : '-' }}{{ number_format((float) $tx->amount, 2) }}
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    @endif
-</div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="px-4 py-3 bg-amber-600 text-white font-bold flex items-center gap-2">

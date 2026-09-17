@@ -7,7 +7,7 @@ use App\Http\Controllers\Concerns\HandlesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
 use App\Models\Guardian;
-use App\Models\ParentStudent;
+use App\Models\QuranReviewSession;
 use App\Models\QuranSurah;
 use App\Models\Section;
 use App\Models\Student;
@@ -15,11 +15,13 @@ use App\Models\StudySession;
 use App\Models\User;
 use App\Services\AttendanceMetricService;
 use App\Services\AuditLogger;
+use App\Services\AuthorizationService;
 use App\Services\CustomFieldService;
 use App\Services\EnrollmentService;
-use App\Services\FinanceService;
+use App\Services\QuranBatchPanelService;
 use App\Services\QuranKhamsaService;
 use App\Support\QuranMemorizationRules;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,9 +37,10 @@ class StudentController extends Controller
         private readonly CustomFieldService $customFields,
         private readonly EnrollmentService $enrollment,
         private readonly AttendanceMetricService $attendanceMetrics,
-        private readonly FinanceService $finance,
+        private readonly AuthorizationService $authorization,
         private readonly AuditLogger $audit,
         private readonly QuranKhamsaService $khamsa,
+        private readonly QuranBatchPanelService $batchPanel,
     ) {}
 
     public function index(Request $request): View
@@ -102,7 +105,7 @@ class StudentController extends Controller
         return redirect()->route('admin.students.index')->with('success', 'تمت إضافة الطالب بنجاح');
     }
 
-    public function show(Student $student): View
+    public function show(Request $request, Student $student): View
     {
         $student->load([
             'classroom:id,name',
@@ -115,8 +118,17 @@ class StudentController extends Controller
             'enrollments.section.classroom:id,name',
         ]);
 
-        return view('admin.students.show', [
+        $cycle = $this->authorization->can($request->user(), 'quran_batch.view')
+            ? $this->batchPanel->forStudent(
+                $student,
+                $request->user(),
+                reviewShowUrl: fn (QuranReviewSession $session) => route('admin.quran-review.show', $session->id),
+            )
+            : [];
+
+        return view('admin.students.show', array_merge($cycle, [
             'student' => $student,
+            'cycle' => $cycle,
             'attendanceStats' => $this->attendanceMetrics->statsForStudent($student->id),
             'customValues' => $this->customFields->displayedValues(Student::CUSTOM_FIELD_ENTITY, $student->id),
             'enrollmentHistory' => $student->enrollments()->with('section.classroom:id,name')->orderByDesc('created_at')->get(),
@@ -126,18 +138,13 @@ class StudentController extends Controller
                 ->orderBy('name')
                 ->get()
                 ->reject(fn (Section $s) => $s->id === $student->section_id),
-            'finance' => $this->finance->summary('student', $student->id),
-            'transactions' => $student->financialTransactions()
-                ->with(['creator:id,name', 'relatedPerson'])
-                ->latest()
-                ->take(10)
-                ->get(),
-        ]);
+        ]));
     }
 
-    public function edit(Student $student): View
+    public function edit(Request $request, Student $student): View
     {
         $values = $this->customFields->valuesFor(Student::CUSTOM_FIELD_ENTITY, $student->id);
+        $student->loadMissing('guardians:id,name,phone');
 
         return view('admin.students.edit', [
             'student' => $student,

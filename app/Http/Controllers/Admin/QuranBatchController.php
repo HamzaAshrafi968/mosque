@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\QuranListeningItemStatus;
 use App\Enums\QuranListeningTestResult;
 use App\Enums\QuranMemorizationBatchStatus;
 use App\Enums\QuranTasmeeResult;
@@ -12,13 +11,12 @@ use App\Models\QuranMemorizationBatch;
 use App\Models\QuranReviewSession;
 use App\Models\Student;
 use App\Services\QuranAudioService;
+use App\Services\QuranBatchPanelService;
 use App\Services\QuranMemorizationGatingService;
 use App\Services\QuranSettingsService;
 use App\Services\QuranTeacherSessionService;
-use App\Services\QuranTeacherTimelineService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -33,7 +31,7 @@ class QuranBatchController extends Controller
         private readonly QuranMemorizationGatingService $gating,
         private readonly QuranSettingsService $settings,
         private readonly QuranAudioService $audio,
-        private readonly QuranTeacherTimelineService $timeline,
+        private readonly QuranBatchPanelService $panel,
         private readonly QuranTeacherSessionService $sessions,
     ) {}
 
@@ -55,111 +53,24 @@ class QuranBatchController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $states = collect();
-        $currentBatch = null;
-        $plan = null;
-        $review = null;
-        $retakeReview = null;
-        $failedJuz = [];
-        $testScopeJuz = [];
-        $listeningItems = collect();
-        $memorizedJuz = [];
-        $listeningSessions = collect();
-        $timelineItems = collect();
-        $memorizationProgress = null;
-
-        if ($selected) {
-            $states = $this->gating->sync($selected, $request->user());
-            $currentBatch = $this->currentBatchFromStates($states);
-            $memorizedJuz = $this->gating->memorizedJuzNumbers($selected);
-
-            $timelineItems = $this->timeline->forStudent(
-                student: $selected,
-                filter: QuranTeacherTimelineService::FILTER_LISTENING,
+        $cycle = $selected
+            ? $this->panel->forStudent(
+                $selected,
+                $request->user(),
                 reviewShowUrl: fn (QuranReviewSession $session) => route('admin.quran-review.show', $session->id),
-            );
+            )
+            : QuranBatchPanelService::empty();
 
-            if ($currentBatch) {
-                $currentBatch->load(['plan', 'review5', 'retakeReview5', 'lastTest']);
-                $plan = $currentBatch->plan;
-                $review = $currentBatch->review5;
-                $retakeReview = $currentBatch->retakeReview5;
-                $failedJuz = $this->gating->failedJuzNumbers($currentBatch);
-                $testScopeJuz = $this->gating->testScopeJuzNumbers($currentBatch);
-                $memorizationProgress = $this->gating->batchMemorizationProgress($currentBatch);
-
-                if ($plan) {
-                    $plan->load([
-                        'student:id,name',
-                        'teacher:id,name',
-                        'studySession:id,name',
-                        'createdBy:id,name',
-                        'khamsaReview:id,student_id,status',
-                        'items',
-                        'items.passedBy:id,name',
-                        'items.khamsaReviewItem',
-                        'items.listeningSession:id,date,from_page,to_page',
-                        'tests.items',
-                        'tests.examiner:id,name',
-                    ]);
-
-                    $listeningItems = $plan->items->where('status', QuranListeningItemStatus::Listened);
-                }
-
-                if ($review) {
-                    $review->load([
-                        'student:id,name',
-                        'teacher:id,name',
-                        'studySession:id,name',
-                        'assignedBy:id,name',
-                        'items' => fn ($query) => $query->orderBy('juz')->orderBy('khamsa'),
-                        'items.completedBy:id,name',
-                        'items.quranReviewSession:id,date,from_page,to_page,mastery_percentage',
-                    ]);
-                }
-
-                if ($retakeReview) {
-                    $retakeReview->load([
-                        'student:id,name',
-                        'teacher:id,name',
-                        'studySession:id,name',
-                        'assignedBy:id,name',
-                        'items' => fn ($query) => $query->orderBy('juz')->orderBy('khamsa'),
-                        'items.completedBy:id,name',
-                        'items.quranReviewSession:id,date,from_page,to_page,mastery_percentage',
-                    ]);
-                }
-
-                $listeningSessions = QuranReviewSession::query()
-                    ->where('student_id', $selected->id)
-                    ->orderByDesc('date')
-                    ->limit(10)
-                    ->get(['id', 'date', 'from_page', 'to_page', 'mastery_percentage']);
-            }
-        }
-
-        return view('admin.quran.batches.index', [
+        return view('admin.quran.batches.index', array_merge($cycle, [
             'batches' => $batches,
             'selectedStudent' => $selected,
-            'states' => $states,
-            'currentBatch' => $currentBatch,
-            'plan' => $plan,
-            'review' => $review,
-            'retakeReview' => $retakeReview,
-            'failedJuz' => $failedJuz,
-            'testScopeJuz' => $testScopeJuz,
-            'listeningItems' => $listeningItems,
-            'memorizedJuz' => $memorizedJuz,
-            'listeningSessions' => $listeningSessions,
-            'timeline' => $timelineItems,
-            'memorizationProgress' => $memorizationProgress,
             'reciters' => $this->audio->reciters(),
             'khamsaReviewRoute' => fn (QuranKhamsaReview $review) => route('admin.quran.khamsa.review', $review),
             'tasmeeResults' => QuranTasmeeResult::cases(),
             'students' => Student::query()->active()->orderBy('name')->get(['id', 'name']),
             'statuses' => QuranMemorizationBatchStatus::cases(),
             'minimumPassingPercentage' => $this->settings->minimumPassingPercentage(),
-        ]);
+        ]));
     }
 
     /** بوابة «التسميع مع المعلم» الموحدة: اختيار نوع الجلسة قبل فتح الـWorkflow المناسب. */
@@ -212,6 +123,36 @@ class QuranBatchController extends Controller
         return back()->with('success', 'نتيجة الاختبار التراكمي: '.$score.'% — رسب في الأجزاء: '.$failed.' — تم إنشاء خمسات إعادة للأجزاء الراسبة.');
     }
 
+    /** الاختبار المباشر للأجزاء المحفوظة مسبقاً (بدون اشتراط إنهاء مراجعة 5). */
+    public function placementTest(Request $request, QuranMemorizationBatch $batch): RedirectResponse
+    {
+        $data = $request->validate([
+            'results' => ['required', 'array', 'min:1'],
+            'results.*' => ['required', Rule::enum(QuranListeningTestResult::class)],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $test = $this->gating->recordPlacementTest($batch, $data['results'], $request->user(), $data['notes'] ?? null);
+
+        $score = $this->formatPercent((float) $test->score);
+
+        if ($test->isPass()) {
+            return back()->with('success', 'ما شاء الله — نجاح في الاختبار المباشر بنسبة '.$score.'%. تم تثبيت الأجزاء المحفوظة وفتح الدفعة التالية إن وُجدت.');
+        }
+
+        $failed = $test->items()
+            ->where('result', QuranListeningTestResult::Fail)
+            ->orderBy('juz')
+            ->pluck('juz')
+            ->implode('، ');
+
+        $retakeCreated = $batch->refresh()->retake_review_id !== null;
+
+        return back()->with('success', $retakeCreated
+            ? 'نتيجة الاختبار المباشر: '.$score.'% — رسب في الأجزاء: '.$failed.' — أُنشئت خمسات إعادة للأجزاء الراسبة.'
+            : 'نتيجة الاختبار المباشر: '.$score.'% — رسب في الأجزاء: '.$failed.' — تعذّر إنشاء خمسات الإعادة تلقائياً؛ تأكد من دوام الطالب ووجود أستاذ نشط فيه ثم استخدم أزرار الإعادة.');
+    }
+
     /** خيارا ما بعد الرسوب: خمسات إعادة للأجزاء الراسبة فقط أو إعادة كامل النطاق. */
     public function retake(Request $request, QuranMemorizationBatch $batch): RedirectResponse
     {
@@ -227,7 +168,11 @@ class QuranBatchController extends Controller
             return back()->with('success', 'لا توجد أجزاء راسبة — لا حاجة لخمسات إعادة.');
         }
 
-        $this->gating->createRetakeReview($batch, $juz, $request->user());
+        $review = $this->gating->createRetakeReview($batch, $juz, $request->user());
+
+        if (! $review) {
+            return back()->with('success', 'تعذّر إنشاء خمسات الإعادة — تأكد من وجود دوام للطالب وأستاذ نشط فيه.');
+        }
 
         return back()->with('success', $data['mode'] === 'full'
             ? 'تم تخصيص خمسات إعادة للأجزاء كاملة (1–'.$batch->to_juz.')'
@@ -237,18 +182,5 @@ class QuranBatchController extends Controller
     private function formatPercent(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
-    }
-
-    /** @param Collection<int, array{batch_number: int, status: QuranMemorizationBatchStatus, batch: ?QuranMemorizationBatch}> $states */
-    private function currentBatchFromStates(Collection $states): ?QuranMemorizationBatch
-    {
-        foreach ($states as $state) {
-            if ($state['status'] !== QuranMemorizationBatchStatus::Locked
-                && $state['status'] !== QuranMemorizationBatchStatus::Passed) {
-                return $state['batch'];
-            }
-        }
-
-        return null;
     }
 }

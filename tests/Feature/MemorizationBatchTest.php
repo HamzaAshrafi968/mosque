@@ -753,6 +753,25 @@ class MemorizationBatchTest extends TestCase
             ->assertDontSee('بانتظار استماع الطالب');
     }
 
+    public function test_student_file_shows_the_memorization_cycle_and_hides_finance(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session, 'طالب الملف');
+
+        $this->memorize($student, [1, 2]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.show', $student))
+            ->assertOk()
+            ->assertSee('سجل الحفظ القرآني')
+            ->assertSee('الدفعة الحالية')
+            ->assertSee('١. الحفظ الجديد (التسميع)')
+            ->assertSee('٣. الاختبار التراكمي')
+            ->assertSee('المراجعة الخمسية (خمسات ما بعد الحفظ)')
+            ->assertDontSee('الملف المالي');
+    }
+
     public function test_memorized_juz_are_still_the_source_of_truth(): void
     {
         [$mosque, $admin, $session] = $this->mosque();

@@ -23,6 +23,7 @@
     'indexRoute' => route('admin.quran.batches.index'),
     'repeatRoute' => fn ($batch) => route('admin.quran.batches.repeat', $batch),
     'batchTestRoute' => $currentBatch ? route('admin.quran.batches.test', $currentBatch) : null,
+    'placementTestRoute' => $currentBatch ? route('admin.quran.batches.placement-test', $currentBatch) : null,
     'batchRetakeRoute' => $currentBatch ? route('admin.quran.batches.retake', $currentBatch) : null,
     'journeyRoute' => fn ($student) => route('admin.quran.journey', $student),
     'planRoute' => fn ($plan) => route('admin.quran.listening.show', $plan),

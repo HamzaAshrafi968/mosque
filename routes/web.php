@@ -188,6 +188,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('quran/batches/session-start', [Admin\QuranBatchController::class, 'sessionStart'])->name('quran.batches.session-start')->middleware('permission:quran.tasmee.create,quran_review.create');
     Route::post('quran/batches/{batch}/repeat', [Admin\QuranBatchController::class, 'repeat'])->name('quran.batches.repeat')->middleware('permission:quran_batch.update');
     Route::post('quran/batches/{batch}/test', [Admin\QuranBatchController::class, 'test'])->name('quran.batches.test')->middleware('permission:quran_listening.test');
+    Route::post('quran/batches/{batch}/placement-test', [Admin\QuranBatchController::class, 'placementTest'])->name('quran.batches.placement-test')->middleware('permission:quran_listening.test');
     Route::post('quran/batches/{batch}/retake', [Admin\QuranBatchController::class, 'retake'])->name('quran.batches.retake')->middleware('permission:quran_batch.update');
 
     // ---- إعدادات برنامج القرآن (حد النجاح في اختبار الدفعات) ----
@@ -395,6 +396,7 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('quran/batches/session-start', [Teacher\QuranBatchController::class, 'sessionStart'])->name('quran.batches.session-start')->middleware('permission:quran.tasmee.create,quran_review.create');
     Route::post('quran/batches/{batch}/repeat', [Teacher\QuranBatchController::class, 'repeat'])->name('quran.batches.repeat')->middleware('permission:quran_batch.update');
     Route::post('quran/batches/{batch}/test', [Teacher\QuranBatchController::class, 'test'])->name('quran.batches.test')->middleware('permission:quran_listening.test');
+    Route::post('quran/batches/{batch}/placement-test', [Teacher\QuranBatchController::class, 'placementTest'])->name('quran.batches.placement-test')->middleware('permission:quran_listening.test');
     Route::post('quran/batches/{batch}/retake', [Teacher\QuranBatchController::class, 'retake'])->name('quran.batches.retake')->middleware('permission:quran_batch.update');
 
     Route::get('reward-points', [Teacher\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');

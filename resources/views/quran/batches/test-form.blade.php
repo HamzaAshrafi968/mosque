@@ -5,6 +5,8 @@
     $failedJuz = $failedJuz ?? [];
     $retakeReview = $retakeReview ?? null;
     $khamsaRoute = $khamsaRoute ?? null;
+    $placementTestRoute = $placementTestRoute ?? null;
+    $placementTestAllowed = $placementTestAllowed ?? false;
     $threshold = rtrim(rtrim(number_format($minimumPassingPercentage, 2, '.', ''), '0'), '.');
     $lastTest = $currentBatch?->lastTest;
     $isRetest = $lastTest && ! $lastTest->isPass();
@@ -109,8 +111,58 @@
             </form>
         </div>
     @else
-        <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            لا يُفتح الاختبار التراكمي قبل إنهاء جميع خمسات الدفعة (الجزأين معاً) — أكمل «مراجعة 5» أولاً.
-        </p>
+        @unless ($placementTestAllowed)
+            <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                لا يُفتح الاختبار التراكمي قبل إنهاء جميع خمسات الدفعة (الجزأين معاً) — أكمل «مراجعة 5» أولاً.
+            </p>
+        @endunless
+    @endif
+
+    @if ($placementTestAllowed && $placementTestRoute && $currentBatch)
+        <div id="placement-test" class="mt-5 pt-5 border-t border-gray-100 scroll-mt-6">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-sky-100 text-sky-800 text-xs font-black flex items-center justify-center">↯</span>
+                    <h4 class="font-bold text-gray-700">اختبار مباشر للأجزاء المحفوظة مسبقاً</h4>
+                </div>
+                <span class="text-[11px] font-bold text-gray-400">حد النجاح {{ $threshold }}%</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">
+                الطالب مسجّل بحفظ الجزأين {{ $currentBatch->from_juz }}–{{ $currentBatch->to_juz }} من ملفه — يمكن اختباره مباشرة دون إنهاء «مراجعة 5».
+                النجاح يثبّت الدفعة ويفتح الدفعة التالية، والرسوب في أي جزء يُنشئ «خمسات إعادة رسوب الاختبار» للأجزاء الراسبة.
+            </p>
+
+            @error('results') <p class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{{ $message }}</p> @enderror
+
+            <form method="POST" action="{{ $placementTestRoute }}" class="space-y-2">
+                @csrf
+                @foreach (range($currentBatch->from_juz, $currentBatch->to_juz) as $juz)
+                    @php $juzRange = \App\Support\QuranJuzMap::pageRange($juz); @endphp
+                    <div class="rounded-xl border border-gray-200 p-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <div class="font-bold text-gray-800 text-sm">الجزء {{ $juz }}</div>
+                            <div class="text-[11px] text-gray-400">صفحات {{ $juzRange['from'] }}–{{ $juzRange['to'] }}</div>
+                        </div>
+                        <div class="flex items-center gap-4 text-sm">
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" name="results[{{ $juz }}]" value="pass" checked class="text-emerald-600 focus:ring-emerald-500">
+                                <span class="font-bold text-emerald-700">ناجح</span>
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" name="results[{{ $juz }}]" value="fail" class="text-red-600 focus:ring-red-500">
+                                <span class="font-bold text-red-700">يحتاج إعادة</span>
+                            </label>
+                        </div>
+                    </div>
+                @endforeach
+
+                <textarea name="notes" rows="2" placeholder="ملاحظات عامة على الاختبار المباشر (اختياري)"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+
+                <div class="flex justify-end">
+                    <button class="bg-sky-700 hover:bg-sky-800 text-white font-bold px-6 py-2 rounded-xl">تسجيل نتيجة الاختبار المباشر</button>
+                </div>
+            </form>
+        </div>
     @endif
 </div>

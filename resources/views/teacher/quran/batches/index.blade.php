@@ -23,6 +23,7 @@
     'indexRoute' => route('teacher.quran.batches.index'),
     'repeatRoute' => fn ($batch) => route('teacher.quran.batches.repeat', $batch),
     'batchTestRoute' => $currentBatch ? route('teacher.quran.batches.test', $currentBatch) : null,
+    'placementTestRoute' => $currentBatch ? route('teacher.quran.batches.placement-test', $currentBatch) : null,
     'batchRetakeRoute' => $currentBatch ? route('teacher.quran.batches.retake', $currentBatch) : null,
     'journeyRoute' => fn ($student) => route('teacher.quran.students.journey', $student),
     'planRoute' => fn ($plan) => route('teacher.quran.listening.show', $plan),

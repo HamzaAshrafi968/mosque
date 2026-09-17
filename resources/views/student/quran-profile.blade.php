@@ -71,7 +71,9 @@
                 ])>
                     <div class="text-xs font-bold text-gray-500 mb-1">1. الحفظ الجديد (التسميع)</div>
                     <div class="text-sm font-black text-gray-800">
-                        @if ($memorizationProgress)
+                        @if ($memorizationProgress && $memorizationDone && $memorizationProgress['covered'] === 0)
+                            ✓ محفوظ مسبقاً
+                        @elseif ($memorizationProgress)
                             {{ $memorizationProgress['covered'] }} / {{ $memorizationProgress['total'] }} صفحة ({{ $memorizationProgress['percentage'] }}%)
                         @elseif ($memorizationDone)
                             ✓ اكتمل حفظ الجزأين

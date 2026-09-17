@@ -146,22 +146,25 @@ class QuranMemorizationGatingService
 
                 $status = QuranMemorizationBatchStatus::Passed;
                 $prevPassed = true;
-            } elseif (! $review?->isCompleted()) {
-                // خمسات ما بعد الحفظ لم تكتمل بعد — لا يُفتح الاختبار التراكمي.
-                $status = QuranMemorizationBatchStatus::PendingReview5;
-
-                if ($row->status !== $status) {
-                    $row->update(['status' => $status]);
-                }
-            } elseif ($retakePending) {
-                // رسب الطالب وتوجد خمسات إعادة قيد المراجعة — الاختبار مقفل.
-                $status = QuranMemorizationBatchStatus::NeedsRepeat;
-
-                if ($row->status !== $status) {
-                    $row->update(['status' => $status]);
-                }
             } else {
-                $status = QuranMemorizationBatchStatus::ReadyForTest;
+                $reviewDone = $review?->isCompleted() ?? false;
+                $retakeSettled = $retake && ($retake->isCompleted() || $retake->isCancelled());
+
+                if ($test && ! $test->isPass()) {
+                    // اختبار راسب: يبقى «تحتاج إعادة» حتى تُنشأ خمسات الإعادة
+                    // وتكتمل (اختبار مباشر أو تراكمي).
+                    $status = $retakeSettled
+                        ? QuranMemorizationBatchStatus::ReadyForTest
+                        : QuranMemorizationBatchStatus::NeedsRepeat;
+                } elseif (! $reviewDone && ! $retake) {
+                    // خمسات ما بعد الحفظ لم تكتمل بعد — لا يُفتح الاختبار التراكمي.
+                    $status = QuranMemorizationBatchStatus::PendingReview5;
+                } elseif ($retakePending) {
+                    // رسب الطالب وتوجد خمسات إعادة قيد المراجعة — الاختبار مقفل.
+                    $status = QuranMemorizationBatchStatus::NeedsRepeat;
+                } else {
+                    $status = QuranMemorizationBatchStatus::ReadyForTest;
+                }
 
                 if ($row->status !== $status) {
                     $row->update(['status' => $status]);
@@ -461,7 +464,9 @@ class QuranMemorizationGatingService
 
     /**
      * فرض «لا اختبار قبل إنهاء كل الخمسات»: خمسات ما بعد الحفظ مكتملة،
-     * وأي خمسات إعادة مكتملة أيضاً، والدفعة غير مجتازة.
+     * وأي خمسات إعادة مكتملة أيضاً، والدفعة غير مجتازة. الدفعات التي دخلت
+     * عبر «الاختبار المباشر» قد لا يكون لها رأس مراجعة بعد الحفظ — يكفيها
+     * خمسات الإعادة عند وجودها.
      */
     public function assertCumulativeTestAllowed(QuranMemorizationBatch $batch): void
     {
@@ -470,20 +475,116 @@ class QuranMemorizationGatingService
         }
 
         $review = $this->reviewFor($batch);
+        $retake = $this->retakeReviewFor($batch);
 
-        if (! $review || ! $review->isCompleted()) {
+        if (! $review && ! $retake) {
             throw ValidationException::withMessages([
                 'results' => ['لا يُفتح الاختبار التراكمي قبل إنهاء جميع خمسات الدفعة (الجزأين معاً)'],
             ]);
         }
 
-        $retake = $this->retakeReviewFor($batch);
+        if ($review && ! $review->isCompleted() && ! $review->isCancelled()) {
+            throw ValidationException::withMessages([
+                'results' => ['لا يُفتح الاختبار التراكمي قبل إنهاء جميع خمسات الدفعة (الجزأين معاً)'],
+            ]);
+        }
 
         if ($retake && ! $retake->isCompleted() && ! $retake->isCancelled()) {
             throw ValidationException::withMessages([
                 'results' => ['لا يُعاد الاختبار قبل إنهاء خمسات إعادة الأجزاء الراسبة'],
             ]);
         }
+    }
+
+    /**
+     * هل يمكن اختبار الأجزاء المحفوظة مسبقاً مباشرة (بدون إنهاء مراجعة 5)؟
+     * متاح للدفعة الحالية المكتملة الحفظ التي لم تبدأ مراجعتها ولم تدخل
+     * مسار اختبار/إعادة سابق — للطلاب القادمين بحفظ سابق.
+     */
+    public function placementTestAllowed(QuranMemorizationBatch $batch): bool
+    {
+        if ($batch->isPassed() || $batch->last_test_id !== null) {
+            return false;
+        }
+
+        if ($batch->status !== QuranMemorizationBatchStatus::PendingReview5) {
+            return false;
+        }
+
+        $student = $this->studentFor($batch);
+
+        if (! $student) {
+            return false;
+        }
+
+        $memorized = $this->memorizedJuzNumbers($student);
+
+        if (! in_array($batch->from_juz, $memorized, true) || ! in_array($batch->to_juz, $memorized, true)) {
+            return false;
+        }
+
+        $review = $this->reviewFor($batch);
+
+        if ($review && ! $review->isCancelled()
+            && $review->items()->where('status', QuranKhamsaItemStatus::Completed)->exists()) {
+            return false;
+        }
+
+        $retake = $this->retakeReviewFor($batch);
+
+        if ($retake && ! $retake->isCompleted() && ! $retake->isCancelled()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** فرض شروط الاختبار المباشر مع تحديث حالات الدفعات أولاً. */
+    public function assertPlacementTestAllowed(QuranMemorizationBatch $batch): void
+    {
+        $student = $this->studentFor($batch);
+
+        if (! $student) {
+            throw ValidationException::withMessages(['results' => ['الطالب غير موجود']]);
+        }
+
+        $this->sync($student);
+        $batch->refresh();
+
+        if (! $this->placementTestAllowed($batch)) {
+            throw ValidationException::withMessages([
+                'results' => ['الاختبار المباشر متاح فقط للأجزاء المسجّلة محفوظاً قبل بدء «مراجعة 5» — أكمل المراجعة ثم سجّل الاختبار التراكمي'],
+            ]);
+        }
+    }
+
+    /**
+     * الاختبار المباشر للأجزاء المحفوظة مسبقاً: نطاقه جزآ الدفعة نفسها
+     * (لا نطاق تراكمي)، ولا يتطلب خطة استماع. النجاح يثبّت الدفعة ويفتح
+     * التالية، والرسوب يولّد خمسات إعادة للأجزاء الراسبة.
+     *
+     * @param  array<int|string, string>  $results  juz => pass|fail
+     */
+    public function recordPlacementTest(QuranMemorizationBatch $batch, array $results, User $actor, ?string $notes = null): QuranListeningTest
+    {
+        $student = $this->studentFor($batch);
+
+        if (! $student) {
+            throw ValidationException::withMessages(['results' => ['الطالب غير موجود']]);
+        }
+
+        $this->assertPlacementTestAllowed($batch);
+        $batch->refresh();
+
+        return $this->recordTest(
+            $batch,
+            $student,
+            [$batch->from_juz, $batch->to_juz],
+            null,
+            $results,
+            $actor,
+            $notes,
+        );
     }
 
     /**
@@ -501,13 +602,39 @@ class QuranMemorizationGatingService
             throw ValidationException::withMessages(['results' => ['الطالب غير موجود']]);
         }
 
-        if (! $batch->plan_id) {
+        if (! $batch->plan_id && ! $batch->retake_review_id) {
             throw ValidationException::withMessages(['results' => ['لا توجد خطة استماع مرتبطة بالدفعة']]);
         }
 
         $this->assertCumulativeTestAllowed($batch);
 
-        $scope = $this->testScopeJuzNumbers($batch);
+        return $this->recordTest(
+            $batch,
+            $student,
+            $this->testScopeJuzNumbers($batch),
+            $batch->plan_id,
+            $results,
+            $actor,
+            $notes,
+        );
+    }
+
+    /**
+     * تسجيل اختبار على نطاق أجزاء محدد: تطبيع النتائج، حساب الدرجة وحد
+     * النجاح، إنشاء الاختبار وعناصره، ثم تمرير النتيجة إلى recordBatchOutcome.
+     *
+     * @param  array<int, int>  $scope
+     * @param  array<int|string, string>  $results
+     */
+    private function recordTest(
+        QuranMemorizationBatch $batch,
+        Student $student,
+        array $scope,
+        ?string $planId,
+        array $results,
+        User $actor,
+        ?string $notes,
+    ): QuranListeningTest {
         $normalized = [];
 
         foreach ($scope as $juz) {
@@ -533,9 +660,9 @@ class QuranMemorizationGatingService
             ? QuranListeningTestResult::Pass
             : QuranListeningTestResult::Fail;
 
-        return DB::transaction(function () use ($batch, $student, $normalized, $overall, $score, $passingPercentage, $actor, $notes) {
+        return DB::transaction(function () use ($batch, $student, $planId, $normalized, $overall, $score, $passingPercentage, $actor, $notes) {
             $test = QuranListeningTest::create([
-                'plan_id' => $batch->plan_id,
+                'plan_id' => $planId,
                 'batch_id' => $batch->id,
                 'student_id' => $student->id,
                 'tested_by' => $actor->id,
@@ -662,7 +789,7 @@ class QuranMemorizationGatingService
             $this->audit->logModel('memorization_batch.passed', $batch, actor: $actor);
 
             $this->completePendingKhamsat($batch, $actor);
-            $this->completePlan($test, $actor);
+            $this->completePlan($batch, $test, $actor);
 
             app(RewardPointAutoService::class)->awardForTestPass($batch, $test, $actor);
 
@@ -679,6 +806,12 @@ class QuranMemorizationGatingService
                 ->map(fn ($value) => (int) $value)
                 ->values()
                 ->all();
+
+            // اختبار مباشر راسب: دورة المراجعة غير المكتملة لم تعد لازمة —
+            // تُلغى لتُتاح خمسات الإعادة للأجزاء الراسبة.
+            if (! $test->plan_id) {
+                $this->cancelPendingCycle($batch, $actor);
+            }
 
             $batch->update([
                 'status' => QuranMemorizationBatchStatus::NeedsRepeat,
@@ -761,6 +894,11 @@ class QuranMemorizationGatingService
                 return;
             }
 
+            // دفعة دخلت مسار الاختبار (مباشر/تراكمي) — لا يُعاد توليد دورة لها.
+            if ($locked->last_test_id || $locked->retake_review_id) {
+                return;
+            }
+
             $plan = $this->planFor($locked);
 
             if ($plan && $plan->isActive()) {
@@ -825,6 +963,25 @@ class QuranMemorizationGatingService
         });
     }
 
+    /**
+     * إلغاء دورة الدفعة غير المكتملة (مراجعة 5 + خطة الاستماع) عند رسوب
+     * اختبار مباشر، حتى تُتاح خمسات الإعادة للأجزاء الراسبة.
+     */
+    private function cancelPendingCycle(QuranMemorizationBatch $batch, User $actor): void
+    {
+        $review = $this->reviewFor($batch);
+
+        if ($review && ! $review->isCompleted() && ! $review->isCancelled()) {
+            app(QuranKhamsaService::class)->cancelReview($review, $actor);
+        }
+
+        $plan = $this->planFor($batch);
+
+        if ($plan && $plan->isActive()) {
+            app(QuranListeningService::class)->cancelPlan($plan, $actor);
+        }
+    }
+
     /** إنهاء الخمسات المتبقية (عادية أو إعادة) عند اجتياز اختبار الدفعة. */
     private function completePendingKhamsat(QuranMemorizationBatch $batch, User $actor): void
     {
@@ -846,9 +1003,11 @@ class QuranMemorizationGatingService
     }
 
     /** إغلاق خطة الدفعة وتثبيت عناصرها عند اجتياز الاختبار التراكمي. */
-    private function completePlan(QuranListeningTest $test, User $actor): void
+    private function completePlan(QuranMemorizationBatch $batch, QuranListeningTest $test, User $actor): void
     {
-        $plan = QuranListeningPlan::query()->find($test->plan_id);
+        $planId = $test->plan_id ?: $batch->plan_id;
+
+        $plan = $planId ? QuranListeningPlan::query()->find($planId) : null;
 
         if (! $plan || $plan->isCancelled()) {
             return;
@@ -872,6 +1031,8 @@ class QuranMemorizationGatingService
         ]);
 
         $this->audit->logModel('quran_listening.plan.completed', $plan, actor: $actor);
+
+        app(RewardPointAutoService::class)->awardForListeningPlan($plan, $actor);
     }
 
     /** نجاح الدفعة الأخيرة (29–30): فتح طلب إتمام الحفظ والمسار التأهيلي. */
@@ -921,6 +1082,12 @@ class QuranMemorizationGatingService
             $body,
             route('student.quran-profile')
         );
+    }
+
+    /** هل يوجد أستاذ نشط في دوام الطالب؟ (لتفسير تعذّر توليد الدورة تلقائياً) */
+    public function hasTeacherInSession(Student $student): bool
+    {
+        return $this->resolveTeacher($student) !== null;
     }
 
     /** أستاذ من دوام الطالب (يفضّل أستاذ آخر تسميع له). */
