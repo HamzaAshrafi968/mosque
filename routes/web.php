@@ -133,6 +133,18 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
         ->middlewareFor('store', 'permission:exams.create')
         ->middlewareFor('destroy', 'permission:exams.delete');
 
+    // ---- محرّك الاختبارات: الأسئلة، النشر، PDF، النتائج ----
+    Route::get('exams/{exam}', [Admin\ExamController::class, 'show'])->name('exams.show')->middleware('permission:exams.view');
+    Route::post('exams/{exam}/publish', [Admin\ExamController::class, 'publish'])->name('exams.publish')->middleware('permission:exams.publish');
+    Route::post('exams/{exam}/close', [Admin\ExamController::class, 'close'])->name('exams.close')->middleware('permission:exams.publish');
+    Route::post('exams/{exam}/questions', [Admin\ExamController::class, 'storeQuestions'])->name('exams.questions.store')->middleware('permission:exams.update');
+    Route::put('exams/questions/{question}', [Admin\ExamController::class, 'updateQuestion'])->name('exams.questions.update')->middleware('permission:exams.update');
+    Route::delete('exams/questions/{question}', [Admin\ExamController::class, 'destroyQuestion'])->name('exams.questions.destroy')->middleware('permission:exams.update');
+    Route::post('exams/{exam}/attachment', [Admin\ExamController::class, 'storeAttachment'])->name('exams.attachment.store')->middleware('permission:exams.update');
+    Route::get('exams/{exam}/attachment', [Admin\ExamController::class, 'attachment'])->name('exams.attachment')->middleware('permission:exams.view');
+    Route::delete('exams/{exam}/attachment', [Admin\ExamController::class, 'destroyAttachment'])->name('exams.attachment.destroy')->middleware('permission:exams.update');
+    Route::post('exam-attempts/{attempt}/grade', [Admin\ExamController::class, 'manualGrade'])->name('exams.attempts.grade')->middleware('permission:grades.update');
+
     Route::get('grades', [Admin\GradeController::class, 'index'])->name('grades.index')->middleware('permission:grades.view');
     Route::get('grades/{exam}', [Admin\GradeController::class, 'show'])->name('grades.show')->middleware('permission:grades.view');
     Route::patch('grades/{exam}/approve', [Admin\GradeController::class, 'approve'])->name('grades.approve')->middleware('permission:grades.approve');
@@ -322,6 +334,18 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
         ->middlewareFor('index', 'permission:exams.view')
         ->middlewareFor(['create', 'store'], 'permission:exams.create');
 
+    // ---- محرّك الاختبارات: الأسئلة، النشر، PDF، النتائج (امتحانات الأستاذ فقط) ----
+    Route::get('exams/{exam}', [Teacher\ExamController::class, 'show'])->name('exams.show')->middleware('permission:exams.view');
+    Route::post('exams/{exam}/publish', [Teacher\ExamController::class, 'publish'])->name('exams.publish')->middleware('permission:exams.publish');
+    Route::post('exams/{exam}/close', [Teacher\ExamController::class, 'close'])->name('exams.close')->middleware('permission:exams.publish');
+    Route::post('exams/{exam}/questions', [Teacher\ExamController::class, 'storeQuestions'])->name('exams.questions.store')->middleware('permission:exams.update');
+    Route::put('exams/questions/{question}', [Teacher\ExamController::class, 'updateQuestion'])->name('exams.questions.update')->middleware('permission:exams.update');
+    Route::delete('exams/questions/{question}', [Teacher\ExamController::class, 'destroyQuestion'])->name('exams.questions.destroy')->middleware('permission:exams.update');
+    Route::post('exams/{exam}/attachment', [Teacher\ExamController::class, 'storeAttachment'])->name('exams.attachment.store')->middleware('permission:exams.update');
+    Route::get('exams/{exam}/attachment', [Teacher\ExamController::class, 'attachment'])->name('exams.attachment')->middleware('permission:exams.view');
+    Route::delete('exams/{exam}/attachment', [Teacher\ExamController::class, 'destroyAttachment'])->name('exams.attachment.destroy')->middleware('permission:exams.update');
+    Route::post('exam-attempts/{attempt}/grade', [Teacher\ExamController::class, 'manualGrade'])->name('exams.attempts.grade')->middleware('permission:grades.update');
+
     Route::get('exams/{exam}/grades', [Teacher\GradeController::class, 'edit'])->name('grades.edit')->middleware('permission:grades.view');
     Route::post('exams/{exam}/grades', [Teacher\GradeController::class, 'store'])->name('grades.store')->middleware('permission:grades.create,grades.update');
 
@@ -488,6 +512,10 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::get('subjects', [StudentPortal\PortalController::class, 'subjects'])->name('subjects');
     Route::get('teachers', [StudentPortal\PortalController::class, 'teachers'])->name('teachers');
     Route::get('exams', [StudentPortal\PortalController::class, 'exams'])->name('exams');
+    Route::get('exams/{exam}/start', [StudentPortal\ExamController::class, 'start'])->name('exams.start');
+    Route::get('exams/{exam}/take', [StudentPortal\ExamController::class, 'take'])->name('exams.take');
+    Route::post('exams/{exam}/submit', [StudentPortal\ExamController::class, 'submit'])->name('exams.submit');
+    Route::get('exams/{exam}/result', [StudentPortal\ExamController::class, 'result'])->name('exams.result');
     Route::get('grades', [StudentPortal\PortalController::class, 'grades'])->name('grades');
     Route::get('homeworks', [StudentPortal\PortalController::class, 'homeworks'])->name('homeworks');
     Route::post('homeworks/{homework}/submit', [StudentPortal\PortalController::class, 'submitHomework'])->name('homeworks.submit');

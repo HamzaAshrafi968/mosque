@@ -27,7 +27,7 @@ class UserPermissionOverrideTest extends TestCase
         'subjects.view' => 'own',
         'schedule.view' => 'own', 'schedule.create' => 'own', 'schedule.update' => 'own',
         'attendance.view' => 'own', 'attendance.create' => 'own', 'attendance.update' => 'own',
-        'exams.view' => 'own', 'exams.create' => 'own', 'exams.update' => 'own',
+        'exams.view' => 'own', 'exams.create' => 'own', 'exams.update' => 'own', 'exams.publish' => 'own',
         'grades.view' => 'own', 'grades.create' => 'own', 'grades.update' => 'own', 'grades.submit' => 'own',
         'assignments.view' => 'own', 'assignments.create' => 'own', 'assignments.update' => 'own', 'assignments.delete' => 'own', 'assignments.grade' => 'own',
         'lessons.view' => 'own', 'lessons.create' => 'own', 'lessons.update' => 'own', 'lessons.delete' => 'own',

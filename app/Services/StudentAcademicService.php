@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AnnouncementAudience;
+use App\Enums\ExamStatus;
 use App\Enums\GradeStatus;
 use App\Models\Announcement;
 use App\Models\AttendanceRecord;
@@ -89,12 +90,14 @@ class StudentAcademicService
             ->values();
     }
 
-    /** Upcoming exams for the student's section (future dates). */
+    /** Upcoming exams for the student's section (future dates, published only). */
     public function upcomingExams(Student $student): Collection
     {
         return Exam::query()
             ->with(['subject:id,name', 'section:id,name'])
-            ->where('section_id', $student->section_id)
+            ->where('classroom_id', $student->classroom_id)
+            ->where(fn ($q) => $q->whereNull('section_id')->orWhere('section_id', $student->section_id))
+            ->whereIn('status', [ExamStatus::Published, ExamStatus::Closed])
             ->whereDate('exam_date', '>=', today())
             ->orderBy('exam_date')
             ->get();

@@ -5,6 +5,39 @@
 @section('content')
 <h1 class="text-2xl font-bold text-gray-800 mb-6">الامتحانات</h1>
 
+@if($electronicExams->isNotEmpty())
+    <div class="bg-white rounded-2xl shadow p-5 mb-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4">الامتحانات الإلكترونية</h2>
+        <div class="divide-y">
+            @foreach($electronicExams as $exam)
+                @php $attempt = $attempts->get($exam->id); @endphp
+                <div class="py-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <div class="font-bold text-gray-800">{{ $exam->title }}</div>
+                        <div class="text-xs text-gray-500 mt-0.5">
+                            {{ $exam->subject?->name }} — {{ $exam->exam_date?->toDateString() }}
+                            @if($exam->duration_minutes) — {{ $exam->duration_minutes }} دقيقة @endif
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        @if($attempt?->isFinished())
+                            <span class="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-600">
+                                {{ $attempt->score !== null ? $attempt->score.'/'.$exam->total_marks : $attempt->statusLabel() }}
+                            </span>
+                            <a href="{{ route('student.exams.result', $exam) }}" class="bg-gray-700 hover:bg-gray-800 text-white text-sm font-bold px-3 py-1.5 rounded-lg">عرض النتيجة</a>
+                        @elseif($attempt)
+                            <span class="text-xs px-2 py-1 rounded-lg bg-amber-100 text-amber-700">جارية</span>
+                            <a href="{{ route('student.exams.take', $exam) }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-3 py-1.5 rounded-lg">متابعة الامتحان</a>
+                        @else
+                            <a href="{{ route('student.exams.start', $exam) }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-3 py-1.5 rounded-lg">ابدأ الامتحان</a>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+@endif
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="bg-white rounded-2xl shadow p-5">
         <h2 class="text-lg font-bold text-gray-800 mb-4">الامتحانات القادمة</h2>

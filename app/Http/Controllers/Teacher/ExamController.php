@@ -2,24 +2,38 @@
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Http\Controllers\Concerns\ManagesExamEngine;
 use App\Models\Classroom;
 use App\Models\Exam;
-use App\Models\Student;
 use App\Models\Subject;
-use App\Services\NotificationService;
+use App\Services\ExamService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ExamController extends BaseTeacherController
 {
+    use ManagesExamEngine;
+
+    public function __construct(private readonly ExamService $exams) {}
+
+    protected function examRoutePrefix(): string
+    {
+        return 'teacher';
+    }
+
+    protected function assertExamAccess(Request $request, Exam $exam): void
+    {
+        abort_unless($exam->teacher_id === $this->currentTeacher($request)->id, 403);
+    }
+
     public function index(Request $request): View
     {
         $teacher = $this->currentTeacher($request);
 
         $exams = Exam::query()
             ->with(['subject:id,name', 'classroom:id,name', 'section:id,name'])
-            ->withCount('grades')
+            ->withCount(['grades', 'questions', 'attempts'])
             ->where('teacher_id', $teacher->id)
             ->latest('exam_date')
             ->paginate(15);
@@ -27,11 +41,14 @@ class ExamController extends BaseTeacherController
         return view('teacher.exams.index', ['exams' => $exams]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $teacher = $this->currentTeacher($request);
+
         return view('teacher.exams.create', [
             'subjects' => Subject::orderBy('name')->get(['id', 'name']),
             'classrooms' => Classroom::with('sections:id,classroom_id,name')->orderBy('name')->get(),
+            'teacher' => $teacher,
         ]);
     }
 
@@ -39,31 +56,13 @@ class ExamController extends BaseTeacherController
     {
         $teacher = $this->currentTeacher($request);
 
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'subject_id' => ['required', 'exists:subjects,id'],
-            'classroom_id' => ['required', 'exists:classrooms,id'],
-            'section_id' => ['nullable', 'exists:sections,id'],
-            'exam_date' => ['required', 'date'],
-            'total_marks' => ['required', 'integer', 'min:1', 'max:1000'],
-            'pass_marks' => ['nullable', 'integer', 'min:0', 'lte:total_marks'],
+        $exam = $this->exams->create([
+            ...$this->validatedExamData($request),
+            'teacher_id' => $teacher->id,
         ]);
 
-        $exam = Exam::create([...$data, 'teacher_id' => $teacher->id]);
-
-        $roster = Student::query()
-            ->active()
-            ->where('classroom_id', $exam->classroom_id)
-            ->when($exam->section_id, fn ($q) => $q->where('section_id', $exam->section_id))
-            ->get(['id', 'tenant_id', 'user_id']);
-
-        app(NotificationService::class)->notifyRoster(
-            $roster,
-            'امتحان جديد',
-            "تم تحديد موعد امتحان «{$exam->title}» — مادة ".($exam->subject?->name ?? 'عام').' بتاريخ '.$exam->exam_date->format('Y-m-d'),
-            route('student.exams', [], false)
-        );
-
-        return redirect()->route('teacher.exams.index')->with('success', 'تم إنشاء الاختبار');
+        return redirect()
+            ->route('teacher.exams.show', $exam)
+            ->with('success', 'تم إنشاء الامتحان — أضف الأسئلة ثم انشره');
     }
 }

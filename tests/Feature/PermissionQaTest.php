@@ -37,7 +37,6 @@ class PermissionQaTest extends TestCase
         'announcements.update',
         'assignments.update',
         'attendance.approve',
-        'exams.update',
         'finance.report',
         'grades.submit',
         'hafiz_exams.create',

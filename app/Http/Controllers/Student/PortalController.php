@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Models\Exam;
+use App\Models\ExamAttempt;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use Illuminate\Http\RedirectResponse;
@@ -46,10 +48,24 @@ class PortalController extends BaseStudentController
     {
         $student = $this->currentStudent($request);
 
+        $electronicExams = Exam::query()
+            ->visibleForStudent($student)
+            ->whereHas('questions')
+            ->with(['subject:id,name'])
+            ->orderBy('exam_date')
+            ->get();
+
+        $attempts = ExamAttempt::query()
+            ->where('student_id', $student->id)
+            ->get()
+            ->keyBy('exam_id');
+
         return view('student.exams', [
             'student' => $student,
             'upcomingExams' => $this->academic->upcomingExams($student),
             'grades' => $this->academic->publishedGrades($student),
+            'electronicExams' => $electronicExams,
+            'attempts' => $attempts,
         ]);
     }
 

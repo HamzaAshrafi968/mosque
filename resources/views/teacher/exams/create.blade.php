@@ -48,6 +48,29 @@
                 </div>
 
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">النوع</label>
+                    <select name="kind" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option value="exam" @selected(old('kind', 'exam') === 'exam')>امتحان</option>
+                        <option value="quiz" @selected(old('kind') === 'quiz')>مذاكرة</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">طريقة الأداء</label>
+                    <select name="mode" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option value="onsite" @selected(old('mode', 'onsite') === 'onsite')>حضوري</option>
+                        <option value="online" @selected(old('mode') === 'online')>إلكتروني (أسئلة داخل النظام)</option>
+                        <option value="hybrid" @selected(old('mode') === 'hybrid')>هجين</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">مدة الامتحان (دقائق) <span class="text-gray-400 text-xs">اختياري</span></label>
+                    <input type="number" name="duration_minutes" value="{{ old('duration_minutes') }}" min="1" max="600"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">تاريخ الامتحان</label>
                     <input type="date" name="exam_date" value="{{ old('exam_date') }}" required
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">

@@ -2,21 +2,37 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\ManagesExamEngine;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
 use App\Models\Exam;
 use App\Models\Subject;
+use App\Services\ExamService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ExamController extends Controller
 {
+    use ManagesExamEngine;
+
+    public function __construct(private readonly ExamService $exams) {}
+
+    protected function examRoutePrefix(): string
+    {
+        return 'admin';
+    }
+
+    protected function assertExamAccess(Request $request, Exam $exam): void
+    {
+        // مدير الجامع يصل لكل امتحانات جامعته (العزل العام مطبَّق مسبقاً).
+    }
+
     public function index(): View
     {
         $exams = Exam::query()
             ->with(['subject:id,name', 'classroom:id,name', 'section:id,name'])
-            ->withCount('grades')
+            ->withCount(['grades', 'questions', 'attempts'])
             ->latest('exam_date')
             ->paginate(20);
 
@@ -33,19 +49,11 @@ class ExamController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'subject_id' => ['required', 'exists:subjects,id'],
-            'classroom_id' => ['required', 'exists:classrooms,id'],
-            'section_id' => ['nullable', 'exists:sections,id'],
-            'exam_date' => ['required', 'date'],
-            'total_marks' => ['required', 'integer', 'min:1', 'max:1000'],
-            'pass_marks' => ['nullable', 'integer', 'min:0', 'lte:total_marks'],
-        ]);
+        $exam = $this->exams->create($this->validatedExamData($request));
 
-        Exam::create($data);
-
-        return redirect()->route('admin.exams.index')->with('success', 'تم إنشاء الاختبار');
+        return redirect()
+            ->route('admin.exams.show', $exam)
+            ->with('success', 'تم إنشاء الامتحان — أضف الأسئلة ثم انشره');
     }
 
     public function destroy(Exam $exam): RedirectResponse

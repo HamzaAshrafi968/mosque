@@ -76,6 +76,15 @@ Route::prefix('v1')->group(function () {
                 ->middlewareFor('store', 'permission:exams.create')
                 ->middlewareFor('destroy', 'permission:exams.delete');
 
+            // ---- محرّك الاختبارات: النشر، الأسئلة، النتائج، التصحيح ----
+            Route::post('exams/{exam}/publish', [V1\Admin\ExamController::class, 'publish'])->middleware('permission:exams.publish');
+            Route::post('exams/{exam}/close', [V1\Admin\ExamController::class, 'close'])->middleware('permission:exams.publish');
+            Route::post('exams/{exam}/questions', [V1\Admin\ExamController::class, 'storeQuestions'])->middleware('permission:exams.update');
+            Route::put('exams/{exam}/questions/{question}', [V1\Admin\ExamController::class, 'updateQuestion'])->middleware('permission:exams.update');
+            Route::delete('exams/{exam}/questions/{question}', [V1\Admin\ExamController::class, 'destroyQuestion'])->middleware('permission:exams.update');
+            Route::get('exams/{exam}/results', [V1\Admin\ExamController::class, 'results'])->middleware('permission:exams.view');
+            Route::post('exams/{exam}/attempts/{attempt}/manual-grade', [V1\Admin\ExamController::class, 'manualGrade'])->middleware('permission:grades.update');
+
             Route::get('grades', [V1\Admin\GradeController::class, 'index'])->middleware('permission:grades.view');
             Route::get('grades/{examId}', [V1\Admin\GradeController::class, 'show'])->middleware('permission:grades.view');
             Route::patch('grades/{examId}/approve', [V1\Admin\GradeController::class, 'approve'])->middleware('permission:grades.approve');
@@ -121,6 +130,15 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('exams', V1\Teacher\ExamController::class)->only(['index', 'store'])
                 ->middlewareFor('index', 'permission:exams.view')
                 ->middlewareFor('store', 'permission:exams.create');
+
+            // ---- محرّك الاختبارات: النشر، الأسئلة، النتائج، التصحيح ----
+            Route::post('exams/{exam}/publish', [V1\Teacher\ExamController::class, 'publish'])->middleware('permission:exams.publish');
+            Route::post('exams/{exam}/close', [V1\Teacher\ExamController::class, 'close'])->middleware('permission:exams.publish');
+            Route::post('exams/{exam}/questions', [V1\Teacher\ExamController::class, 'storeQuestions'])->middleware('permission:exams.update');
+            Route::put('exams/{exam}/questions/{question}', [V1\Teacher\ExamController::class, 'updateQuestion'])->middleware('permission:exams.update');
+            Route::delete('exams/{exam}/questions/{question}', [V1\Teacher\ExamController::class, 'destroyQuestion'])->middleware('permission:exams.update');
+            Route::get('exams/{exam}/results', [V1\Teacher\ExamController::class, 'results'])->middleware('permission:exams.view');
+            Route::post('exams/{exam}/attempts/{attempt}/manual-grade', [V1\Teacher\ExamController::class, 'manualGrade'])->middleware('permission:grades.update');
 
             Route::get('exams/{exam}/grades', [V1\Teacher\GradeController::class, 'show'])->middleware('permission:grades.view');
             Route::post('exams/{exam}/grades', [V1\Teacher\GradeController::class, 'store'])->middleware('permission:grades.create,grades.update');
