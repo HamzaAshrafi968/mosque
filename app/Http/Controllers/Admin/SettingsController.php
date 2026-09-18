@@ -7,6 +7,7 @@ use App\Models\RewardPointRule;
 use App\Services\AuthorizationService;
 use App\Services\QuranSettingsService;
 use App\Services\RewardPointSettingsService;
+use App\Services\WorkHoursSettingsService;
 use Illuminate\View\View;
 
 /**
@@ -18,6 +19,7 @@ class SettingsController extends Controller
     public function __construct(
         private readonly QuranSettingsService $quranSettings,
         private readonly RewardPointSettingsService $rewardSettings,
+        private readonly WorkHoursSettingsService $workHoursSettings,
         private readonly AuthorizationService $authorization,
     ) {}
 
@@ -39,6 +41,8 @@ class SettingsController extends Controller
             'canUsers' => $can('users.view'),
             'canSessions' => $can('sessions.view'),
             'canPrograms' => $can('programs.view'),
+            'canWorkHours' => $can('work_hours.view'),
+            'maxSlotHours' => $this->workHoursSettings->maxSlotHours(),
         ]);
     }
 }

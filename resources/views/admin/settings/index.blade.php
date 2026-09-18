@@ -43,6 +43,22 @@
             </a>
         @endif
 
+        @if ($canWorkHours)
+            <a href="{{ route('admin.settings.work-hours.edit') }}"
+                class="card-hover block bg-white rounded-2xl shadow p-6 border border-transparent hover:border-gold-200">
+                <div class="flex items-start justify-between gap-3">
+                    <span class="w-12 h-12 rounded-2xl bg-gold-50 text-gold-600 grid place-items-center">
+                        <x-icon name="clock" class="w-6 h-6" />
+                    </span>
+                    <span class="text-[11px] font-bold rounded-full bg-gold-50 text-gold-700 px-3 py-1">
+                        حد الفترة {{ rtrim(rtrim(number_format($maxSlotHours, 1), '0'), '.') }} ساعات
+                    </span>
+                </div>
+                <h2 class="font-bold text-gray-800 mt-4">ساعات العمل والرواتب</h2>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">الحد الأقصى لفترة العمل، توقيت الجامع، وربط كشوف الرواتب بأسعار الساعة.</p>
+            </a>
+        @endif
+
         @if ($canUsers)
             <a href="{{ route('admin.users.index') }}"
                 class="card-hover block bg-white rounded-2xl shadow p-6 border border-transparent hover:border-sky-200">

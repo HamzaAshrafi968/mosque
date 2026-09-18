@@ -97,7 +97,7 @@ class TeacherPayrollTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [$teacherUser, $teacher] = $this->teacher($mosque, ['hired_at' => now()->subDays(10)]);
+        [$teacherUser, $teacher] = $this->teacher($mosque, ['hired_at' => now()->subDays(10), 'monthly_salary' => 2000]);
         $this->dailyHours($mosque, $teacher);
 
         $payroll = app(PayrollService::class);
@@ -129,7 +129,7 @@ class TeacherPayrollTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [$teacherAUser, $teacherA] = $this->teacher($mosque);
+        [$teacherAUser, $teacherA] = $this->teacher($mosque, ['monthly_salary' => 2000]);
         [, $teacherB] = $this->teacher($mosque);
 
         $this->actingAs($manager)
@@ -179,12 +179,12 @@ class TeacherPayrollTest extends TestCase
 
         $this->actingAs($manager)->get(route('admin.payroll.index'))->assertOk();
 
-        $permission = Permission::where('code', 'finance.view')->firstOrFail();
+        $permissions = Permission::whereIn('code', ['finance.view', 'payroll.view'])->pluck('id');
         Role::where('tenant_id', $mosque->id)
             ->where('code', RoleService::ROLE_MOSQUE_MANAGER)
             ->firstOrFail()
             ->permissions()
-            ->detach($permission->id);
+            ->detach($permissions->all());
 
         $this->actingAs($manager)->get(route('admin.payroll.index'))->assertForbidden();
     }
@@ -193,7 +193,7 @@ class TeacherPayrollTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque, ['hired_at' => now()->subDays(5)]);
+        [, $teacher] = $this->teacher($mosque, ['hired_at' => now()->subDays(5), 'monthly_salary' => 2000]);
 
         $this->actingAs($manager)->post(route('admin.payroll.pay', $teacher), ['amount' => 500]);
 

@@ -3,6 +3,7 @@
     $settingsAuthorization = app(\App\Services\AuthorizationService::class);
     $canQuranSettings = $settingsAuthorization->can($settingsUser, 'quran_settings.view');
     $canUsers = $settingsAuthorization->can($settingsUser, 'users.view');
+    $canWorkHours = $settingsAuthorization->can($settingsUser, 'work_hours.view');
 
     $settingsTabs = [
         [
@@ -22,6 +23,12 @@
             'href' => route('admin.settings.rewards.edit'),
             'active' => request()->routeIs('admin.settings.rewards.*'),
             'visible' => $canQuranSettings,
+        ],
+        [
+            'label' => 'ساعات العمل والرواتب',
+            'href' => route('admin.settings.work-hours.edit'),
+            'active' => request()->routeIs('admin.settings.work-hours.*'),
+            'visible' => $canWorkHours,
         ],
         [
             'label' => 'الحسابات والصلاحيات',

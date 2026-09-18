@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\FinancePersonType;
 use App\Enums\FinancialDirection;
 use App\Enums\FinancialTransactionType;
+use App\Services\PayrollPeriodService;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,6 +34,35 @@ class FinancialTransaction extends Model
 {
     use MultiTenantTrait, UuidTrait;
 
+    /**
+     * كل صف مالي مرتبط بكشف راتب (دفعة أو عكسها) يحدّث الذاكرة المؤقتة
+     * `paid_amount` على الكشف مباشرة — المصدر يبقى السجل المالي.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (self $transaction) {
+            $periodId = $transaction->payroll_period_id;
+
+            if ($periodId === null && $transaction->reverses_id !== null) {
+                $periodId = self::withoutGlobalScopes()
+                    ->whereKey($transaction->reverses_id)
+                    ->value('payroll_period_id');
+            }
+
+            if ($periodId === null) {
+                return;
+            }
+
+            $period = PayrollPeriod::withoutGlobalScopes()->find($periodId);
+
+            if ($period !== null) {
+                $period->updateQuietly([
+                    'paid_amount' => app(PayrollPeriodService::class)->paidFor($period),
+                ]);
+            }
+        });
+    }
+
     protected $fillable = [
         'tenant_id',
         'person_type',
@@ -44,7 +74,9 @@ class FinancialTransaction extends Model
         'related_person_id',
         'description',
         'reference',
+        'payment_method',
         'reverses_id',
+        'payroll_period_id',
         'created_by',
     ];
 
@@ -61,6 +93,12 @@ class FinancialTransaction extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** كشف الراتب المرتبط بالدفعة (إن كانت دفعة راتب شهرية). */
+    public function payrollPeriod(): BelongsTo
+    {
+        return $this->belongsTo(PayrollPeriod::class, 'payroll_period_id');
     }
 
     public function reverses(): BelongsTo

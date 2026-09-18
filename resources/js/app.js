@@ -910,6 +910,109 @@ function initExamTimers() {
 /* ============================================================
    التشغيل عند الجاهزية
 =========================================================== */
+function initWorkSlotForms() {
+    document.querySelectorAll('[data-work-slot-form]').forEach((form) => {
+        const teacherInput = form.querySelector('[name="teacher_id"]');
+        const dateInput = form.querySelector('[name="date"]');
+        const startInput = form.querySelector('[name="start_time"]');
+        const endInput = form.querySelector('[name="end_time"]');
+        const durationEl = form.querySelector('[data-slot-duration]');
+        const conflictEl = form.querySelector('[data-slot-conflict]');
+        const url = form.dataset.daySlotsUrl;
+        const slotId = form.dataset.slotId || null;
+
+        if (!teacherInput || !dateInput || !startInput || !endInput) {
+            return;
+        }
+
+        let existing = [];
+
+        const toMinutes = (value) => {
+            const parts = String(value || '').slice(0, 5).split(':').map((part) => parseInt(part, 10));
+            return (parts[0] || 0) * 60 + (parts[1] || 0);
+        };
+
+        const formatDuration = (minutes) => {
+            const hours = Math.floor(minutes / 60);
+            const rest = minutes % 60;
+            if (hours === 0 && rest === 0) return '0س';
+            return (hours > 0 ? hours + 'س ' : '') + (rest > 0 ? rest + 'د' : '');
+        };
+
+        const updateDuration = () => {
+            if (!durationEl) return;
+            const start = toMinutes(startInput.value);
+            const end = toMinutes(endInput.value);
+
+            if (!startInput.value || !endInput.value) {
+                durationEl.textContent = '—';
+                return;
+            }
+
+            if (end < start) {
+                durationEl.textContent = 'فترة تعبر منتصف الليل (غير مسموحة)';
+                durationEl.classList.add('text-red-600');
+                return;
+            }
+
+            durationEl.classList.remove('text-red-600');
+            durationEl.textContent = 'المدة: ' + formatDuration(end - start);
+        };
+
+        const checkOverlap = () => {
+            if (!conflictEl) return;
+            const start = toMinutes(startInput.value);
+            const end = toMinutes(endInput.value);
+
+            if (!startInput.value || !endInput.value || end <= start) {
+                conflictEl.classList.add('hidden');
+                return;
+            }
+
+            const conflict = existing.find((slot) => slot.id !== slotId && start < toMinutes(slot.end) && end > toMinutes(slot.start));
+
+            if (conflict) {
+                conflictEl.textContent = 'تحذير: تتعارض مع ' + conflict.start + ' — ' + conflict.end;
+                conflictEl.classList.remove('hidden');
+            } else {
+                conflictEl.classList.add('hidden');
+            }
+        };
+
+        const refreshSlots = () => {
+            if (!url || !teacherInput.value || !dateInput.value) {
+                existing = [];
+                return;
+            }
+
+            fetch(url + '?teacher_id=' + encodeURIComponent(teacherInput.value) + '&date=' + encodeURIComponent(dateInput.value), {
+                headers: { Accept: 'application/json' },
+            })
+                .then((response) => (response.ok ? response.json() : { slots: [] }))
+                .then((data) => {
+                    existing = Array.isArray(data.slots) ? data.slots : [];
+                    checkOverlap();
+                })
+                .catch(() => {
+                    existing = [];
+                });
+        };
+
+        [startInput, endInput].forEach((input) => {
+            input.addEventListener('change', () => {
+                updateDuration();
+                checkOverlap();
+            });
+            input.addEventListener('input', updateDuration);
+        });
+
+        [teacherInput, dateInput].forEach((input) => input.addEventListener('change', refreshSlots));
+
+        updateDuration();
+        refreshSlots();
+    });
+}
+
 function initApp() {
     initSidebarCollapse();
     initSidebarGroups();
@@ -920,6 +1023,7 @@ function initApp() {
     initPhotoPreviews();
     initVoiceRecorders();
     initSearchPickers();
+    initWorkSlotForms();
     initExamTimers();
 }
 

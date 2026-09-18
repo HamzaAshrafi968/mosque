@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PayType;
 use App\Traits\FlushesTenantCache;
 use App\Traits\HasAvatar;
 use App\Traits\MultiTenantTrait;
@@ -32,6 +33,7 @@ class Teacher extends Model
         'specialty',
         'hired_at',
         'monthly_salary',
+        'pay_type',
         'is_active',
         'photo',
     ];
@@ -41,6 +43,7 @@ class Teacher extends Model
         return [
             'hired_at' => 'date',
             'monthly_salary' => 'decimal:2',
+            'pay_type' => PayType::class,
             'is_active' => 'boolean',
         ];
     }
@@ -170,10 +173,28 @@ class Teacher extends Model
         return $this->hasMany(FaithMeeting::class, 'teacher_id');
     }
 
-    /** Recurring weekly work periods. */
+    /** Recurring weekly work periods (المخطط). */
     public function workHours(): HasMany
     {
         return $this->hasMany(TeacherWorkHour::class);
+    }
+
+    /** Actual dated work slots (الفعلي — مصدر احتساب الراتب). */
+    public function workSlots(): HasMany
+    {
+        return $this->hasMany(WorkSlot::class);
+    }
+
+    /** سجل أسعار الساعة التاريخي. */
+    public function hourlyRates(): HasMany
+    {
+        return $this->hasMany(HourlyRate::class);
+    }
+
+    /** كشوف الرواتب الشهرية. */
+    public function payrollPeriods(): HasMany
+    {
+        return $this->hasMany(PayrollPeriod::class);
     }
 
     /** Explicit assignments to sections (source of truth for section scope). */

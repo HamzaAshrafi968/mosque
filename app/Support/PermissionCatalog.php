@@ -179,6 +179,13 @@ final class PermissionCatalog
         // Teacher work hours (ساعات عمل المشرفين)
         ['work_hours', 'view', 'مشاهدة ساعات العمل'],
         ['work_hours', 'manage', 'إدارة ساعات العمل'],
+        // Payroll & hourly rates (كشوف الرواتب وأسعار الساعة)
+        ['hourly_rates', 'manage', 'إدارة أسعار الساعة'],
+        ['payroll', 'view', 'مشاهدة كشوف الرواتب'],
+        ['payroll', 'manage', 'احتساب كشوف الرواتب'],
+        ['payroll', 'pay', 'تسجيل دفعة راتب'],
+        ['payroll', 'close', 'إغلاق كشف الشهر'],
+        ['payroll', 'reopen', 'إعادة فتح كشف الشهر'],
         // Sharia courses (الدورات الشرعية)
         ['sharia_courses', 'view', 'مشاهدة الدورات الشرعية'],
         ['sharia_courses', 'create', 'إنشاء دورة شرعية'],
@@ -227,6 +234,8 @@ final class PermissionCatalog
         'hafiz_profile.view' => 'mosque', 'hafiz_profile.update' => 'mosque',
         'faith_meetings.view' => 'mosque', 'faith_meetings.create' => 'mosque', 'faith_meetings.update' => 'mosque', 'faith_meetings.attendance' => 'mosque',
         'work_hours.view' => 'mosque', 'work_hours.manage' => 'mosque',
+        'hourly_rates.manage' => 'mosque',
+        'payroll.view' => 'mosque', 'payroll.manage' => 'mosque', 'payroll.pay' => 'mosque', 'payroll.close' => 'mosque', 'payroll.reopen' => 'mosque',
         'sharia_courses.view' => 'mosque', 'sharia_courses.create' => 'mosque', 'sharia_courses.update' => 'mosque', 'sharia_courses.delete' => 'mosque', 'sharia_courses.attendance' => 'mosque', 'sharia_courses.memorization' => 'mosque',
     ];
 
@@ -261,6 +270,7 @@ final class PermissionCatalog
         'hafiz_profile.view' => 'own',
         'faith_meetings.view' => 'own', 'faith_meetings.create' => 'own', 'faith_meetings.update' => 'own', 'faith_meetings.attendance' => 'own',
         'work_hours.view' => 'own',
+        'payroll.view' => 'own',
         'sharia_courses.view' => 'own', 'sharia_courses.update' => 'own', 'sharia_courses.attendance' => 'own', 'sharia_courses.memorization' => 'own',
     ];
 
@@ -373,6 +383,8 @@ final class PermissionCatalog
             'hafiz_profile' => 'ملفات الحفاظ',
             'faith_meetings' => 'اللقاءات الإيمانية',
             'work_hours' => 'ساعات العمل',
+            'hourly_rates' => 'أسعار الساعة',
+            'payroll' => 'كشوف الرواتب',
             'sharia_courses' => 'الدورات الشرعية',
         ];
     }

@@ -55,7 +55,7 @@ class FinanceService
     /**
      * Record a single-side transaction: charge / payment / refund / adjustment.
      *
-     * @param  array{person_type: string, person_id: string, transaction_type: string, direction?: string, amount: float|string, description?: ?string, reference?: ?string}  $data
+     * @param  array{person_type: string, person_id: string, transaction_type: string, direction?: string, amount: float|string, description?: ?string, reference?: ?string, payment_method?: ?string, payroll_period_id?: ?string}  $data
      */
     public function record(array $data, User $actor, ?string $tenantId = null): FinancialTransaction
     {
@@ -88,6 +88,8 @@ class FinanceService
             'related_person_id' => $relatedId,
             'description' => $data['description'] ?? null,
             'reference' => $data['reference'] ?? null,
+            'payment_method' => $data['payment_method'] ?? null,
+            'payroll_period_id' => $data['payroll_period_id'] ?? null,
             'created_by' => $actor->id,
         ]);
 
@@ -346,6 +348,7 @@ class FinanceService
         return $transaction->only([
             'person_type', 'person_id', 'transaction_type', 'direction',
             'amount', 'related_person_type', 'related_person_id', 'description', 'reference',
+            'payment_method', 'payroll_period_id',
         ]);
     }
 }
