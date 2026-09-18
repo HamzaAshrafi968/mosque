@@ -74,6 +74,7 @@
                             <div class="flex gap-2 justify-center">
                                 <a href="{{ route('admin.quran.ijazah.month', [$enrollment->student, $last?->month ?? now()->format('Y-m')]) }}" class="text-xs text-pine-700 hover:underline">الأسابيع</a>
                                 <a href="{{ route('admin.quran.ijazah.evaluations.create', ['student_id' => $enrollment->student->id]) }}" class="text-xs text-emerald-700 hover:underline">+ تقييم</a>
+                                <a href="{{ route('admin.quran.programs.index', ['type' => 'ijazah', 'student_id' => $enrollment->student->id]) }}" class="text-xs text-sky-700 hover:underline">دورة الاستماع</a>
                                 @if($passed >= \App\Support\QuranProgramSettings::IJAZAH_MIN_PASSED_MONTHS)
                                     <form method="POST" action="{{ route('admin.quran.ijazah.enrollments.complete', $enrollment) }}"
                                           onsubmit="return confirm('سيُنهى برنامج الإجازة (اكتمال الرحلة القرآنية). متأكد؟')">

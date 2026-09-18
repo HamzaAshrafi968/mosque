@@ -21,6 +21,7 @@ class QuranListeningTest extends Model
         'tenant_id',
         'plan_id',
         'batch_id',
+        'listening_batch_id',
         'student_id',
         'tested_by',
         'tested_at',
@@ -48,6 +49,12 @@ class QuranListeningTest extends Model
     public function batch(): BelongsTo
     {
         return $this->belongsTo(QuranMemorizationBatch::class, 'batch_id');
+    }
+
+    /** دفعة «برامج الاستماع» (تدريبي/إجازة/تأهيلي) إن كان الاختبار لها. */
+    public function listeningBatch(): BelongsTo
+    {
+        return $this->belongsTo(QuranListeningProgramBatch::class, 'listening_batch_id');
     }
 
     public function student(): BelongsTo

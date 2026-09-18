@@ -42,6 +42,7 @@ class UserPermissionOverrideTest extends TestCase
         'quran.memorization.manage' => 'own',
         'quran_listening.view' => 'own', 'quran_listening.create' => 'own', 'quran_listening.update' => 'own', 'quran_listening.listen' => 'own', 'quran_listening.test' => 'own',
         'quran_batch.view' => 'own', 'quran_batch.update' => 'own',
+        'quran_training.view' => 'own', 'quran_training.create' => 'own', 'quran_training.update' => 'own', 'quran_training.listen' => 'own', 'quran_training.test' => 'own',
         'reward_points.view' => 'own', 'reward_points.create' => 'own', 'reward_points.delete' => 'own',
         'qualifying.view' => 'own', 'qualifying.create' => 'own', 'qualifying.update' => 'own',
         'ijazah.view' => 'own', 'ijazah.create' => 'own', 'ijazah.update' => 'own',

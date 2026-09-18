@@ -26,6 +26,7 @@ class QuranRecitationSession extends Model
         'student_id',
         'teacher_id',
         'batch_id',
+        'program_batch_id',
         'type',
         'date',
         'amount',
@@ -77,5 +78,11 @@ class QuranRecitationSession extends Model
     public function batch(): BelongsTo
     {
         return $this->belongsTo(QuranMemorizationBatch::class, 'batch_id');
+    }
+
+    /** دفعة برنامج الاستماع المرتبطة (دورة التأهيلي/الإجازة). */
+    public function programBatch(): BelongsTo
+    {
+        return $this->belongsTo(QuranListeningProgramBatch::class, 'program_batch_id');
     }
 }

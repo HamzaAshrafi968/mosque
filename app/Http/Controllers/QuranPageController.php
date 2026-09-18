@@ -28,7 +28,8 @@ class QuranPageController extends Controller
     {
         $page = $this->clamp($page);
         $to = max($page, (int) $request->integer('to', $page));
-        $to = min($to, $page + 19, $this->pages->maxPage());
+        // أقصى نطاق معاينة 30 صفحة (يكفي لعرض الجزء كاملاً — أطول جزء 23 صفحة).
+        $to = min($to, $page + 29, $this->pages->maxPage());
 
         return view('quran.pages.preview', [
             'pages' => $this->pages->pagesForRange($page, $to),

@@ -95,7 +95,7 @@ class QuranProgramService
                 $this->audit->logModel('hafiz.profile.created', $profile, actor: $actor);
             }
 
-            $this->enroll(ProgramType::Qualifying, $completion->student_id, $startedAt, $actor);
+            $this->enrollIfAbsent(ProgramType::Qualifying, $completion->student_id, $startedAt, $actor);
 
             $this->ensureMonthlyExamRows(
                 collect([$completion->student_id]),
@@ -129,7 +129,7 @@ class QuranProgramService
 
         $this->completeEnrollment($enrollment, $actor);
 
-        $this->enroll(ProgramType::Ijazah, $enrollment->student_id, Carbon::today()->format('Y-m-d'), $actor);
+        $this->enrollIfAbsent(ProgramType::Ijazah, $enrollment->student_id, Carbon::today()->format('Y-m-d'), $actor);
     }
 
     /**
@@ -150,6 +150,19 @@ class QuranProgramService
                     QuranProgramSettings::IJAZAH_MIN_PASSED_MONTHS
                 ),
             ]);
+        }
+
+        $this->completeEnrollment($enrollment, $actor);
+    }
+
+    /**
+     * إنهاء التحاق دورة استماع (التأهيلي/الإجازة) عند اجتياز اختبار 1–30 —
+     * بلا شروط التقييمات الأسبوعية/الشهرية (تلك تبقى للشاشات اليدوية).
+     */
+    public function completeCycleEnrollment(ProgramEnrollment $enrollment, ?User $actor = null): void
+    {
+        if (! $enrollment->isActive()) {
+            return;
         }
 
         $this->completeEnrollment($enrollment, $actor);
@@ -289,26 +302,34 @@ class QuranProgramService
             ->first();
     }
 
-    private function enroll(ProgramType $type, string $studentId, string $startedAt, ?User $actor): void
+    /**
+     * Ensure an active enrollment exists for the student and return it
+     * (existing or newly created) — idempotent. Used by the automatic
+     * transitions and by the listening programs (تدريبي/إجازة/تأهيلي).
+     */
+    public function enrollIfAbsent(ProgramType $type, string $studentId, ?string $startedAt = null, ?User $actor = null): ProgramEnrollment
     {
         $existing = ProgramEnrollment::query()
             ->where('student_id', $studentId)
             ->where('program_type', $type)
             ->where('status', ProgramEnrollmentStatus::Active)
-            ->exists();
+            ->latest()
+            ->first();
 
         if ($existing) {
-            return;
+            return $existing;
         }
 
         $enrollment = ProgramEnrollment::create([
             'student_id' => $studentId,
             'program_type' => $type,
-            'started_at' => $startedAt,
+            'started_at' => $startedAt ?? Carbon::today()->format('Y-m-d'),
             'status' => ProgramEnrollmentStatus::Active,
         ]);
 
         $this->audit->logModel('program.enrollment.created', $enrollment, actor: $actor);
+
+        return $enrollment;
     }
 
     private function completeEnrollment(ProgramEnrollment $enrollment, ?User $actor): void

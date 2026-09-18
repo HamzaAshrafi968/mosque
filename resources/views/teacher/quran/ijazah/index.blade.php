@@ -19,7 +19,8 @@
                 @foreach($students as $student)
                     <span class="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold px-3 py-1.5 rounded-full">
                         <a href="{{ route('teacher.quran.ijazah.month', [$student, now()->format('Y-m')]) }}" class="hover:underline">{{ $student->name }}</a>
-                        <a href="{{ route('teacher.quran.ijazah.evaluations.create', ['student_id' => $student->id]) }}" class="text-emerald-500 hover:text-emerald-700">+</a>
+                        <a href="{{ route('teacher.quran.ijazah.evaluations.create', ['student_id' => $student->id]) }}" class="text-emerald-500 hover:text-emerald-700" title="+ تقييم شهري">+</a>
+                        <a href="{{ route('teacher.quran.programs.index', ['type' => 'ijazah', 'student_id' => $student->id]) }}" class="text-sky-600 hover:text-sky-800 text-xs" title="دورة الاستماع">استماع</a>
                     </span>
                 @endforeach
             </div>
