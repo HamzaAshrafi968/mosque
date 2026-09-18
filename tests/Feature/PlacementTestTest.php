@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\QuranKhamsaReviewType;
 use App\Enums\QuranListeningPlanStatus;
 use App\Enums\QuranMemorizationBatchStatus;
+use App\Models\QuranCompletion;
 use App\Models\QuranListeningTest;
 use App\Models\QuranMemorizationBatch;
 use App\Models\QuranRecitationSession;
@@ -97,6 +98,36 @@ class PlacementTestTest extends TestCase
     private function placementPayload(array $results): array
     {
         return ['results' => $results];
+    }
+
+    /** @return array<int, int> أجزاء خمسات الإعادة المرتبطة بالدفعة. */
+    private function retakeJuz(QuranMemorizationBatch $batch): array
+    {
+        return $batch->retakeReview5()
+            ->firstOrFail()
+            ->items()
+            ->orderBy('juz')
+            ->pluck('juz')
+            ->map(fn ($juz) => (int) $juz)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, int>  $juzNumbers
+     * @param  array<int, int>  $failed
+     * @return array<int, string>
+     */
+    private function placementResults(array $juzNumbers, array $failed = []): array
+    {
+        $results = [];
+
+        foreach ($juzNumbers as $juz) {
+            $results[$juz] = in_array($juz, $failed, true) ? 'fail' : 'pass';
+        }
+
+        return $results;
     }
 
     public function test_placement_test_is_available_without_a_cycle_and_opens_the_next_batch(): void
@@ -384,5 +415,268 @@ class PlacementTestTest extends TestCase
             ->assertOk()
             ->assertSee('محفوظ مسبقاً')
             ->assertSee('✓ محفوظ');
+    }
+
+    public function test_placement_test_scope_covers_all_consecutive_pre_memorized_batches(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, range(1, 8));
+
+        $batch = $this->batch($student, 1);
+
+        $this->assertTrue($this->gating()->placementTestAllowed($batch));
+        $this->assertSame(range(1, 8), $this->gating()->placementTestJuzNumbers($batch));
+        $this->assertSame(
+            [1, 2, 3, 4],
+            collect($this->gating()->placementTestScope($batch))->pluck('batch_number')->all()
+        );
+
+        // النموذج يعرض الأجزاء الثمانية موزّعة على بطاقات الدفعات.
+        $this->actingAs($admin)
+            ->get(route('admin.quran.batches.index', ['student_id' => $student->id]))
+            ->assertOk()
+            ->assertSee('اختبار مباشر للأجزاء المحفوظة مسبقاً')
+            ->assertSee('الدفعة 1 (الجزآن 1–2)')
+            ->assertSee('الدفعة 4 (الجزآن 7–8)')
+            ->assertSee('الجزء 8')
+            ->assertSee('data-placement-test-form', false)
+            ->assertSee('data-placement-summary', false)
+            ->assertSee('تعليم الكل ناجح')
+            ->assertSee('تسجيل نتيجة الاختبار المباشر (8 أجزاء)');
+    }
+
+    public function test_placement_test_all_pass_certifies_every_covered_batch_and_opens_the_next(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, range(1, 8));
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.placement-test', $this->batch($student, 1)), $this->placementPayload($this->placementResults(range(1, 8))))
+            ->assertRedirect()
+            ->assertSessionHas('success', fn (string $message) => str_contains($message, '1–8') && str_contains($message, '4 دفعة'));
+
+        foreach (range(1, 4) as $number) {
+            $batch = $this->batch($student, $number);
+            $this->assertSame(QuranMemorizationBatchStatus::Passed, $batch->status);
+            $this->assertNotNull($batch->passed_at);
+            $this->assertNotNull($batch->last_test_id);
+        }
+
+        $this->assertSame(QuranMemorizationBatchStatus::PendingMemorization, $this->batch($student, 5)->status);
+
+        $this->assertCount(4, QuranListeningTest::query()->where('student_id', $student->id)->get());
+
+        $juzPerTest = collect(range(1, 4))
+            ->map(fn (int $number) => $this->batch($student, $number)->lastTest
+                ->items()
+                ->orderBy('juz')
+                ->pluck('juz')
+                ->map(fn ($juz) => (int) $juz)
+                ->all())
+            ->all();
+
+        $this->assertSame([[1, 2], [3, 4], [5, 6], [7, 8]], $juzPerTest);
+    }
+
+    public function test_placement_test_partial_failure_certifies_passed_batches_and_retakes_failed_juz(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, range(1, 8));
+
+        $this->actingAs($admin)
+            ->post(
+                route('admin.quran.batches.placement-test', $this->batch($student, 1)),
+                $this->placementPayload($this->placementResults(range(1, 8), failed: [2, 7]))
+            )
+            ->assertRedirect();
+
+        $first = $this->batch($student, 1);
+        $this->assertSame(QuranMemorizationBatchStatus::NeedsRepeat, $first->status);
+        $this->assertSame([2], $this->retakeJuz($first));
+
+        $this->assertSame(QuranMemorizationBatchStatus::Passed, $this->batch($student, 2)->status);
+        $this->assertSame(QuranMemorizationBatchStatus::Passed, $this->batch($student, 3)->status);
+
+        $fourth = $this->batch($student, 4);
+        $this->assertSame(QuranMemorizationBatchStatus::NeedsRepeat, $fourth->status);
+        $this->assertSame([7], $this->retakeJuz($fourth));
+
+        // الدفعة الراسبة اللاحقة تبقى ظاهرة «تحتاج إعادة» ولا تقفلها sync.
+        $this->assertSame(
+            QuranMemorizationBatchStatus::NeedsRepeat,
+            $this->gating()->sync($student)->firstWhere('batch_number', 4)['status']
+        );
+
+        // الدفعة الحالية هي أول دفعة راسبة، والدفعة 5 لم تُفتح للحفظ بعد.
+        $this->assertSame(1, $this->gating()->currentBatch($student)?->batch_number);
+
+        // إتمام خمسات إعادة الجزء 2 ثم اختبار الإعادة يثبّت الدفعة 1.
+        $retake = $first->retakeReview5()->firstOrFail();
+
+        foreach ($retake->items()->orderBy('from_page')->get() as $item) {
+            app(QuranKhamsaService::class)->completeItem($item, [], $admin);
+        }
+
+        $this->assertSame(QuranMemorizationBatchStatus::ReadyForTest, $first->refresh()->status);
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.test', $first), $this->placementPayload([2 => 'pass']))
+            ->assertRedirect();
+
+        $this->assertSame(QuranMemorizationBatchStatus::Passed, $first->refresh()->status);
+        $this->assertSame(4, $this->gating()->currentBatch($student)?->batch_number);
+    }
+
+    public function test_placement_test_scope_stops_at_the_first_gap(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, [1, 2, 3, 4, 7, 8]);
+
+        $batch = $this->batch($student, 1);
+
+        $this->assertTrue($this->gating()->placementTestAllowed($batch));
+        $this->assertSame([1, 2, 3, 4], $this->gating()->placementTestJuzNumbers($batch));
+    }
+
+    public function test_placement_test_with_an_odd_memorized_count_stops_at_the_incomplete_batch(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, range(1, 5));
+
+        $batch = $this->batch($student, 1);
+        $this->assertSame([1, 2, 3, 4], $this->gating()->placementTestJuzNumbers($batch));
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.placement-test', $batch), $this->placementPayload($this->placementResults([1, 2, 3, 4])))
+            ->assertRedirect();
+
+        $this->assertSame(QuranMemorizationBatchStatus::Passed, $this->batch($student, 1)->status);
+        $this->assertSame(QuranMemorizationBatchStatus::Passed, $this->batch($student, 2)->status);
+        $this->assertSame(QuranMemorizationBatchStatus::PendingMemorization, $this->batch($student, 3)->status);
+    }
+
+    public function test_placement_test_missing_result_rolls_back_without_partial_certification(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, range(1, 8));
+
+        $this->actingAs($admin)
+            ->post(
+                route('admin.quran.batches.placement-test', $this->batch($student, 1)),
+                $this->placementPayload($this->placementResults(range(1, 7)))
+            )
+            ->assertSessionHasErrors('results');
+
+        $this->assertSame(0, QuranListeningTest::query()->where('student_id', $student->id)->count());
+        $this->assertSame(QuranMemorizationBatchStatus::PendingReview5, $this->batch($student, 1)->status);
+        $this->assertSame(1, QuranMemorizationBatch::query()->where('student_id', $student->id)->count());
+    }
+
+    public function test_placement_test_for_thirty_juz_opens_the_completion_request(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, range(1, 30));
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.placement-test', $this->batch($student, 1)), $this->placementPayload($this->placementResults(range(1, 30))))
+            ->assertRedirect();
+
+        $this->assertSame(
+            QuranMemorizationBatch::TOTAL_BATCHES,
+            QuranMemorizationBatch::query()
+                ->where('student_id', $student->id)
+                ->where('status', QuranMemorizationBatchStatus::Passed)
+                ->count()
+        );
+
+        $completion = QuranCompletion::query()->where('student_id', $student->id)->first();
+
+        $this->assertNotNull($completion);
+        $this->assertSame('pending', $completion->status->value);
+    }
+
+    public function test_student_form_with_eight_memorized_juz_opens_an_eight_juz_placement_test(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        // نفس ما يرسله نموذج الطالب عند اختيار «مقدار الحفظ: 8 أجزاء».
+        $this->actingAs($admin)->patch(route('admin.students.update', $student), [
+            'name' => $student->name,
+            'gender' => $student->gender,
+            'memorized_juz' => 8,
+            'memorized_juz_numbers_present' => 1,
+            'memorized_juz_numbers' => range(1, 8),
+        ])->assertRedirect();
+
+        $this->assertSame(range(1, 8), $this->gating()->placementTestJuzNumbers($this->batch($student, 1)));
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.show', $student))
+            ->assertOk()
+            ->assertSee('تسجيل نتيجة الاختبار المباشر (8 أجزاء)');
+    }
+
+    public function test_placement_test_cannot_be_recorded_twice(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->memorize($student, range(1, 8));
+
+        $payload = $this->placementPayload($this->placementResults(range(1, 8)));
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.placement-test', $this->batch($student, 1)), $payload)
+            ->assertRedirect();
+
+        // إعادة الإرسال بعد التثبيت مرفوضة ولا تُنشئ اختبارات إضافية.
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.placement-test', $this->batch($student, 1)), $payload)
+            ->assertSessionHasErrors('results');
+
+        $this->assertSame(4, QuranListeningTest::query()->where('student_id', $student->id)->count());
+    }
+
+    public function test_placement_test_sends_a_single_aggregate_notification(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+
+        $studentUser = User::factory()->create(['tenant_id' => $mosque->id, 'role' => 'student']);
+        $student = $this->student($mosque, $session);
+        $student->update(['user_id' => $studentUser->id]);
+
+        $this->memorize($student, range(1, 8));
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.placement-test', $this->batch($student, 1)), $this->placementPayload($this->placementResults(range(1, 8))))
+            ->assertRedirect();
+
+        $titles = $studentUser->notifications()->get()->pluck('data.title');
+
+        $this->assertSame(1, $titles->filter(fn ($title) => $title === 'نجاح في الاختبار المباشر')->count());
+        $this->assertSame(0, $titles->filter(fn ($title) => $title === 'نجاح في اختبار الدفعة')->count());
     }
 }

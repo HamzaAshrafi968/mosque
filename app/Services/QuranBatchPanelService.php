@@ -40,6 +40,8 @@ class QuranBatchPanelService
      *     timeline: Collection<int, mixed>,
      *     memorizationProgress: ?array,
      *     placementTestAllowed: bool,
+     *     placementTestScope: array<int, array{batch_number: int, from_juz: int, to_juz: int, batch: ?QuranMemorizationBatch}>,
+     *     placementTestJuz: array<int, int>,
      *     cycleBlockedReason: ?string
      * }
      */
@@ -69,6 +71,8 @@ class QuranBatchPanelService
         $listeningSessions = collect();
         $memorizationProgress = null;
         $placementTestAllowed = false;
+        $placementTestScope = [];
+        $placementTestJuz = [];
         $cycleBlockedReason = null;
 
         if ($currentBatch) {
@@ -80,6 +84,16 @@ class QuranBatchPanelService
             $testScopeJuz = $this->gating->testScopeJuzNumbers($currentBatch);
             $memorizationProgress = $this->gating->batchMemorizationProgress($currentBatch);
             $placementTestAllowed = $this->gating->placementTestAllowed($currentBatch);
+
+            if ($placementTestAllowed) {
+                $placementTestScope = $this->gating->placementTestScope($currentBatch);
+                $placementTestJuz = collect($placementTestScope)
+                    ->flatMap(fn (array $entry) => [$entry['from_juz'], $entry['to_juz']])
+                    ->unique()
+                    ->sort()
+                    ->values()
+                    ->all();
+            }
 
             if ($currentBatch->status === QuranMemorizationBatchStatus::PendingReview5 && ! $review && ! $plan) {
                 if (! $student->study_session_id) {
@@ -153,6 +167,8 @@ class QuranBatchPanelService
             'timeline' => $timeline,
             'memorizationProgress' => $memorizationProgress,
             'placementTestAllowed' => $placementTestAllowed,
+            'placementTestScope' => $placementTestScope,
+            'placementTestJuz' => $placementTestJuz,
             'cycleBlockedReason' => $cycleBlockedReason,
         ];
     }
@@ -192,6 +208,8 @@ class QuranBatchPanelService
             'timeline' => collect(),
             'memorizationProgress' => null,
             'placementTestAllowed' => false,
+            'placementTestScope' => [],
+            'placementTestJuz' => [],
             'cycleBlockedReason' => null,
         ];
     }

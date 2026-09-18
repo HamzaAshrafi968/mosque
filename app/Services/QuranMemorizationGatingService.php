@@ -12,6 +12,7 @@ use App\Enums\QuranMemorizationBatchStatus;
 use App\Enums\QuranTasmeeType;
 use App\Models\QuranCompletion;
 use App\Models\QuranKhamsaReview;
+use App\Models\QuranKhamsaReviewItem;
 use App\Models\QuranListeningPlan;
 use App\Models\QuranListeningTest;
 use App\Models\QuranListeningTestItem;
@@ -87,7 +88,22 @@ class QuranMemorizationGatingService
                 && in_array($range['to'], $memorized, true);
 
             if (! $prevPassed) {
-                if ($row && ! $row->isPassed() && ! $row->isLocked()) {
+                // دفعة مثبّتة فعلياً (اجتازت اختبارها) تبقى ظاهرة «ناجحة»،
+                // ودفعة لها اختبار (راسبة/بانتظار إعادة) تبقى بحالتها — كما
+                // في الاختبار المباشر متعدد الدفعات.
+                if ($row?->isPassed()) {
+                    $states->push($this->state($number, $range, QuranMemorizationBatchStatus::Passed, $row));
+
+                    continue;
+                }
+
+                if ($row && $row->last_test_id !== null) {
+                    $states->push($this->state($number, $range, $row->status, $row));
+
+                    continue;
+                }
+
+                if ($row && ! $row->isLocked()) {
                     $row->update(['status' => QuranMemorizationBatchStatus::Locked]);
                 }
 
@@ -559,13 +575,126 @@ class QuranMemorizationGatingService
     }
 
     /**
-     * الاختبار المباشر للأجزاء المحفوظة مسبقاً: نطاقه جزآ الدفعة نفسها
-     * (لا نطاق تراكمي)، ولا يتطلب خطة استماع. النجاح يثبّت الدفعة ويفتح
-     * التالية، والرسوب يولّد خمسات إعادة للأجزاء الراسبة.
+     * نطاق الاختبار المباشر: الدفعة الحالية ثم كل دفعة تالية ما دام جزآها
+     * مسجّلين محفوظين ولم يدخل أي منهما مسار اختبار/إعادة/مراجعة سابق.
+     *
+     * @return array<int, array{batch_number: int, from_juz: int, to_juz: int, batch: ?QuranMemorizationBatch}>
+     */
+    public function placementTestScope(QuranMemorizationBatch $batch): array
+    {
+        if (! $this->placementTestAllowed($batch)) {
+            return [];
+        }
+
+        $student = $this->studentFor($batch);
+
+        if (! $student) {
+            return [];
+        }
+
+        $memorized = $this->memorizedJuzNumbers($student);
+        $existing = QuranMemorizationBatch::query()
+            ->where('student_id', $student->id)
+            ->get()
+            ->keyBy('batch_number');
+
+        $startedReviewIds = QuranKhamsaReviewItem::query()
+            ->where('status', QuranKhamsaItemStatus::Completed)
+            ->whereIn('review_id', $existing->pluck('review_5_id')->filter()->unique()->values()->all())
+            ->pluck('review_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        $scope = [];
+
+        for ($number = $batch->batch_number; $number <= QuranMemorizationBatch::TOTAL_BATCHES; $number++) {
+            $range = QuranMemorizationBatch::juzRange($number);
+
+            if (! in_array($range['from'], $memorized, true) || ! in_array($range['to'], $memorized, true)) {
+                break;
+            }
+
+            $row = $number === $batch->batch_number ? $batch : $existing->get($number);
+
+            if ($number !== $batch->batch_number && $row && $this->hasPlacementTestHistory($row, $startedReviewIds)) {
+                break;
+            }
+
+            $scope[] = [
+                'batch_number' => $number,
+                'from_juz' => $range['from'],
+                'to_juz' => $range['to'],
+                'batch' => $row,
+            ];
+        }
+
+        return $scope;
+    }
+
+    /**
+     * أرقام أجزاء الاختبار المباشر (تسطيح الدفعات المتتالية المحفوظة مسبقاً).
+     *
+     * @return array<int, int>
+     */
+    public function placementTestJuzNumbers(QuranMemorizationBatch $batch): array
+    {
+        $juz = [];
+
+        foreach ($this->placementTestScope($batch) as $entry) {
+            $juz[] = $entry['from_juz'];
+            $juz[] = $entry['to_juz'];
+        }
+
+        return array_values(array_unique($juz));
+    }
+
+    /**
+     * ملخص نتيجة الاختبار المباشر (متعدد الدفعات) لعرضه للمستخدم.
+     *
+     * @param  Collection<int, QuranListeningTest>  $tests
+     * @return array{passed: bool, score: float, failed_juz: array<int, int>, scope_juz: array<int, int>, scope_label: string, batches: int, passed_batches: int}
+     */
+    public function placementTestSummary(Collection $tests): array
+    {
+        $items = $tests->flatMap(fn (QuranListeningTest $test) => $test->items);
+
+        $scopeJuz = $items->pluck('juz')->map(fn ($juz) => (int) $juz)->unique()->sort()->values()->all();
+
+        $failedJuz = $items
+            ->filter(fn (QuranListeningTestItem $item) => $item->result === QuranListeningTestResult::Fail)
+            ->pluck('juz')
+            ->map(fn ($juz) => (int) $juz)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $passedJuz = $items
+            ->filter(fn (QuranListeningTestItem $item) => $item->result === QuranListeningTestResult::Pass)
+            ->count();
+
+        return [
+            'passed' => $tests->isNotEmpty() && $tests->every(fn (QuranListeningTest $test) => $test->isPass()),
+            'score' => round($passedJuz / max(1, $items->count()) * 100, 2),
+            'failed_juz' => $failedJuz,
+            'scope_juz' => $scopeJuz,
+            'scope_label' => $this->formatJuzRange($scopeJuz),
+            'batches' => $tests->count(),
+            'passed_batches' => $tests->filter(fn (QuranListeningTest $test) => $test->isPass())->count(),
+        ];
+    }
+
+    /**
+     * الاختبار المباشر للأجزاء المحفوظة مسبقاً: يشمل كل الدفعات المتتالية
+     * المحفوظة ابتداءً من الدفعة الحالية، باختبار لكل دفعة على جزأيها (بلا
+     * نطاق تراكمي) ولا يتطلب خطة استماع. النجاح يثبّت الدفعة ويفتح التالية،
+     * والرسوب يولّد خمسات إعادة للأجزاء الراسبة فقط.
      *
      * @param  array<int|string, string>  $results  juz => pass|fail
+     * @return Collection<int, QuranListeningTest>
      */
-    public function recordPlacementTest(QuranMemorizationBatch $batch, array $results, User $actor, ?string $notes = null): QuranListeningTest
+    public function recordPlacementTest(QuranMemorizationBatch $batch, array $results, User $actor, ?string $notes = null): Collection
     {
         $student = $this->studentFor($batch);
 
@@ -576,14 +705,123 @@ class QuranMemorizationGatingService
         $this->assertPlacementTestAllowed($batch);
         $batch->refresh();
 
-        return $this->recordTest(
-            $batch,
+        $scope = $this->placementTestScope($batch);
+
+        if ($scope === []) {
+            throw ValidationException::withMessages([
+                'results' => ['الاختبار المباشر متاح فقط للأجزاء المسجّلة محفوظاً قبل بدء «مراجعة 5» — أكمل المراجعة ثم سجّل الاختبار التراكمي'],
+            ]);
+        }
+
+        $this->assertPlacementResultsComplete($scope, $results);
+
+        $tests = DB::transaction(function () use ($scope, $student, $results, $actor, $notes) {
+            $tests = collect();
+
+            // تُسجَّل الدفعات من الأعلى إلى الأدنى: بعض الخطوات الداخلية
+            // (إتمام الخمسات) تستدعي sync، ولا نريد أن يولّد دورةً لدفعة
+            // سيثبّتها هذا الاختبار في نفس الطلب.
+            foreach (array_reverse($scope) as $entry) {
+                $row = $entry['batch'] ?? QuranMemorizationBatch::create([
+                    'student_id' => $student->id,
+                    'batch_number' => $entry['batch_number'],
+                    'from_juz' => $entry['from_juz'],
+                    'to_juz' => $entry['to_juz'],
+                    'status' => QuranMemorizationBatchStatus::PendingReview5,
+                ]);
+
+                $tests->push($this->recordTest(
+                    $row,
+                    $student,
+                    [$entry['from_juz'], $entry['to_juz']],
+                    null,
+                    $results,
+                    $actor,
+                    $notes,
+                    notify: false,
+                    sync: false,
+                ));
+            }
+
+            $this->sync($student, $actor);
+
+            return $tests->reverse()->values();
+        });
+
+        $this->notifyPlacementResult($student, $tests);
+
+        return $tests;
+    }
+
+    /**
+     * تحقق مسبق من اكتمال نتائج كل أجزاء نطاق الاختبار المباشر قبل أي كتابة.
+     *
+     * @param  array<int, array{batch_number: int, from_juz: int, to_juz: int, batch: ?QuranMemorizationBatch}>  $scope
+     * @param  array<int|string, string>  $results
+     */
+    private function assertPlacementResultsComplete(array $scope, array $results): void
+    {
+        foreach ($scope as $entry) {
+            foreach ([$entry['from_juz'], $entry['to_juz']] as $juz) {
+                $raw = $results[$juz] ?? $results[(string) $juz] ?? null;
+                $result = QuranListeningTestResult::tryFrom(is_array($raw) ? (string) ($raw['result'] ?? '') : (string) $raw);
+
+                if (! $result) {
+                    throw ValidationException::withMessages([
+                        'results' => ['حدّد نتيجة الجزء '.$juz.' (ناجح أو يحتاج إعادة)'],
+                    ]);
+                }
+            }
+        }
+    }
+
+    /** هل دخلت الدفعة مسار اختبار/إعادة/مراجعة سابق؟ */
+    private function hasPlacementTestHistory(QuranMemorizationBatch $batch, array $startedReviewIds = []): bool
+    {
+        if ($batch->isPassed() || $batch->last_test_id !== null || $batch->retake_review_id !== null) {
+            return true;
+        }
+
+        return $batch->review_5_id !== null && in_array($batch->review_5_id, $startedReviewIds, true);
+    }
+
+    /** وصف مختصر لنطاق أجزاء: «1–8» للنطاق المتصل وإلا قائمة. @param array<int, int> $juz */
+    private function formatJuzRange(array $juz): string
+    {
+        $juz = collect($juz)->map(fn ($value) => (int) $value)->unique()->sort()->values()->all();
+
+        if ($juz === []) {
+            return '—';
+        }
+
+        if (count($juz) > 1 && $juz === range($juz[0], $juz[count($juz) - 1])) {
+            return $juz[0].'–'.$juz[count($juz) - 1];
+        }
+
+        return implode('، ', $juz);
+    }
+
+    /** إشعار واحد مجمّع بعد الاختبار المباشر بدل إشعار لكل دفعة. @param Collection<int, QuranListeningTest> $tests */
+    private function notifyPlacementResult(Student $student, Collection $tests): void
+    {
+        $summary = $this->placementTestSummary($tests);
+
+        if ($summary['passed']) {
+            $this->notifications->notifyStudentCircle(
+                $student,
+                'نجاح في الاختبار المباشر',
+                'ما شاء الله! اجتزت الاختبار المباشر للأجزاء '.$summary['scope_label'].' ('.$summary['passed_batches'].' دفعة). تم فتح الدفعة التالية إن وُجدت.',
+                route('student.quran-profile')
+            );
+
+            return;
+        }
+
+        $this->notifications->notifyStudentCircle(
             $student,
-            [$batch->from_juz, $batch->to_juz],
-            null,
-            $results,
-            $actor,
-            $notes,
+            'نتيجة الاختبار المباشر',
+            'نتيجة الاختبار المباشر للأجزاء '.$summary['scope_label'].': '.$this->formatPercent($summary['score']).' — ثُبّتت '.$summary['passed_batches'].' دفعة — رسب في الأجزاء: '.($summary['failed_juz'] === [] ? '—' : implode('، ', $summary['failed_juz'])).'.',
+            route('student.quran-profile')
         );
     }
 
@@ -634,6 +872,8 @@ class QuranMemorizationGatingService
         array $results,
         User $actor,
         ?string $notes,
+        bool $notify = true,
+        bool $sync = true,
     ): QuranListeningTest {
         $normalized = [];
 
@@ -660,7 +900,7 @@ class QuranMemorizationGatingService
             ? QuranListeningTestResult::Pass
             : QuranListeningTestResult::Fail;
 
-        return DB::transaction(function () use ($batch, $student, $planId, $normalized, $overall, $score, $passingPercentage, $actor, $notes) {
+        return DB::transaction(function () use ($batch, $student, $planId, $normalized, $overall, $score, $passingPercentage, $actor, $notes, $notify, $sync) {
             $test = QuranListeningTest::create([
                 'plan_id' => $planId,
                 'batch_id' => $batch->id,
@@ -689,7 +929,7 @@ class QuranMemorizationGatingService
 
             $this->audit->logModel('memorization_batch.test_recorded', $test, actor: $actor);
 
-            $this->recordBatchOutcome($batch, $test, $actor);
+            $this->recordBatchOutcome($batch, $test, $actor, $notify, $sync);
 
             return $test->load('items');
         });
@@ -771,8 +1011,13 @@ class QuranMemorizationGatingService
      * الأجزاء وحد النجاح المخزَّن لقطةً على الاختبار، ثم يثبّت الدفعة ويفتح
      * التالية عند النجاح، أو يولّد خمسات إعادة للأجزاء الراسبة عند الرسوب.
      */
-    public function recordBatchOutcome(QuranMemorizationBatch $batch, QuranListeningTest $test, User $actor): void
-    {
+    public function recordBatchOutcome(
+        QuranMemorizationBatch $batch,
+        QuranListeningTest $test,
+        User $actor,
+        bool $notify = true,
+        bool $sync = true,
+    ): void {
         $student = $this->studentFor($batch);
 
         if (! $student) {
@@ -793,11 +1038,11 @@ class QuranMemorizationGatingService
 
             app(RewardPointAutoService::class)->awardForTestPass($batch, $test, $actor);
 
-            if ((int) $batch->batch_number === QuranMemorizationBatch::TOTAL_BATCHES) {
-                $this->openCompletion($batch, $student, $actor);
-            }
+            $this->maybeOpenCompletion($batch, $student, $actor);
 
-            $this->notifyBatchResult($batch, $test, passed: true);
+            if ($notify) {
+                $this->notifyBatchResult($batch, $test, passed: true);
+            }
         } else {
             $failedJuz = $test->items()
                 ->where('result', QuranListeningTestResult::Fail)
@@ -822,10 +1067,14 @@ class QuranMemorizationGatingService
 
             $this->createRetakeReview($batch, $failedJuz, $actor);
 
-            $this->notifyBatchResult($batch, $test, passed: false, failedJuz: $failedJuz);
+            if ($notify) {
+                $this->notifyBatchResult($batch, $test, passed: false, failedJuz: $failedJuz);
+            }
         }
 
-        $this->sync($student, $actor);
+        if ($sync) {
+            $this->sync($student, $actor);
+        }
     }
 
     /**
@@ -1035,7 +1284,26 @@ class QuranMemorizationGatingService
         app(RewardPointAutoService::class)->awardForListeningPlan($plan, $actor);
     }
 
-    /** نجاح الدفعة الأخيرة (29–30): فتح طلب إتمام الحفظ والمسار التأهيلي. */
+    /** فتح طلب إتمام الحفظ عند تثبيت جميع دفعات الحفظ (15 دفعة) فعلياً. */
+    private function maybeOpenCompletion(QuranMemorizationBatch $batch, Student $student, User $actor): void
+    {
+        if (QuranCompletion::query()->where('student_id', $student->id)->exists()) {
+            return;
+        }
+
+        $batches = QuranMemorizationBatch::query()
+            ->where('student_id', $student->id)
+            ->get();
+
+        if ($batches->count() < QuranMemorizationBatch::TOTAL_BATCHES
+            || $batches->contains(fn (QuranMemorizationBatch $row) => ! $row->isPassed())) {
+            return;
+        }
+
+        $this->openCompletion($batch, $student, $actor);
+    }
+
+    /** اكتمال حفظ القرآن بعد تثبيت آخر دفعة: فتح طلب الإتمام والمسار التأهيلي. */
     private function openCompletion(QuranMemorizationBatch $batch, Student $student, User $actor): void
     {
         if (QuranCompletion::query()->where('student_id', $student->id)->exists()) {
@@ -1045,7 +1313,7 @@ class QuranMemorizationGatingService
         app(QuranProgramService::class)->recordCompletion(
             $student,
             Carbon::today()->toDateString(),
-            'اكتمل حفظ القرآن بإتمام جميع دفعات الحفظ ('.$batch->label().')',
+            'اكتمل حفظ القرآن بإتمام جميع دفعات الحفظ ('.QuranMemorizationBatch::TOTAL_BATCHES.' دفعة)',
             $actor
         );
 
@@ -1091,7 +1359,7 @@ class QuranMemorizationGatingService
     }
 
     /** أستاذ من دوام الطالب (يفضّل أستاذ آخر تسميع له). */
-    private function resolveTeacher(Student $student): ?Teacher
+    public function resolveTeacher(Student $student): ?Teacher
     {
         $sessionId = $student->study_session_id;
 

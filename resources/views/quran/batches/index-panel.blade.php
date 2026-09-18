@@ -32,6 +32,8 @@
     $timeline = $timeline ?? collect();
     $memorizationProgress = $memorizationProgress ?? null;
     $placementTestAllowed = $placementTestAllowed ?? false;
+    $placementTestScope = $placementTestScope ?? [];
+    $placementTestJuz = $placementTestJuz ?? [];
     $cycleBlockedReason = $cycleBlockedReason ?? null;
     $placementTestUrl = $placementTestRoute ?? null;
     $reciters = $reciters ?? collect();
@@ -92,6 +94,8 @@
         'timeline' => $timeline,
         'memorizationProgress' => $memorizationProgress,
         'placementTestAllowed' => $placementTestAllowed,
+        'placementTestScope' => $placementTestScope,
+        'placementTestJuz' => $placementTestJuz,
         'cycleBlockedReason' => $cycleBlockedReason,
         'placementTestUrl' => $placementTestUrl,
         'reciters' => $reciters,

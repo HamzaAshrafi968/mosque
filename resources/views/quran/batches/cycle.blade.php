@@ -13,11 +13,23 @@
     $timeline = $timeline ?? collect();
     $memorizationProgress = $memorizationProgress ?? null;
     $placementTestAllowed = $placementTestAllowed ?? false;
+    $placementTestScope = $placementTestScope ?? [];
+    $placementTestJuz = $placementTestJuz ?? [];
     $cycleBlockedReason = $cycleBlockedReason ?? null;
     $placementTestUrl = $placementTestUrl ?? null;
     $reciters = $reciters ?? collect();
     $tasmeeResults = $tasmeeResults ?? \App\Enums\QuranTasmeeResult::cases();
     $minimumPassingPercentage = $minimumPassingPercentage ?? app(\App\Services\QuranSettingsService::class)->minimumPassingPercentage();
+
+    $placementTestLabel = '';
+
+    if ($placementTestJuz !== []) {
+        $sortedJuz = array_values(array_unique(array_map('intval', $placementTestJuz)));
+        sort($sortedJuz);
+        $placementTestLabel = count($sortedJuz) > 1 && $sortedJuz === range($sortedJuz[0], end($sortedJuz))
+            ? $sortedJuz[0].'–'.end($sortedJuz)
+            : implode('، ', $sortedJuz);
+    }
 
     $indexRoute = $indexRoute ?? null;
     $repeatUrl = $repeatUrl ?? null;
@@ -133,7 +145,9 @@
                             {{ $currentBatch->lastTest ? 'إعادة الاختبار مطلوبة' : 'مطلوب الآن — سجّل النتيجة' }}
                         </a>
                     @elseif ($placementTestAllowed)
-                        <a href="#placement-test" class="text-sky-700 hover:underline">اختبار مباشر متاح — الأجزاء المحفوظة</a>
+                        <a href="#placement-test" class="text-sky-700 hover:underline">
+                            اختبار مباشر متاح{{ $placementTestLabel !== '' ? ' — الأجزاء '.$placementTestLabel : ' — الأجزاء المحفوظة' }}
+                        </a>
                     @elseif ($currentBatch?->lastTest)
                         {{ rtrim(rtrim(number_format((float) $currentBatch->lastTest->score, 2, '.', ''), '0'), '.') }}%
                     @else
@@ -364,6 +378,8 @@
             'minimumPassingPercentage' => $minimumPassingPercentage,
             'placementTestRoute' => $placementTestUrl,
             'placementTestAllowed' => $placementTestAllowed,
+            'placementTestScope' => $placementTestScope,
+            'placementTestJuz' => $placementTestJuz,
         ])
     @endif
 @endif

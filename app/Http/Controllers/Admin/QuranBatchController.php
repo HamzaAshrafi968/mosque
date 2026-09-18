@@ -7,6 +7,7 @@ use App\Enums\QuranMemorizationBatchStatus;
 use App\Enums\QuranTasmeeResult;
 use App\Http\Controllers\Controller;
 use App\Models\QuranKhamsaReview;
+use App\Models\QuranListeningTest;
 use App\Models\QuranMemorizationBatch;
 use App\Models\QuranReviewSession;
 use App\Models\Student;
@@ -132,25 +133,22 @@ class QuranBatchController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $test = $this->gating->recordPlacementTest($batch, $data['results'], $request->user(), $data['notes'] ?? null);
+        $tests = $this->gating->recordPlacementTest($batch, $data['results'], $request->user(), $data['notes'] ?? null);
+        $summary = $this->gating->placementTestSummary($tests);
 
-        $score = $this->formatPercent((float) $test->score);
-
-        if ($test->isPass()) {
-            return back()->with('success', 'ما شاء الله — نجاح في الاختبار المباشر بنسبة '.$score.'%. تم تثبيت الأجزاء المحفوظة وفتح الدفعة التالية إن وُجدت.');
+        if ($summary['passed']) {
+            return back()->with('success', 'ما شاء الله — نجاح في الاختبار المباشر للأجزاء '.$summary['scope_label'].' بنسبة '.$this->formatPercent($summary['score']).'%. تم تثبيت '.$summary['passed_batches'].' دفعة وفتح الدفعة التالية إن وُجدت.');
         }
 
-        $failed = $test->items()
-            ->where('result', QuranListeningTestResult::Fail)
-            ->orderBy('juz')
-            ->pluck('juz')
-            ->implode('، ');
+        $retakeCreated = $tests
+            ->reject(fn (QuranListeningTest $test) => $test->isPass())
+            ->contains(fn (QuranListeningTest $test) => $test->batch?->retake_review_id !== null);
 
-        $retakeCreated = $batch->refresh()->retake_review_id !== null;
+        $failed = $summary['failed_juz'] === [] ? '—' : implode('، ', $summary['failed_juz']);
 
         return back()->with('success', $retakeCreated
-            ? 'نتيجة الاختبار المباشر: '.$score.'% — رسب في الأجزاء: '.$failed.' — أُنشئت خمسات إعادة للأجزاء الراسبة.'
-            : 'نتيجة الاختبار المباشر: '.$score.'% — رسب في الأجزاء: '.$failed.' — تعذّر إنشاء خمسات الإعادة تلقائياً؛ تأكد من دوام الطالب ووجود أستاذ نشط فيه ثم استخدم أزرار الإعادة.');
+            ? 'نتيجة الاختبار المباشر: '.$this->formatPercent($summary['score']).'% — ثُبّتت '.$summary['passed_batches'].' دفعة — رسب في الأجزاء: '.$failed.' — أُنشئت خمسات إعادة للأجزاء الراسبة.'
+            : 'نتيجة الاختبار المباشر: '.$this->formatPercent($summary['score']).'% — ثُبّتت '.$summary['passed_batches'].' دفعة — رسب في الأجزاء: '.$failed.' — تعذّر إنشاء خمسات الإعادة تلقائياً؛ تأكد من دوام الطالب ووجود أستاذ نشط فيه ثم استخدم أزرار الإعادة.');
     }
 
     /** خيارا ما بعد الرسوب: خمسات إعادة للأجزاء الراسبة فقط أو إعادة كامل النطاق. */
