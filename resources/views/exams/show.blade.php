@@ -83,35 +83,18 @@
 
 {{-- ===================== بناء الأسئلة ===================== --}}
 @if($canEdit)
-    <div class="bg-white rounded-xl shadow p-5 mb-6">
-        <h2 class="text-lg font-bold text-gray-800 mb-3">إضافة أسئلة (1–100 سؤالاً من نوع واحد)</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mb-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">نوع الأسئلة</label>
-                <select id="question-type" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    @foreach($questionTypes as $type)
-                        <option value="{{ $type->value }}">{{ $type->label() }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">عدد الأسئلة</label>
-                <input type="number" id="question-count" value="1" min="1" max="100" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-            </div>
-            <div>
-                <button type="button" id="generate-rows" class="bg-gray-700 hover:bg-gray-800 text-white font-bold px-4 py-2 rounded-lg w-full">توليد الصفوف</button>
-            </div>
-        </div>
+    <form method="POST" action="{{ route($routePrefix.'.exams.questions.store', $exam) }}" id="questions-form">
+        @csrf
+        <x-exam-question-builder
+            :types="$questionTypes"
+            :old-questions="old('questions')"
+            :old-type="old('type')"
+            title="إضافة أسئلة (1–100 سؤالاً بأنواع متعددة)" />
 
-        <form method="POST" action="{{ route($routePrefix.'.exams.questions.store', $exam) }}" id="questions-form">
-            @csrf
-            <input type="hidden" name="type" id="questions-type" value="{{ $questionTypes[0]->value }}">
-            <div id="question-rows" class="space-y-4"></div>
-            <div class="mt-4">
-                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">حفظ الأسئلة</button>
-            </div>
-        </form>
-    </div>
+        <div class="mb-6">
+            <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">حفظ الأسئلة</button>
+        </div>
+    </form>
 @else
     <div class="bg-amber-50 border border-amber-200 text-amber-700 rounded-xl p-3 mb-6 text-sm">
         لا يمكن تعديل الامتحان أو أسئلته بعد بدء محاولات الطلاب.
@@ -279,82 +262,4 @@
         </table>
     </div>
 </div>
-
-<script>
-    (function () {
-        const typeSelect = document.getElementById('question-type');
-        const countInput = document.getElementById('question-count');
-        const rowsContainer = document.getElementById('question-rows');
-        const typeHidden = document.getElementById('questions-type');
-        const generateButton = document.getElementById('generate-rows');
-
-        if (!generateButton || !rowsContainer) { return; }
-
-        const optionInputs = (index) => {
-            let html = '<div class="grid grid-cols-2 gap-2 mt-2">';
-
-            for (let i = 0; i < 4; i++) {
-                html += '<input type="text" name="questions[' + index + '][options][]" placeholder="الخيار ' + (i + 1) + '" class="border border-gray-300 rounded px-2 py-1 text-sm">';
-            }
-
-            return html + '</div>';
-        };
-
-        const correctField = (index, type) => {
-            if (type === 'mcq') {
-                let html = '<select name="questions[' + index + '][correct_answer]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm mt-2"><option value="">الإجابة الصحيحة (رقم الخيار)</option>';
-
-                for (let i = 0; i < 4; i++) {
-                    html += '<option value="' + i + '">الخيار ' + (i + 1) + '</option>';
-                }
-
-                return html + '</select>';
-            }
-
-            if (type === 'checkbox') {
-                let html = '<div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-600">';
-
-                for (let i = 0; i < 4; i++) {
-                    html += '<label class="flex items-center gap-1"><input type="checkbox" name="questions[' + index + '][correct_options][]" value="' + i + '" class="rounded border-gray-300 text-emerald-700"> الخيار ' + (i + 1) + '</label>';
-                }
-
-                return html + '</div>';
-            }
-
-            if (type === 'true_false') {
-                return '<select name="questions[' + index + '][correct_answer]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm mt-2">'
-                    + '<option value="true">صح</option><option value="false">خطأ</option></select>';
-            }
-
-            if (type === 'short') {
-                return '<input type="text" name="questions[' + index + '][correct_answer]" placeholder="الإجابة المتوقعة (اختياري — بدونها يُصحح يدوياً)" class="w-full border border-gray-300 rounded px-2 py-1 text-sm mt-2">';
-            }
-
-            return '<p class="text-xs text-gray-400 mt-2">يُصحح هذا السؤال يدوياً من صفحة النتائج.</p>';
-        };
-
-        generateButton.addEventListener('click', function () {
-            const type = typeSelect.value;
-            const count = Math.min(100, Math.max(1, parseInt(countInput.value || '1', 10)));
-            const hasOptions = type === 'mcq' || type === 'checkbox';
-
-            typeHidden.value = type;
-            rowsContainer.innerHTML = '';
-
-            for (let i = 0; i < count; i++) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'border border-gray-200 rounded-lg p-3';
-                wrapper.innerHTML = '<div class="flex items-center justify-between mb-2"><span class="text-sm font-bold text-gray-600">سؤال ' + (i + 1) + '</span>'
-                    + '<input type="number" name="questions[' + i + '][marks]" value="1" step="0.5" min="0" required class="w-24 border border-gray-300 rounded px-2 py-1 text-sm" placeholder="العلامة"></div>'
-                    + '<textarea name="questions[' + i + '][text]" rows="2" required placeholder="نص السؤال" class="w-full border border-gray-300 rounded px-2 py-1 text-sm"></textarea>'
-                    + (hasOptions ? optionInputs(i) : '')
-                    + correctField(i, type);
-
-                rowsContainer.appendChild(wrapper);
-            }
-        });
-
-        generateButton.click();
-    })();
-</script>
 @endsection

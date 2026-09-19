@@ -404,6 +404,190 @@ class ExamEngineTest extends TestCase
         $this->assertSame(20, $exam->duration_minutes);
     }
 
+    public function test_manager_can_create_an_exam_with_questions_in_one_submission(): void
+    {
+        [$mosque, $manager] = $this->mosque();
+        $classroom = $this->classroom($mosque);
+        $subject = Subject::create(['tenant_id' => $mosque->id, 'name' => 'التوحيد']);
+
+        $this->actingAs($manager)
+            ->post(route('admin.exams.store'), [
+                'title' => 'امتحان التوحيد',
+                'kind' => 'exam',
+                'mode' => 'online',
+                'subject_id' => $subject->id,
+                'classroom_id' => $classroom->id,
+                'exam_date' => today()->toDateString(),
+                'duration_minutes' => 15,
+                'total_marks' => 10,
+                'pass_marks' => 5,
+                'type' => 'mcq',
+                'questions' => [
+                    ['text' => 'سؤال 1', 'marks' => 6, 'options' => ['أ', 'ب'], 'correct_answer' => 0],
+                    ['text' => 'سؤال 2', 'marks' => 4, 'options' => ['ج', 'د'], 'correct_answer' => 1],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $exam = Exam::firstOrFail();
+
+        $this->assertSame('draft', $exam->status->value);
+        $this->assertSame(2, $exam->questions()->count());
+        $this->assertSame(10.0, $exam->questionsTotalMarks());
+
+        $questions = $exam->questions()->get();
+
+        $this->assertSame('أ', $questions[0]->correct_answer);
+        $this->assertSame('د', $questions[1]->correct_answer);
+    }
+
+    public function test_manager_can_create_an_exam_with_mixed_question_types_in_one_submission(): void
+    {
+        [$mosque, $manager] = $this->mosque();
+        $classroom = $this->classroom($mosque);
+        $subject = Subject::create(['tenant_id' => $mosque->id, 'name' => 'التفسير']);
+
+        $this->actingAs($manager)
+            ->post(route('admin.exams.store'), [
+                'title' => 'امتحان مختلط',
+                'kind' => 'exam',
+                'mode' => 'online',
+                'subject_id' => $subject->id,
+                'classroom_id' => $classroom->id,
+                'exam_date' => today()->toDateString(),
+                'total_marks' => 9,
+                'pass_marks' => 5,
+                'questions' => [
+                    ['type' => 'mcq', 'text' => 'اختيار 1', 'marks' => 3, 'options' => ['أ', 'ب'], 'correct_answer' => 0],
+                    ['type' => 'mcq', 'text' => 'اختيار 2', 'marks' => 3, 'options' => ['ج', 'د'], 'correct_answer' => 1],
+                    ['type' => 'true_false', 'text' => 'صح أو خطأ', 'marks' => 2, 'correct_answer' => 'true'],
+                    ['type' => 'essay', 'text' => 'مقالي بدون علامة', 'marks' => ''],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $exam = Exam::firstOrFail();
+        $questions = $exam->questions()->orderBy('sort_order')->get();
+
+        $this->assertSame(4, $questions->count());
+        $this->assertSame(['mcq', 'mcq', 'true_false', 'essay'], $questions->pluck('type')->map(fn ($type) => $type->value)->all());
+        $this->assertSame([3.0, 3.0, 2.0, 1.0], $questions->pluck('marks')->map(fn ($marks) => (float) $marks)->all());
+        $this->assertSame('أ', $questions[0]->correct_answer);
+        $this->assertSame('د', $questions[1]->correct_answer);
+        $this->assertSame('true', $questions[2]->correct_answer);
+        $this->assertNull($questions[3]->correct_answer);
+    }
+
+    public function test_exam_creation_ignores_blank_question_rows(): void
+    {
+        [$mosque, $manager] = $this->mosque();
+        $classroom = $this->classroom($mosque);
+        $subject = Subject::create(['tenant_id' => $mosque->id, 'name' => 'الحديث']);
+
+        $this->actingAs($manager)
+            ->post(route('admin.exams.store'), [
+                'title' => 'امتحان بلا أسئلة',
+                'kind' => 'exam',
+                'mode' => 'onsite',
+                'subject_id' => $subject->id,
+                'classroom_id' => $classroom->id,
+                'exam_date' => today()->toDateString(),
+                'total_marks' => 10,
+                'pass_marks' => 5,
+                'type' => 'mcq',
+                'questions' => [
+                    ['text' => '', 'marks' => 1, 'options' => ['', ''], 'correct_answer' => ''],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $exam = Exam::firstOrFail();
+
+        $this->assertSame(0, $exam->questions()->count());
+    }
+
+    public function test_exam_creation_rolls_back_when_a_question_is_invalid(): void
+    {
+        [$mosque, $manager] = $this->mosque();
+        $classroom = $this->classroom($mosque);
+        $subject = Subject::create(['tenant_id' => $mosque->id, 'name' => 'السيرة']);
+
+        $this->actingAs($manager)
+            ->post(route('admin.exams.store'), [
+                'title' => 'امتحان خاطئ',
+                'kind' => 'exam',
+                'mode' => 'online',
+                'subject_id' => $subject->id,
+                'classroom_id' => $classroom->id,
+                'exam_date' => today()->toDateString(),
+                'total_marks' => 10,
+                'pass_marks' => 5,
+                'type' => 'mcq',
+                'questions' => [
+                    ['text' => 'سؤال خاطئ', 'marks' => 10, 'options' => ['أ', 'ب'], 'correct_answer' => 'ز'],
+                ],
+            ])
+            ->assertSessionHasErrors('questions.0.correct_answer');
+
+        $this->assertSame(0, Exam::count());
+    }
+
+    public function test_teacher_can_create_an_exam_with_questions_from_the_portal(): void
+    {
+        [$mosque] = $this->mosque();
+        $classroom = $this->classroom($mosque);
+        [$teacherUser, $teacher] = $this->teacherUser($mosque);
+        $subject = Subject::create(['tenant_id' => $mosque->id, 'name' => 'التفسير']);
+
+        $this->actingAs($teacherUser)
+            ->post(route('teacher.exams.store'), [
+                'title' => 'امتحان التفسير',
+                'kind' => 'quiz',
+                'mode' => 'online',
+                'subject_id' => $subject->id,
+                'classroom_id' => $classroom->id,
+                'exam_date' => today()->toDateString(),
+                'total_marks' => 4,
+                'pass_marks' => 2,
+                'type' => 'true_false',
+                'questions' => [
+                    ['text' => 'القرآن أربعة عشر جزءاً', 'marks' => 4, 'correct_answer' => 'false'],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $exam = Exam::firstOrFail();
+
+        $this->assertSame($teacher->id, $exam->teacher_id);
+        $this->assertSame(1, $exam->questions()->count());
+        $this->assertSame('false', $exam->questions()->first()->correct_answer);
+    }
+
+    public function test_exam_create_pages_include_the_question_builder(): void
+    {
+        [$mosque, $manager] = $this->mosque();
+        [$teacherUser] = $this->teacherUser($mosque);
+        Subject::create(['tenant_id' => $mosque->id, 'name' => 'القرآن']);
+
+        $this->actingAs($manager)
+            ->get(route('admin.exams.create'))
+            ->assertOk()
+            ->assertSee('data-exam-question-builder', false)
+            ->assertSee('إضافة قسم')
+            ->assertSee('توليد الصفوف');
+
+        $this->actingAs($teacherUser)
+            ->get(route('teacher.exams.create'))
+            ->assertOk()
+            ->assertSee('data-exam-question-builder', false)
+            ->assertSee('إضافة قسم')
+            ->assertSee('توليد الصفوف');
+    }
+
     // ------------------------------------------------------- edit lock
 
     public function test_questions_cannot_be_changed_after_an_attempt_starts(): void
@@ -430,6 +614,32 @@ class ExamEngineTest extends TestCase
             ->assertSessionHasErrors('exam');
 
         $this->assertSame(1, $exam->questions()->count());
+    }
+
+    public function test_bulk_question_builder_stores_mixed_types_and_defaults_empty_marks(): void
+    {
+        [$mosque, $manager] = $this->mosque();
+        $exam = $this->exam($mosque, $this->classroom($mosque));
+
+        $this->actingAs($manager)
+            ->post(route('admin.exams.questions.store', $exam), [
+                'questions' => [
+                    ['type' => 'true_false', 'text' => 'صح/خطأ 1', 'marks' => '', 'correct_answer' => 'false'],
+                    ['type' => 'short', 'text' => 'قصير 1', 'marks' => 2, 'correct_answer' => 'كلمة'],
+                    ['type' => 'checkbox', 'text' => 'متعدد 1', 'marks' => 3, 'options' => ['أ', 'ب'], 'correct_options' => [0, 1]],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $questions = $exam->questions()->orderBy('sort_order')->get();
+
+        $this->assertSame(3, $questions->count());
+        $this->assertSame(['true_false', 'short', 'checkbox'], $questions->pluck('type')->map(fn ($type) => $type->value)->all());
+        $this->assertSame(1.0, (float) $questions[0]->marks);
+        $this->assertSame(2.0, (float) $questions[1]->marks);
+        $this->assertSame(3.0, (float) $questions[2]->marks);
+        $this->assertSame(['أ', 'ب'], $questions[2]->correct_answer ? json_decode($questions[2]->correct_answer, true) : null);
     }
 
     public function test_bulk_question_builder_stores_questions_with_validation(): void

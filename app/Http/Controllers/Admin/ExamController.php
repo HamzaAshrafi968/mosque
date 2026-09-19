@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\QuestionType;
 use App\Http\Controllers\Concerns\ManagesExamEngine;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
@@ -10,6 +11,7 @@ use App\Models\Subject;
 use App\Services\ExamService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ExamController extends Controller
@@ -44,16 +46,34 @@ class ExamController extends Controller
         return view('admin.exams.create', [
             'subjects' => Subject::orderBy('name')->get(['id', 'name']),
             'classrooms' => Classroom::with('sections:id,classroom_id,name')->orderBy('name')->get(),
+            'questionTypes' => QuestionType::cases(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $exam = $this->exams->create($this->validatedExamData($request));
+        $data = $this->validatedExamData($request);
+        [$type, $rows] = $this->validatedQuestionsData($request);
+
+        $exam = DB::transaction(function () use ($data, $type, $rows) {
+            $exam = $this->exams->create($data);
+
+            if ($rows !== []) {
+                $this->saveQuestions($exam, $type, $rows);
+            }
+
+            return $exam;
+        });
+
+        $questionsCount = count($rows);
+
+        $message = $questionsCount > 0
+            ? "تم إنشاء الامتحان مع {$questionsCount} سؤالاً — راجع العلامات ثم انشره"
+            : 'تم إنشاء الامتحان — أضف الأسئلة ثم انشره';
 
         return redirect()
             ->route('admin.exams.show', $exam)
-            ->with('success', 'تم إنشاء الامتحان — أضف الأسئلة ثم انشره');
+            ->with('success', $message);
     }
 
     public function destroy(Exam $exam): RedirectResponse

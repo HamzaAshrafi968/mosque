@@ -908,8 +908,325 @@ function initExamTimers() {
 }
 
 /* ============================================================
+   منشئ أسئلة الاختبار — أقسام متعددة الأنواع + عدّاد العلامات
+   (مشترك بين صفحة إنشاء الاختبار وصفحة الامتحان)
+============================================================ */
+function initExamQuestionBuilders() {
+    document.querySelectorAll('[data-exam-question-builder]').forEach((builder) => {
+        const sectionsContainer = builder.querySelector('[data-builder-sections]');
+        const rowsContainer = builder.querySelector('[data-builder-rows]');
+        const generateButton = builder.querySelector('[data-builder-generate]');
+        const addSectionButton = builder.querySelector('[data-builder-add-section]');
+        const sumEl = builder.querySelector('[data-builder-marks-sum]');
+        const targetEl = builder.querySelector('[data-builder-marks-target]');
+        const form = builder.closest('form');
+
+        if (!sectionsContainer || !rowsContainer || !generateButton || !addSectionButton) {
+            return;
+        }
+
+        const escapeHtml = (value) => String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+        let types = [];
+
+        try {
+            types = JSON.parse(builder.dataset.types || '[]');
+        } catch (error) {
+            types = [];
+        }
+
+        if (!Array.isArray(types) || types.length === 0) {
+            return;
+        }
+
+        const defaultType = types[0].value;
+        const oldType = (builder.dataset.oldType || '').trim() || defaultType;
+        const labels = {};
+
+        types.forEach((type) => {
+            labels[type.value] = type.label;
+        });
+
+        const typeOptionsHtml = (selected) => types.map((type) =>
+            '<option value="' + type.value + '"' + (String(selected) === String(type.value) ? ' selected' : '') + '>'
+            + escapeHtml(type.label) + '</option>'
+        ).join('');
+
+        let sections = [];
+
+        const optionsForWithValues = (index, values) => {
+            const options = Array.isArray(values.options) ? values.options : [];
+            let html = '<div class="grid grid-cols-2 gap-2 mt-2">';
+
+            for (let i = 0; i < 4; i++) {
+                const option = options[i] ?? '';
+                html += '<input type="text" name="questions[' + index + '][options][]" value="' + escapeHtml(option) + '" placeholder="الخيار ' + (i + 1) + '" class="border border-gray-300 rounded px-2 py-1 text-sm">';
+            }
+
+            return html + '</div>';
+        };
+
+        const correctField = (index, type, values) => {
+            const correct = values.correct_answer ?? '';
+            const correctOptions = Array.isArray(values.correct_options) ? values.correct_options.map(String) : [];
+            const options = Array.isArray(values.options) ? values.options : [];
+
+            if (type === 'mcq') {
+                let html = '<select name="questions[' + index + '][correct_answer]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm mt-2"><option value="">الإجابة الصحيحة (رقم الخيار)</option>';
+
+                for (let i = 0; i < 4; i++) {
+                    const selected = String(correct) === String(i) || (correct !== '' && options[i] !== undefined && String(correct) === String(options[i]));
+                    html += '<option value="' + i + '"' + (selected ? ' selected' : '') + '>الخيار ' + (i + 1) + '</option>';
+                }
+
+                return html + '</select>';
+            }
+
+            if (type === 'checkbox') {
+                let html = '<div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-600">';
+
+                for (let i = 0; i < 4; i++) {
+                    const checked = correctOptions.includes(String(i)) || (options[i] !== undefined && correctOptions.includes(String(options[i])));
+                    html += '<label class="flex items-center gap-1"><input type="checkbox" name="questions[' + index + '][correct_options][]" value="' + i + '"' + (checked ? ' checked' : '') + ' class="rounded border-gray-300 text-emerald-700"> الخيار ' + (i + 1) + '</label>';
+                }
+
+                return html + '</div>';
+            }
+
+            if (type === 'true_false') {
+                return '<select name="questions[' + index + '][correct_answer]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm mt-2">'
+                    + '<option value="true"' + (String(correct) === 'true' ? ' selected' : '') + '>صح</option>'
+                    + '<option value="false"' + (String(correct) === 'false' ? ' selected' : '') + '>خطأ</option></select>';
+            }
+
+            if (type === 'short') {
+                return '<input type="text" name="questions[' + index + '][correct_answer]" value="' + escapeHtml(correct) + '" placeholder="الإجابة المتوقعة (اختياري — بدونها يُصحح يدوياً)" class="w-full border border-gray-300 rounded px-2 py-1 text-sm mt-2">';
+            }
+
+            return '<p class="text-xs text-gray-400 mt-2">يُصحح هذا السؤال يدوياً من صفحة النتائج.</p>';
+        };
+
+        const rowHtml = (index, type, values) => {
+            const hasOptions = type === 'mcq' || type === 'checkbox';
+
+            return '<div class="flex items-center justify-between mb-2"><span class="text-sm font-bold text-gray-600">سؤال ' + (index + 1) + '</span>'
+                + '<input type="number" name="questions[' + index + '][marks]" value="' + escapeHtml(values.marks ?? '') + '" step="0.5" min="0" max="1000" class="w-24 border border-gray-300 rounded px-2 py-1 text-sm" placeholder="1"></div>'
+                + '<input type="hidden" name="questions[' + index + '][type]" value="' + escapeHtml(type) + '">'
+                + '<textarea name="questions[' + index + '][text]" rows="2" required placeholder="نص السؤال" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">' + escapeHtml(values.text ?? '') + '</textarea>'
+                + (hasOptions ? optionsForWithValues(index, values) : '')
+                + correctField(index, type, values);
+        };
+
+        const currentSum = () => Array.from(rowsContainer.querySelectorAll('input[name$="[marks]"]'))
+            .reduce((total, input) => {
+                const raw = input.value.trim();
+                const value = raw === '' ? 1 : parseFloat(raw);
+
+                return total + (Number.isNaN(value) ? 0 : value);
+            }, 0);
+
+        const updateSum = () => {
+            const sum = Math.round(currentSum() * 100) / 100;
+
+            if (sumEl) {
+                sumEl.textContent = String(sum);
+            }
+
+            if (!targetEl) {
+                return;
+            }
+
+            const totalInput = form ? form.querySelector('input[name="total_marks"]') : null;
+
+            if (!totalInput || totalInput.value === '') {
+                targetEl.textContent = '';
+                return;
+            }
+
+            const total = parseFloat(totalInput.value) || 0;
+
+            if (Math.abs(sum - total) < 0.01) {
+                targetEl.textContent = '(مطابق للدرجة الكلية)';
+                targetEl.className = 'text-xs text-emerald-600';
+            } else {
+                const diff = Math.round((total - sum) * 100) / 100;
+                targetEl.textContent = '(الدرجة الكلية: ' + total + ' — المتبقي: ' + diff + ')';
+                targetEl.className = 'text-xs text-amber-600';
+            }
+        };
+
+        const sectionHtml = (section) => {
+            return '<div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end border border-gray-200 rounded-lg p-3 bg-gray-50">'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">نوع الأسئلة</label>'
+                + '<select data-section-type class="w-full border border-gray-300 rounded-lg px-3 py-2">' + typeOptionsHtml(section.type) + '</select></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">عدد الأسئلة</label>'
+                + '<input type="number" data-section-count value="' + escapeHtml(section.count ?? 1) + '" min="1" max="100" class="w-full border border-gray-300 rounded-lg px-3 py-2"></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">علامة السؤال <span class="text-gray-400 text-xs">اختياري — افتراضي 1</span></label>'
+                + '<input type="number" data-section-marks value="' + escapeHtml(section.marks ?? '') + '" step="0.5" min="0" max="1000" placeholder="1" class="w-full border border-gray-300 rounded-lg px-3 py-2"></div>'
+                + '<button type="button" data-section-remove class="text-red-600 hover:underline text-sm py-2">حذف القسم</button>'
+                + '</div>';
+        };
+
+        const renderSections = () => {
+            sectionsContainer.innerHTML = '';
+
+            sections.forEach((section, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = sectionHtml(section);
+
+                wrapper.querySelector('[data-section-type]').addEventListener('change', (event) => {
+                    sections[index].type = event.target.value;
+                });
+                wrapper.querySelector('[data-section-count]').addEventListener('input', (event) => {
+                    sections[index].count = Math.min(100, Math.max(1, parseInt(event.target.value || '1', 10)));
+                });
+                wrapper.querySelector('[data-section-marks]').addEventListener('input', (event) => {
+                    sections[index].marks = event.target.value;
+                });
+                wrapper.querySelector('[data-section-remove]').addEventListener('click', () => {
+                    sections.splice(index, 1);
+                    renderSections();
+                });
+
+                sectionsContainer.appendChild(wrapper);
+            });
+        };
+
+        const buildSectionsFromRows = (rows) => rows.reduce((result, row) => {
+            const type = row.type || oldType;
+            const last = result[result.length - 1];
+
+            if (last && String(last.type) === String(type)) {
+                last.count += 1;
+            } else {
+                result.push({ type, count: 1, marks: row.marks ?? '' });
+            }
+
+            return result;
+        }, []);
+
+        const collectCurrentRows = () => Array.from(rowsContainer.querySelectorAll('[data-question-row]')).map((wrapper) => {
+            const textarea = wrapper.querySelector('textarea[name$="[text]"]');
+            const marks = wrapper.querySelector('input[name$="[marks]"]');
+            const type = wrapper.querySelector('input[name$="[type]"]');
+            const options = Array.from(wrapper.querySelectorAll('input[name$="[options][]"]')).map((input) => input.value);
+            const correctAnswer = wrapper.querySelector('select[name$="[correct_answer]"]');
+            const correctOptions = Array.from(wrapper.querySelectorAll('input[name$="[correct_options][]"]:checked')).map((input) => input.value);
+
+            return {
+                text: textarea ? textarea.value : '',
+                marks: marks ? marks.value : '',
+                options: options,
+                correct_answer: correctAnswer ? correctAnswer.value : '',
+                correct_options: correctOptions,
+                type: type ? type.value : '',
+            };
+        });
+
+        const render = (rows) => {
+            rowsContainer.innerHTML = '';
+
+            let currentType = null;
+
+            rows.forEach((row, index) => {
+                const type = row.type || oldType || defaultType;
+
+                if (type !== currentType) {
+                    currentType = type;
+                    const count = rows.filter((candidate) => (candidate.type || oldType || defaultType) === type).length;
+                    const heading = document.createElement('h3');
+                    heading.className = 'text-sm font-bold text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 mt-4';
+                    heading.textContent = (labels[type] || type) + ' (' + count + (count === 1 ? ' سؤال' : ' أسئلة') + ')';
+                    rowsContainer.appendChild(heading);
+                }
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'border border-gray-200 rounded-lg p-3';
+                wrapper.dataset.questionRow = 'true';
+                wrapper.innerHTML = rowHtml(index, type, row);
+                rowsContainer.appendChild(wrapper);
+            });
+
+            updateSum();
+        };
+
+        generateButton.addEventListener('click', () => {
+            const existing = collectCurrentRows();
+            const rows = [];
+            let position = 0;
+
+            sections.forEach((section) => {
+                const count = Math.min(100, Math.max(1, parseInt(section.count || '1', 10)));
+
+                for (let i = 0; i < count; i++) {
+                    const previous = existing[position] ?? null;
+                    const type = section.type || defaultType;
+
+                    if (previous && String(previous.type) === String(type)) {
+                        rows.push(previous);
+                    } else {
+                        rows.push({
+                            type: type,
+                            marks: section.marks ?? '',
+                            text: '',
+                            options: [],
+                            correct_answer: '',
+                            correct_options: [],
+                        });
+                    }
+
+                    position += 1;
+                }
+            });
+
+            render(rows);
+        });
+
+        addSectionButton.addEventListener('click', () => {
+            sections.push({ type: defaultType, count: 1, marks: '' });
+            renderSections();
+        });
+
+        rowsContainer.addEventListener('input', updateSum);
+        rowsContainer.addEventListener('change', updateSum);
+
+        if (form) {
+            const totalInput = form.querySelector('input[name="total_marks"]');
+            if (totalInput) {
+                totalInput.addEventListener('input', updateSum);
+            }
+        }
+
+        let initial = [];
+
+        try {
+            initial = JSON.parse(builder.dataset.old || '[]');
+        } catch (error) {
+            initial = [];
+        }
+
+        initial = Array.isArray(initial) ? initial : [];
+
+        if (initial.length > 0) {
+            sections = buildSectionsFromRows(initial);
+            renderSections();
+            render(initial);
+        } else {
+            sections = [{ type: defaultType, count: 1, marks: '' }];
+            renderSections();
+            generateButton.click();
+        }
+    });
+}
+
+/* ============================================================
    التشغيل عند الجاهزية
-=========================================================== */
+============================================================ */
 function initWorkSlotForms() {
     document.querySelectorAll('[data-work-slot-form]').forEach((form) => {
         const teacherInput = form.querySelector('[name="teacher_id"]');
@@ -1025,6 +1342,7 @@ function initApp() {
     initSearchPickers();
     initWorkSlotForms();
     initExamTimers();
+    initExamQuestionBuilders();
 }
 
 if (document.readyState === 'loading') {

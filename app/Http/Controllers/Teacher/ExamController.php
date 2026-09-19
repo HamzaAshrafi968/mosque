@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Enums\QuestionType;
 use App\Http\Controllers\Concerns\ManagesExamEngine;
 use App\Models\Classroom;
 use App\Models\Exam;
@@ -9,6 +10,7 @@ use App\Models\Subject;
 use App\Services\ExamService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ExamController extends BaseTeacherController
@@ -49,20 +51,34 @@ class ExamController extends BaseTeacherController
             'subjects' => Subject::orderBy('name')->get(['id', 'name']),
             'classrooms' => Classroom::with('sections:id,classroom_id,name')->orderBy('name')->get(),
             'teacher' => $teacher,
+            'questionTypes' => QuestionType::cases(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $teacher = $this->currentTeacher($request);
+        $data = [...$this->validatedExamData($request), 'teacher_id' => $teacher->id];
+        [$type, $rows] = $this->validatedQuestionsData($request);
 
-        $exam = $this->exams->create([
-            ...$this->validatedExamData($request),
-            'teacher_id' => $teacher->id,
-        ]);
+        $exam = DB::transaction(function () use ($data, $type, $rows) {
+            $exam = $this->exams->create($data);
+
+            if ($rows !== []) {
+                $this->saveQuestions($exam, $type, $rows);
+            }
+
+            return $exam;
+        });
+
+        $questionsCount = count($rows);
+
+        $message = $questionsCount > 0
+            ? "تم إنشاء الامتحان مع {$questionsCount} سؤالاً — راجع العلامات ثم انشره"
+            : 'تم إنشاء الامتحان — أضف الأسئلة ثم انشره';
 
         return redirect()
             ->route('teacher.exams.show', $exam)
-            ->with('success', 'تم إنشاء الامتحان — أضف الأسئلة ثم انشره');
+            ->with('success', $message);
     }
 }

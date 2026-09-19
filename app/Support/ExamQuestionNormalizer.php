@@ -23,13 +23,13 @@ final class ExamQuestionNormalizer
     {
         $options = collect($row['options'] ?? [])
             ->map(fn ($option) => trim((string) $option))
-            ->filter()
+            ->filter(fn ($option) => $option !== '')
             ->values();
 
         $correct = $row['correct_answer'] ?? null;
         $correctOptions = collect($row['correct_options'] ?? [])
             ->map(fn ($option) => trim((string) $option))
-            ->filter()
+            ->filter(fn ($option) => $option !== '')
             ->values();
 
         return match ($type) {

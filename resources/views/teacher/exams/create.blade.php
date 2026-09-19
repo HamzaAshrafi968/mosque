@@ -89,6 +89,14 @@
                     <p class="text-xs text-gray-500 mt-1">الطالب الذي يحصل على هذه الدرجة أو أكثر يعتبر ناجحاً</p>
                 </div>
 
+                <x-exam-question-builder
+                    :types="$questionTypes"
+                    :old-questions="old('questions')"
+                    :old-type="old('type')"
+                    title="الأسئلة"
+                    hint="اختياري — يمكن إضافتها لاحقاً من صفحة الامتحان"
+                    :plain="true" />
+
                 <div class="pt-2">
                     <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إنشاء الاختبار</button>
                 </div>

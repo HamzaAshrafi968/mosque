@@ -14,6 +14,7 @@ use App\Support\ExamQuestionNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -98,22 +99,41 @@ trait ManagesExamEngine
         $this->assertExamAccess($request, $exam);
         $this->assertExamEditable($exam);
 
-        $data = $request->validate([
-            'type' => ['required', Rule::enum(QuestionType::class)],
-            'questions' => ['required', 'array', 'min:1', 'max:100'],
-            'questions.*.text' => ['required', 'string', 'max:2000'],
-            'questions.*.marks' => ['required', 'numeric', 'min:0', 'max:1000'],
-            'questions.*.options' => ['nullable', 'array', 'max:10'],
-            'questions.*.options.*' => ['nullable', 'string', 'max:500'],
-            'questions.*.correct_answer' => ['nullable'],
-            'questions.*.correct_options' => ['nullable', 'array', 'max:10'],
-            'questions.*.correct_options.*' => ['nullable'],
-        ]);
+        [$defaultType, $rows] = $this->validatedQuestionsData($request);
 
-        $type = QuestionType::from($data['type']);
+        if ($rows === []) {
+            throw ValidationException::withMessages([
+                'questions' => 'أضف سؤالاً واحداً على الأقل بنص السؤال',
+            ]);
+        }
+
+        $count = $this->saveQuestions($exam, $defaultType, $rows);
+
+        return back()->with('success', 'تم حفظ '.$count.' سؤالاً');
+    }
+
+    /**
+     * يحفظ صفوف الأسئلة على الامتحان ويعيد عددها.
+     * كل صف يحمل نوعه الخاص (questions.*.type)، ويسقط على النوع الافتراضي
+     * للتوافق مع الـ API الذي يرسل نوعاً واحداً لكل الطلب.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    protected function saveQuestions(Exam $exam, ?QuestionType $defaultType, array $rows): int
+    {
         $sortStart = (int) $exam->questions()->max('sort_order');
 
-        foreach (array_values($data['questions']) as $index => $row) {
+        foreach (array_values($rows) as $index => $row) {
+            $type = isset($row['type']) && $row['type'] !== ''
+                ? QuestionType::from($row['type'])
+                : $defaultType;
+
+            if ($type === null) {
+                throw ValidationException::withMessages([
+                    'questions' => 'حدد نوع كل سؤال',
+                ]);
+            }
+
             [$options, $correctAnswer] = $this->normalizeQuestion($type, $row, $index);
 
             ExamQuestion::create([
@@ -128,7 +148,7 @@ trait ManagesExamEngine
             ]);
         }
 
-        return back()->with('success', 'تم حفظ '.count($data['questions']).' سؤالاً');
+        return count($rows);
     }
 
     public function updateQuestion(Request $request, ExamQuestion $question): RedirectResponse
@@ -265,6 +285,65 @@ trait ManagesExamEngine
             'total_marks' => ['required', 'integer', 'min:1', 'max:1000'],
             'pass_marks' => ['nullable', 'integer', 'min:0', 'lte:total_marks'],
         ]);
+    }
+
+    /**
+     * يتحقق من أسئلة النموذج (اختيارية عند إنشاء الامتحان) ويعيد [النوع الافتراضي، الصفوف].
+     * كل صف قد يحمل نوعه الخاص (questions.*.type) فتكون الأسئلة متعددة الأنواع في دفعة واحدة،
+     * ويسقط الصف بلا نوع على النوع العام type (توافق الـ API). العلامة الفارغة = 1.
+     * الصفوف بلا نص سؤال تُتجاهل، فإن لم يتبقَّ صف يُعاد [null, []].
+     *
+     * @return array{0: ?QuestionType, 1: array<int, array<string, mixed>>}
+     *
+     * @throws ValidationException
+     */
+    protected function validatedQuestionsData(Request $request): array
+    {
+        $rows = collect($request->input('questions', []))
+            ->filter(fn ($row) => is_array($row) && trim((string) ($row['text'] ?? '')) !== '')
+            ->values()
+            ->all();
+
+        if ($rows === []) {
+            return [null, []];
+        }
+
+        $data = Validator::make(
+            ['type' => $request->input('type'), 'questions' => $rows],
+            [
+                'type' => ['nullable', Rule::enum(QuestionType::class)],
+                'questions' => ['required', 'array', 'min:1', 'max:100'],
+                'questions.*.text' => ['required', 'string', 'max:2000'],
+                'questions.*.type' => ['nullable', Rule::enum(QuestionType::class)],
+                'questions.*.marks' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+                'questions.*.options' => ['nullable', 'array', 'max:10'],
+                'questions.*.options.*' => ['nullable', 'string', 'max:500'],
+                'questions.*.correct_answer' => ['nullable'],
+                'questions.*.correct_options' => ['nullable', 'array', 'max:10'],
+                'questions.*.correct_options.*' => ['nullable'],
+            ]
+        )->validate();
+
+        $fallbackType = $data['type'] !== null ? QuestionType::from($data['type']) : null;
+
+        $rows = array_map(function (array $row) use ($fallbackType): array {
+            $type = $row['type'] ?? $fallbackType?->value;
+
+            if ($type === null || $type === '') {
+                throw ValidationException::withMessages([
+                    'questions' => 'حدد نوع كل سؤال',
+                ]);
+            }
+
+            $row['type'] = $type;
+            $row['marks'] = ($row['marks'] ?? null) === null || ($row['marks'] ?? null) === ''
+                ? 1
+                : (float) $row['marks'];
+
+            return $row;
+        }, array_values($data['questions']));
+
+        return [$fallbackType, $rows];
     }
 
     /** @throws ValidationException */
