@@ -37,15 +37,9 @@
                 <label class="block text-sm font-bold text-gray-700 mb-1">التاريخ <span class="text-red-500">*</span></label>
                 <input type="date" name="date" required value="{{ old('date', $meeting->date->format('Y-m-d')) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
             </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">البداية</label>
-                    <input type="time" name="start_time" value="{{ old('start_time', $meeting->start_time?->format('H:i')) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">النهاية</label>
-                    <input type="time" name="end_time" value="{{ old('end_time', $meeting->end_time?->format('H:i')) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">وقت البدء</label>
+                <input type="time" name="start_time" value="{{ old('start_time', $meeting->start_time?->format('H:i')) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
             </div>
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-1">المكان</label>

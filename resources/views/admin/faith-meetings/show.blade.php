@@ -28,7 +28,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div><span class="block text-xs text-gray-400 font-bold">التاريخ</span><span class="font-bold text-gray-800">{{ $meeting->date->format('Y-m-d') }}</span></div>
-            <div><span class="block text-xs text-gray-400 font-bold">الوقت</span><span class="font-bold text-gray-800">{{ $meeting->start_time ? \Carbon\Carbon::parse($meeting->start_time)->format('H:i') : '—' }} {{ $meeting->end_time ? 'إلى '.\Carbon\Carbon::parse($meeting->end_time)->format('H:i') : '' }}</span></div>
+            <div><span class="block text-xs text-gray-400 font-bold">الوقت</span><span class="font-bold text-gray-800">{{ $meeting->start_time ? \Carbon\Carbon::parse($meeting->start_time)->format('H:i') : '—' }}</span></div>
             <div><span class="block text-xs text-gray-400 font-bold">المشرف</span><span class="font-bold text-gray-800">{{ $meeting->supervisor?->name ?? '—' }}</span></div>
             <div><span class="block text-xs text-gray-400 font-bold">المعلم</span><span class="font-bold text-gray-800">{{ $meeting->teacher?->name ?? '—' }}</span></div>
             <div><span class="block text-xs text-gray-400 font-bold">المكان</span><span class="font-bold text-gray-800">{{ $meeting->location ?? '—' }}</span></div>
