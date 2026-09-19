@@ -336,6 +336,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::post('sharia-courses/{course}/students', [Admin\ShariaCourseController::class, 'storeStudent'])->name('sharia-courses.students.store')->middleware('permission:sharia_courses.update');
     Route::post('sharia-courses/{course}/students/existing', [Admin\ShariaCourseController::class, 'storeExistingStudents'])->name('sharia-courses.students.existing')->middleware('permission:sharia_courses.update');
+    Route::post('sharia-courses/{course}/students/classroom', [Admin\ShariaCourseController::class, 'storeClassroomStudents'])->name('sharia-courses.students.classroom')->middleware('permission:sharia_courses.update');
     Route::patch('sharia-courses/students/{student}', [Admin\ShariaCourseController::class, 'updateStudent'])->name('sharia-courses.students.update')->middleware('permission:sharia_courses.update');
     Route::patch('sharia-courses/students/{student}/memorization', [Admin\ShariaCourseController::class, 'updateMemorization'])->name('sharia-courses.students.memorization')->middleware('permission:sharia_courses.memorization');
     Route::delete('sharia-courses/students/{student}', [Admin\ShariaCourseController::class, 'destroyStudent'])->name('sharia-courses.students.destroy')->middleware('permission:sharia_courses.update');

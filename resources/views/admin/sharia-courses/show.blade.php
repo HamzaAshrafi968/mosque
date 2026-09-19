@@ -189,15 +189,50 @@
                 <h3 class="font-black text-pine-950">تسجيل طلاب موجودين في الجامع</h3>
                 <span class="text-xs text-gray-400">المحددون: <span id="available-student-count">0</span></span>
             </div>
+
+            <form method="POST" action="{{ route('admin.sharia-courses.students.classroom', $course) }}" class="grid grid-cols-1 md:grid-cols-4 gap-2 items-end bg-emerald-50 border border-emerald-100 rounded-xl p-3 mb-4">
+                @csrf
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-600 mb-1">إضافة كل طلاب صف/شعبة دفعة واحدة</label>
+                    <select name="classroom_id" id="bulk-classroom" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— اختر الصف —</option>
+                        @foreach($classrooms as $classroom)
+                            <option value="{{ $classroom->id }}" @selected(old('classroom_id') === $classroom->id)>{{ $classroom->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">الشعبة (اختياري)</label>
+                    <select name="section_id" id="bulk-section" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">كل شعب الصف</option>
+                        @foreach($classrooms as $classroom)
+                            @foreach($classroom->activeSections as $section)
+                                <option value="{{ $section->id }}" data-classroom="{{ $classroom->id }}" @selected(old('section_id') === $section->id)>{{ $section->name }}</option>
+                            @endforeach
+                        @endforeach
+                    </select>
+                </div>
+                <button type="submit" class="bg-pine-800 hover:bg-pine-900 text-white text-sm font-bold px-4 py-2 rounded-lg">تسجيل كل الطلاب</button>
+            </form>
+
             @if($availableStudents->isEmpty())
                 <p class="text-sm text-gray-400">كل طلاب الجامع النشطين مسجَّلون في الدورة، أو لا يوجد طلاب بعد.</p>
             @else
                 <form method="POST" action="{{ route('admin.sharia-courses.students.existing', $course) }}" class="space-y-3">
                     @csrf
-                    <input type="text" id="available-student-filter" placeholder="بحث سريع بالاسم..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <input type="text" id="available-student-filter" placeholder="بحث سريع بالاسم..." class="md:col-span-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <select id="available-classroom-filter" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <option value="">— كل الصفوف —</option>
+                            @foreach($classrooms as $classroom)
+                                <option value="{{ $classroom->id }}">{{ $classroom->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-72 overflow-y-auto border border-gray-100 rounded-xl p-3">
                         @foreach($availableStudents as $availableStudent)
-                            <label class="flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-2 py-1.5 available-student-option">
+                            <label class="flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-2 py-1.5 available-student-option"
+                                   data-classroom-id="{{ $availableStudent->classroom_id }}" data-section-id="{{ $availableStudent->section_id }}">
                                 <input type="checkbox" name="student_ids[]" value="{{ $availableStudent->id }}" class="accent-emerald-600 available-student-check">
                                 <span class="font-bold">{{ $availableStudent->name }}</span>
                                 @if($availableStudent->classroom)<span class="text-xs text-gray-400">{{ $availableStudent->classroom->name }}</span>@endif
@@ -210,21 +245,36 @@
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-            <h3 class="font-black text-pine-950 mb-3">إضافة طالب للدورة (سجل مستقل)</h3>
+            <h3 class="font-black text-pine-950 mb-1">تسجيل طالب جديد في الجامع وربطه بالدورة</h3>
+            <p class="text-xs text-gray-500 mb-3">يُنشئ سجل طالب رسمي في الجامع (يظهر في قائمة الطلاب العادية) مع إمكانية تحديد الصف/الشعبة، ثم يربطه بالدورة مباشرة.</p>
             <form method="POST" action="{{ route('admin.sharia-courses.students.store', $course) }}" class="grid grid-cols-1 md:grid-cols-3 gap-3">
                 @csrf
-                <input type="text" name="name" required maxlength="255" value="{{ old('name') }}" placeholder="الاسم" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                <input type="text" name="phone" maxlength="30" value="{{ old('phone') }}" placeholder="الجوال" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                <select name="gender" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="">— الجنس —</option>
+                <input type="text" name="name" required maxlength="255" value="{{ old('name') }}" placeholder="الاسم *" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <select name="gender" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">— الجنس * —</option>
                     <option value="male" @selected(old('gender') === 'male')>ذكر</option>
                     <option value="female" @selected(old('gender') === 'female')>أنثى</option>
                 </select>
                 <input type="date" name="birth_date" value="{{ old('birth_date') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" aria-label="تاريخ الميلاد">
+                <input type="text" name="guardian_name" maxlength="255" value="{{ old('guardian_name') }}" placeholder="اسم ولي الأمر" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <input type="text" name="guardian_phone" maxlength="30" value="{{ old('guardian_phone') }}" placeholder="جوال ولي الأمر" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <select name="classroom_id" id="new-student-classroom" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">— الصف (اختياري) —</option>
+                    @foreach($classrooms as $classroom)
+                        <option value="{{ $classroom->id }}" @selected(old('classroom_id') === $classroom->id)>{{ $classroom->name }}</option>
+                    @endforeach
+                </select>
+                <select name="section_id" id="new-student-section" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">— الشعبة (اختياري) —</option>
+                    @foreach($classrooms as $classroom)
+                        @foreach($classroom->activeSections as $section)
+                            <option value="{{ $section->id }}" data-classroom="{{ $classroom->id }}" @selected(old('section_id') === $section->id)>{{ $classroom->name }} — {{ $section->name }}</option>
+                        @endforeach
+                    @endforeach
+                </select>
                 <input type="text" name="notes" maxlength="2000" value="{{ old('notes') }}" placeholder="ملاحظات" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <div class="md:col-span-3">
-                    <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-5 py-2 rounded-lg">إضافة الطالب</button>
+                    <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-5 py-2 rounded-lg">تسجيل الطالب وربطه بالدورة</button>
                 </div>
             </form>
         </div>
@@ -296,6 +346,9 @@
                                     <form method="POST" action="{{ route('admin.sharia-courses.students.update', $student) }}" class="mt-2 bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 min-w-64">
                                         @csrf
                                         @method('PATCH')
+                                        @if($student->student_id)
+                                            <p class="text-[10px] text-emerald-700 font-bold">مرتبط بسجل الطالب الرسمي — الحفظ يحدّث السجل الرسمي أيضاً.</p>
+                                        @endif
                                         <input type="text" name="name" required value="{{ $student->name }}" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
                                         <div class="grid grid-cols-2 gap-2">
                                             <input type="text" name="phone" value="{{ $student->phone }}" placeholder="الجوال" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
@@ -305,7 +358,8 @@
                                                 <option value="female" @selected($student->gender === 'female')>أنثى</option>
                                             </select>
                                             <input type="date" name="birth_date" value="{{ $student->birth_date?->format('Y-m-d') }}" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
-                                            <input type="text" name="guardian_phone" value="{{ $student->guardian_phone }}" placeholder="ولي الأمر" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
+                                            <input type="text" name="guardian_name" value="{{ $student->guardian_name }}" placeholder="اسم ولي الأمر" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
+                                            <input type="text" name="guardian_phone" value="{{ $student->guardian_phone }}" placeholder="جوال ولي الأمر" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
                                         </div>
                                         <select name="status" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
                                             <option value="active" @selected($student->status === 'active')>نشط</option>
@@ -406,15 +460,26 @@
 @section('scripts')
 <script>
     const availableFilter = document.getElementById('available-student-filter');
+    const availableClassroomFilter = document.getElementById('available-classroom-filter');
     const availableCount = document.getElementById('available-student-count');
 
-    if (availableFilter) {
-        availableFilter.addEventListener('input', () => {
-            const query = availableFilter.value.trim();
-            document.querySelectorAll('.available-student-option').forEach((option) => {
-                option.classList.toggle('hidden', query !== '' && !option.textContent.includes(query));
-            });
+    const applyAvailableFilters = () => {
+        const query = availableFilter ? availableFilter.value.trim() : '';
+        const classroomId = availableClassroomFilter ? availableClassroomFilter.value : '';
+
+        document.querySelectorAll('.available-student-option').forEach((option) => {
+            const matchesName = query === '' || option.textContent.includes(query);
+            const matchesClassroom = classroomId === '' || option.dataset.classroomId === classroomId;
+            option.classList.toggle('hidden', !(matchesName && matchesClassroom));
         });
+    };
+
+    if (availableFilter) {
+        availableFilter.addEventListener('input', applyAvailableFilters);
+    }
+
+    if (availableClassroomFilter) {
+        availableClassroomFilter.addEventListener('change', applyAvailableFilters);
     }
 
     const updateAvailableCount = () => {
@@ -425,5 +490,41 @@
 
     document.querySelectorAll('.available-student-check').forEach((checkbox) => checkbox.addEventListener('change', updateAvailableCount));
     updateAvailableCount();
+
+    // إظهار شعب الصف المختار فقط في مُنتقيي الشعبة.
+    const filterSectionOptions = (select, classroomId, keepValue = true) => {
+        if (!select) return;
+
+        let selectedStillVisible = false;
+
+        select.querySelectorAll('option[data-classroom]').forEach((option) => {
+            const matches = classroomId === '' || option.dataset.classroom === classroomId;
+            option.hidden = !matches;
+
+            if (matches && option.selected) {
+                selectedStillVisible = true;
+            }
+        });
+
+        if (!keepValue || (!selectedStillVisible && select.value !== '')) {
+            select.value = '';
+        }
+    };
+
+    const bulkClassroom = document.getElementById('bulk-classroom');
+    const bulkSection = document.getElementById('bulk-section');
+
+    if (bulkClassroom && bulkSection) {
+        bulkClassroom.addEventListener('change', () => filterSectionOptions(bulkSection, bulkClassroom.value, false));
+        filterSectionOptions(bulkSection, bulkClassroom.value);
+    }
+
+    const newStudentClassroom = document.getElementById('new-student-classroom');
+    const newStudentSection = document.getElementById('new-student-section');
+
+    if (newStudentClassroom && newStudentSection) {
+        newStudentClassroom.addEventListener('change', () => filterSectionOptions(newStudentSection, newStudentClassroom.value, false));
+        filterSectionOptions(newStudentSection, newStudentClassroom.value);
+    }
 </script>
 @endsection

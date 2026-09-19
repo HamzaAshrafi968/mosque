@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\ShariaMemorizationStatus;
+use App\Models\Classroom;
+use App\Models\Section;
 use App\Models\ShariaCourse;
 use App\Models\ShariaCourseStudent;
 use App\Models\Student;
@@ -58,6 +60,9 @@ class ShariaCourseCentralTest extends TestCase
 
         $existingStudent = Student::factory()->create(['tenant_id' => $mosque->id, 'name' => 'طالب موجود']);
 
+        $classroom = Classroom::create(['tenant_id' => $mosque->id, 'name' => 'صف الفقه']);
+        $section = Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroom->id, 'name' => 'شعبة أ']);
+
         $superAdmin = $this->superAdmin();
 
         $this->actingAs($superAdmin)
@@ -71,7 +76,14 @@ class ShariaCourseCentralTest extends TestCase
                 'supervisor_ids' => [$supervisor->id],
                 'student_ids' => [$existingStudent->id],
                 'new_students' => [
-                    ['name' => 'طالب جديد', 'phone' => '0599000000', 'gender' => 'male'],
+                    [
+                        'name' => 'طالب جديد',
+                        'phone' => '0599000000',
+                        'gender' => 'male',
+                        'guardian_name' => 'ولي الطالب',
+                        'classroom_id' => $classroom->id,
+                        'section_id' => $section->id,
+                    ],
                 ],
             ])
             ->assertRedirect(route('super-admin.sharia-courses.index', ['mosque_id' => $mosque->id]))
@@ -98,10 +110,28 @@ class ShariaCourseCentralTest extends TestCase
             'student_id' => $existingStudent->id,
             'name' => 'طالب موجود',
         ]);
+
+        // الطالب الجديد سُجّل في الجامع فعلياً (سجل طالب عادي) ثم رُبط بالدورة.
+        $newStudent = Student::withoutGlobalScopes(['tenant', 'study_session'])
+            ->where('tenant_id', $mosque->id)
+            ->where('name', 'طالب جديد')
+            ->firstOrFail();
+
+        $this->assertSame('0599000000', $newStudent->guardian_phone);
+        $this->assertSame('ولي الطالب', $newStudent->guardian_name);
+        $this->assertSame($classroom->id, $newStudent->classroom_id);
+        $this->assertSame($section->id, $newStudent->section_id);
+
         $this->assertDatabaseHas('sharia_course_students', [
             'course_id' => $course->id,
-            'student_id' => null,
+            'student_id' => $newStudent->id,
             'name' => 'طالب جديد',
+            'guardian_name' => 'ولي الطالب',
+        ]);
+        $this->assertDatabaseHas('section_students', [
+            'student_id' => $newStudent->id,
+            'section_id' => $section->id,
+            'status' => 'active',
         ]);
 
         // مدير الجامع المستهدف يصله الإشعار، ومدير جامع آخر لا.
@@ -143,9 +173,13 @@ class ShariaCourseCentralTest extends TestCase
         [, $teacher] = $this->makeTeacher($mosque->id, 'مشرف الجامع المستهدف');
         Student::factory()->create(['tenant_id' => $mosque->id, 'name' => 'طالب الجامع المستهدف']);
 
+        $classroom = Classroom::create(['tenant_id' => $mosque->id, 'name' => 'صف الجامع المستهدف']);
+        Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroom->id, 'name' => 'شعبة الجامع المستهدف']);
+
         [$otherMosque] = $this->mosque();
         $this->makeTeacher($otherMosque->id, 'مشرف جامع آخر');
         Student::factory()->create(['tenant_id' => $otherMosque->id, 'name' => 'طالب جامع آخر']);
+        Classroom::create(['tenant_id' => $otherMosque->id, 'name' => 'صف جامع آخر']);
 
         $superAdmin = $this->superAdmin();
 
@@ -154,8 +188,11 @@ class ShariaCourseCentralTest extends TestCase
             ->assertOk()
             ->assertJsonFragment(['name' => 'مشرف الجامع المستهدف'])
             ->assertJsonFragment(['name' => 'طالب الجامع المستهدف'])
+            ->assertJsonFragment(['name' => 'صف الجامع المستهدف'])
+            ->assertJsonFragment(['name' => 'شعبة الجامع المستهدف'])
             ->assertJsonMissing(['name' => 'مشرف جامع آخر'])
-            ->assertJsonMissing(['name' => 'طالب جامع آخر']);
+            ->assertJsonMissing(['name' => 'طالب جامع آخر'])
+            ->assertJsonMissing(['name' => 'صف جامع آخر']);
     }
 
     public function test_admin_enrolls_existing_students_once_without_duplicates(): void
@@ -189,6 +226,164 @@ class ShariaCourseCentralTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(2, ShariaCourseStudent::query()->count());
+    }
+
+    public function test_admin_adds_a_whole_classroom_or_a_single_section_in_one_click(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        $course = ShariaCourse::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'دورة الصف الكامل',
+            'status' => 'active',
+            'created_by' => $admin->id,
+        ]);
+
+        $classroom = Classroom::create(['tenant_id' => $mosque->id, 'name' => 'الصف الأول']);
+        $sectionA = Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroom->id, 'name' => 'أ']);
+        $sectionB = Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroom->id, 'name' => 'ب']);
+
+        $studentA = Student::factory()->create([
+            'tenant_id' => $mosque->id, 'name' => 'طالب أ', 'classroom_id' => $classroom->id, 'section_id' => $sectionA->id,
+        ]);
+        $studentB = Student::factory()->create([
+            'tenant_id' => $mosque->id, 'name' => 'طالب ب', 'classroom_id' => $classroom->id, 'section_id' => $sectionB->id,
+        ]);
+
+        // الصف كامل دفعة واحدة.
+        $this->actingAs($admin)
+            ->post(route('admin.sharia-courses.students.classroom', $course), ['classroom_id' => $classroom->id])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(2, ShariaCourseStudent::query()->count());
+        $this->assertDatabaseHas('sharia_course_students', ['student_id' => $studentA->id]);
+        $this->assertDatabaseHas('sharia_course_students', ['student_id' => $studentB->id]);
+
+        // إعادة الإرسال لا تكرر الطلاب.
+        $this->actingAs($admin)
+            ->post(route('admin.sharia-courses.students.classroom', $course), ['classroom_id' => $classroom->id])
+            ->assertRedirect();
+        $this->assertSame(2, ShariaCourseStudent::query()->count());
+
+        // شعبة واحدة فقط.
+        $course->students()->delete();
+
+        $this->actingAs($admin)
+            ->post(route('admin.sharia-courses.students.classroom', $course), ['section_id' => $sectionA->id])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, ShariaCourseStudent::query()->count());
+        $this->assertDatabaseHas('sharia_course_students', ['student_id' => $studentA->id]);
+        $this->assertDatabaseMissing('sharia_course_students', ['student_id' => $studentB->id]);
+    }
+
+    public function test_admin_registers_a_new_student_as_a_real_student_linked_to_the_course(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        $course = ShariaCourse::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'دورة التسجيل الجديد',
+            'status' => 'active',
+            'created_by' => $admin->id,
+        ]);
+
+        $classroom = Classroom::create(['tenant_id' => $mosque->id, 'name' => 'صف التسجيل']);
+        $section = Section::create(['tenant_id' => $mosque->id, 'classroom_id' => $classroom->id, 'name' => 'شعبة التسجيل']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.sharia-courses.students.store', $course), [
+                'name' => 'طالب جديد رسمي',
+                'gender' => 'male',
+                'birth_date' => '2012-05-01',
+                'guardian_name' => 'أبو الطالب',
+                'guardian_phone' => '0599111222',
+                'classroom_id' => $classroom->id,
+                'section_id' => $section->id,
+                'notes' => 'ملاحظة',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $student = Student::query()->where('name', 'طالب جديد رسمي')->firstOrFail();
+
+        $this->assertSame($mosque->id, $student->tenant_id);
+        $this->assertSame('male', $student->gender);
+        $this->assertSame('أبو الطالب', $student->guardian_name);
+        $this->assertSame($classroom->id, $student->classroom_id);
+        $this->assertSame($section->id, $student->section_id);
+
+        $this->assertDatabaseHas('sharia_course_students', [
+            'course_id' => $course->id,
+            'student_id' => $student->id,
+            'name' => 'طالب جديد رسمي',
+        ]);
+        $this->assertDatabaseHas('section_students', [
+            'student_id' => $student->id,
+            'section_id' => $section->id,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_new_student_classroom_must_belong_to_the_course_mosque(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        $course = ShariaCourse::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'دورة العزل',
+            'status' => 'active',
+            'created_by' => $admin->id,
+        ]);
+
+        [$otherMosque] = $this->mosque();
+        $foreignClassroom = Classroom::create(['tenant_id' => $otherMosque->id, 'name' => 'صف جامع آخر']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.sharia-courses.students.store', $course), [
+                'name' => 'طالب مرفوض',
+                'gender' => 'male',
+                'classroom_id' => $foreignClassroom->id,
+            ])
+            ->assertSessionHasErrors('classroom_id');
+
+        $this->assertSame(0, Student::query()->count());
+        $this->assertSame(0, ShariaCourseStudent::query()->count());
+    }
+
+    public function test_updating_a_linked_course_student_syncs_the_official_student_record(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        $course = ShariaCourse::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'دورة المزامنة',
+            'status' => 'active',
+            'created_by' => $admin->id,
+        ]);
+
+        $student = Student::factory()->create(['tenant_id' => $mosque->id, 'name' => 'الاسم القديم']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.sharia-courses.students.existing', $course), ['student_ids' => [$student->id]])
+            ->assertRedirect();
+
+        $enrolled = ShariaCourseStudent::query()->firstOrFail();
+
+        $this->actingAs($admin)
+            ->patch(route('admin.sharia-courses.students.update', $enrolled), [
+                'name' => 'الاسم المحدّث',
+                'gender' => 'female',
+                'guardian_name' => 'ولي محدّث',
+                'guardian_phone' => '0599000111',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $student->refresh();
+        $this->assertSame('الاسم المحدّث', $student->name);
+        $this->assertSame('female', $student->gender);
+        $this->assertSame('ولي محدّث', $student->guardian_name);
+        $this->assertSame('0599000111', $student->guardian_phone);
+        $this->assertSame('الاسم المحدّث', $enrolled->fresh()->name);
     }
 
     public function test_memorization_status_is_updated_by_admin_and_supervising_teacher_only(): void

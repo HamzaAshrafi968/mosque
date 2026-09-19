@@ -7,6 +7,7 @@ use App\Enums\ShariaCourseStatus;
 use App\Enums\ShariaLessonType;
 use App\Enums\ShariaMemorizationStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Classroom;
 use App\Models\ShariaCourse;
 use App\Models\ShariaCourseLesson;
 use App\Models\ShariaCourseStudent;
@@ -121,7 +122,12 @@ class ShariaCourseController extends Controller
                 ->whereNotIn('id', $course->students()->whereNotNull('student_id')->pluck('student_id'))
                 ->with('classroom:id,name')
                 ->orderBy('name')
-                ->get(['id', 'name', 'classroom_id']);
+                ->get(['id', 'name', 'classroom_id', 'section_id']);
+
+            $data['classrooms'] = Classroom::query()
+                ->with(['activeSections:id,classroom_id,name'])
+                ->orderBy('name')
+                ->get(['id', 'name']);
         }
 
         if ($tab === 'attendance') {
@@ -270,6 +276,33 @@ class ShariaCourseController extends Controller
             ->with('success', $added > 0 ? "تم تسجيل {$added} طالباً في الدورة" : 'كل الطلاب المحددين مسجَّلون مسبقاً');
     }
 
+    /** تسجيل كل طلاب صف أو شعبة مختارة دفعة واحدة. */
+    public function storeClassroomStudents(Request $request, ShariaCourse $course): RedirectResponse
+    {
+        $data = $request->validate([
+            'classroom_id' => ['nullable', 'uuid', Rule::exists('classrooms', 'id')->where('tenant_id', $course->tenant_id)],
+            'section_id' => ['nullable', 'uuid', Rule::exists('sections', 'id')->where('tenant_id', $course->tenant_id)],
+        ]);
+
+        if (blank($data['classroom_id'] ?? null) && blank($data['section_id'] ?? null)) {
+            throw ValidationException::withMessages([
+                'classroom_id' => ['اختر صفاً أو شعبة أولاً'],
+            ]);
+        }
+
+        $studentIds = $this->service->studentIdsForClasses(
+            $course,
+            [$data['classroom_id'] ?? null],
+            [$data['section_id'] ?? null],
+        );
+
+        $added = $this->service->syncEnrolledStudents($course, $studentIds, $request->user());
+
+        return redirect()
+            ->route('admin.sharia-courses.show', ['course' => $course, 'tab' => 'students'])
+            ->with('success', $added > 0 ? "تم تسجيل {$added} طالباً من الصف/الشعبة المحددة" : 'كل طلاب الصف/الشعبة المحددين مسجَّلون مسبقاً');
+    }
+
     /** تحديث حالة حفظ طالب في الدورة (مدير الجامع أو مشرفو الدورة). */
     public function updateMemorization(Request $request, ShariaCourseStudent $student): RedirectResponse
     {
@@ -292,22 +325,30 @@ class ShariaCourseController extends Controller
 
     public function storeStudent(Request $request, ShariaCourse $course): RedirectResponse
     {
-        $student = $course->students()->create([
-            'tenant_id' => $course->tenant_id,
-            ...$this->validatedStudent($request),
-        ]);
-
-        $this->audit->logModel('sharia_course.student_added', $student, actor: $request->user());
+        $this->service->registerNewStudent($course, $this->validatedNewStudent($request, $course), $request->user());
 
         return redirect()
             ->route('admin.sharia-courses.show', ['course' => $course, 'tab' => 'students'])
-            ->with('success', 'تمت إضافة الطالب للدورة');
+            ->with('success', 'تم تسجيل الطالب في الجامع وربطه بالدورة');
     }
 
     public function updateStudent(Request $request, ShariaCourseStudent $student): RedirectResponse
     {
         $before = $student->getAttributes();
-        $student->update($this->validatedStudent($request));
+        $data = $this->validatedStudent($request);
+        $student->update($data);
+
+        if ($student->student_id) {
+            $linked = Student::withoutGlobalScopes(['tenant', 'study_session'])
+                ->where('tenant_id', $student->tenant_id)
+                ->find($student->student_id);
+
+            if ($linked) {
+                $linked->update(collect($data)->only([
+                    'name', 'gender', 'birth_date', 'guardian_name', 'guardian_phone', 'notes',
+                ])->all());
+            }
+        }
 
         $this->audit->logModel('sharia_course.student_updated', $student, $before, actor: $request->user());
 
@@ -367,7 +408,7 @@ class ShariaCourseController extends Controller
     {
         $tenantId = config('app.current_tenant_id') ?? $request->user()->tenant_id;
 
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'supervisor_ids' => ['nullable', 'array'],
@@ -377,6 +418,13 @@ class ShariaCourseController extends Controller
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'status' => ['required', Rule::in(['draft', 'active', 'completed', 'cancelled'])],
         ]);
+
+        $data['supervisor_ids'] = collect($data['supervisor_ids'] ?? [])
+            ->filter(fn ($id) => filled($id))
+            ->values()
+            ->all();
+
+        return $data;
     }
 
     private function validatedLesson(Request $request, ShariaCourse $course): array
@@ -408,9 +456,25 @@ class ShariaCourseController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'gender' => ['nullable', Rule::in(['male', 'female'])],
             'birth_date' => ['nullable', 'date'],
+            'guardian_name' => ['nullable', 'string', 'max:255'],
             'guardian_phone' => ['nullable', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+    }
+
+    /** حقول تسجيل طالب جديد: يُنشئ سجل طالب رسمي في الجامع ثم يربطه بالدورة. */
+    private function validatedNewStudent(Request $request, ShariaCourse $course): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'gender' => ['required', Rule::in(['male', 'female'])],
+            'birth_date' => ['nullable', 'date'],
+            'guardian_name' => ['nullable', 'string', 'max:255'],
+            'guardian_phone' => ['nullable', 'string', 'max:30'],
+            'classroom_id' => ['nullable', 'uuid', Rule::exists('classrooms', 'id')->where('tenant_id', $course->tenant_id)],
+            'section_id' => ['nullable', 'uuid', Rule::exists('sections', 'id')->where('tenant_id', $course->tenant_id)],
+            'notes' => ['nullable', 'string', 'max:2000'],
         ]);
     }
 

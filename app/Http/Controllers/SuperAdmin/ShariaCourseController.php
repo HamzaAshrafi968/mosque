@@ -5,8 +5,8 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Enums\ShariaCourseStatus;
 use App\Enums\ShariaMemorizationStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Classroom;
 use App\Models\ShariaCourse;
-use App\Models\ShariaCourseStudent;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Tenant;
@@ -93,11 +93,23 @@ class ShariaCourseController extends Controller
             ->where('status', 'active')
             ->with('classroom:id,name')
             ->orderBy('name')
-            ->get(['id', 'name', 'classroom_id']);
+            ->get(['id', 'name', 'classroom_id', 'section_id']);
+
+        $classrooms = Classroom::withoutGlobalScopes(['tenant', 'study_session'])
+            ->where('tenant_id', $mosqueId)
+            ->with(['activeSections' => fn ($query) => $query
+                ->withoutGlobalScopes(['tenant', 'study_session'])
+                ->select('sections.id', 'sections.classroom_id', 'sections.name')])
+            ->withCount(['students' => fn ($query) => $query
+                ->withoutGlobalScopes(['tenant', 'study_session'])
+                ->where('status', 'active')])
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return response()->json([
             'supervisors' => $supervisors,
             'students' => $students,
+            'classrooms' => $classrooms,
         ]);
     }
 
@@ -125,12 +137,25 @@ class ShariaCourseController extends Controller
             'student_ids.*' => ['nullable', 'uuid', Rule::exists('students', 'id')->where('tenant_id', $request->input('mosque_id'))],
             'new_students' => ['nullable', 'array'],
             'new_students.*.name' => ['required', 'string', 'max:255'],
+            'new_students.*.gender' => ['required', Rule::in(['male', 'female'])],
             'new_students.*.phone' => ['nullable', 'string', 'max:30'],
-            'new_students.*.gender' => ['nullable', Rule::in(['male', 'female'])],
             'new_students.*.birth_date' => ['nullable', 'date'],
+            'new_students.*.guardian_name' => ['nullable', 'string', 'max:255'],
             'new_students.*.guardian_phone' => ['nullable', 'string', 'max:30'],
+            'new_students.*.classroom_id' => ['nullable', 'uuid', Rule::exists('classrooms', 'id')->where('tenant_id', $request->input('mosque_id'))],
+            'new_students.*.section_id' => ['nullable', 'uuid', Rule::exists('sections', 'id')->where('tenant_id', $request->input('mosque_id'))],
             'new_students.*.notes' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        $data['supervisor_ids'] = collect($data['supervisor_ids'] ?? [])
+            ->filter(fn ($id) => filled($id))
+            ->values()
+            ->all();
+
+        $data['student_ids'] = collect($data['student_ids'] ?? [])
+            ->filter(fn ($id) => filled($id))
+            ->values()
+            ->all();
 
         $mosque = Tenant::query()->findOrFail($data['mosque_id']);
 
@@ -152,16 +177,7 @@ class ShariaCourseController extends Controller
             $this->service->syncEnrolledStudents($course, $data['student_ids'] ?? [], $request->user());
 
             foreach ($data['new_students'] ?? [] as $row) {
-                $course->students()->create([
-                    'tenant_id' => $mosque->id,
-                    'name' => $row['name'],
-                    'phone' => $row['phone'] ?? null,
-                    'gender' => $row['gender'] ?? null,
-                    'birth_date' => $row['birth_date'] ?? null,
-                    'guardian_phone' => $row['guardian_phone'] ?? null,
-                    'notes' => $row['notes'] ?? null,
-                    'status' => ShariaCourseStudent::STATUS_ACTIVE,
-                ]);
+                $this->service->registerNewStudent($course, $row, $request->user());
             }
 
             $this->audit->logModel('sharia_course.created', $course, actor: $request->user());

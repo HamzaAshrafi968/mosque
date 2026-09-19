@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\ShariaAttendanceStatus;
 use App\Enums\ShariaMemorizationStatus;
+use App\Models\Section;
 use App\Models\ShariaCourse;
 use App\Models\ShariaCourseAttendance;
 use App\Models\ShariaCourseLesson;
@@ -17,7 +18,10 @@ use Illuminate\Validation\ValidationException;
 
 class ShariaCourseService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly EnrollmentService $enrollment,
+    ) {}
 
     /**
      * Upsert the attendance marks of a lesson (or a general daily attendance)
@@ -162,6 +166,7 @@ class ShariaCourseService
                 'phone' => $student->guardian_phone,
                 'gender' => $student->gender,
                 'birth_date' => $student->birth_date,
+                'guardian_name' => $student->guardian_name,
                 'guardian_phone' => $student->guardian_phone,
                 'status' => ShariaCourseStudent::STATUS_ACTIVE,
             ]);
@@ -176,6 +181,107 @@ class ShariaCourseService
         }
 
         return $added;
+    }
+
+    /**
+     * تسجيل طالب جديد: يُنشأ سجل طالب رسمي في جامع الدورة (يظهر في قائمة
+     * الطلاب العادية) مع الصف/الشعبة اختيارياً، ثم يُربط بالدورة مباشرة.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function registerNewStudent(ShariaCourse $course, array $data, User $actor): ShariaCourseStudent
+    {
+        return DB::transaction(function () use ($course, $data, $actor) {
+            $section = null;
+
+            if (filled($data['section_id'] ?? null)) {
+                $section = Section::withoutGlobalScopes(['tenant', 'study_session'])
+                    ->where('tenant_id', $course->tenant_id)
+                    ->find($data['section_id']);
+
+                if (! $section) {
+                    throw ValidationException::withMessages([
+                        'section_id' => ['الشعبة المختارة لا تنتمي لجامع الدورة'],
+                    ]);
+                }
+            }
+
+            $student = Student::create([
+                'tenant_id' => $course->tenant_id,
+                'study_session_id' => $section?->study_session_id,
+                'classroom_id' => $section?->classroom_id ?? ($data['classroom_id'] ?? null),
+                'section_id' => $section?->id,
+                'name' => $data['name'],
+                'gender' => $data['gender'] ?? null,
+                'birth_date' => $data['birth_date'] ?? null,
+                'guardian_name' => $data['guardian_name'] ?? null,
+                'guardian_phone' => $data['guardian_phone'] ?? $data['phone'] ?? null,
+                'status' => 'active',
+                'notes' => $data['notes'] ?? null,
+            ]);
+
+            if ($section) {
+                $this->enrollment->enroll($student, $section);
+            }
+
+            $enrolled = $course->students()->create([
+                'tenant_id' => $course->tenant_id,
+                'student_id' => $student->id,
+                'name' => $student->name,
+                'phone' => $student->guardian_phone,
+                'gender' => $student->gender,
+                'birth_date' => $student->birth_date,
+                'guardian_name' => $student->guardian_name,
+                'guardian_phone' => $student->guardian_phone,
+                'notes' => $student->notes,
+                'status' => ShariaCourseStudent::STATUS_ACTIVE,
+            ]);
+
+            $this->audit->logModel('student.created', $student, actor: $actor);
+            $this->audit->log('sharia_course.students_enrolled', 'sharia_course', $course->id, $course->tenant_id, after: [
+                'students' => 1,
+                'student_id' => $student->id,
+            ], actor: $actor);
+
+            return $enrolled;
+        });
+    }
+
+    /**
+     * يحل معرفات الطلاب النشطين في صفوف/شعب مختارة داخل جامع الدورة،
+     * مع استثناء من هو مسجَّل مسبقاً فيها.
+     *
+     * @param  array<int, string|null>  $classroomIds
+     * @param  array<int, string|null>  $sectionIds
+     * @return array<int, string>
+     */
+    public function studentIdsForClasses(ShariaCourse $course, array $classroomIds, array $sectionIds): array
+    {
+        $classroomIds = array_values(array_unique(array_filter($classroomIds)));
+        $sectionIds = array_values(array_unique(array_filter($sectionIds)));
+
+        if ($classroomIds === [] && $sectionIds === []) {
+            return [];
+        }
+
+        $enrolled = $course->students()->whereNotNull('student_id')->pluck('student_id')->all();
+
+        return Student::withoutGlobalScopes(['tenant', 'study_session'])
+            ->where('tenant_id', $course->tenant_id)
+            ->where('status', 'active')
+            ->where(function (Builder $query) use ($classroomIds, $sectionIds) {
+                if ($classroomIds !== []) {
+                    $query->whereIn('classroom_id', $classroomIds);
+                }
+
+                if ($sectionIds !== []) {
+                    $query->orWhereIn('section_id', $sectionIds);
+                }
+            })
+            ->whereNotIn('id', $enrolled)
+            ->orderBy('name')
+            ->pluck('id')
+            ->all();
     }
 
     /** تحديث حالة حفظ طالب في الدورة (مدير الجامع أو مشرف الدورة). */

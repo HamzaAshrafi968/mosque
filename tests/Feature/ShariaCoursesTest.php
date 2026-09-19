@@ -115,22 +115,29 @@ class ShariaCoursesTest extends TestCase
         $this->assertSame(2, $course->supervisors()->count());
     }
 
-    public function test_course_students_are_fully_independent_from_school_students(): void
+    public function test_adding_a_new_course_student_creates_a_real_student_record_and_links_him(): void
     {
         [$mosque, $admin] = $this->mosque();
         $course = $this->makeCourse($mosque->id, $admin);
 
         $this->actingAs($admin)
             ->post(route('admin.sharia-courses.students.store', $course), [
-                'name' => 'عبد الله المستقل',
-                'phone' => '0500000000',
+                'name' => 'عبد الله الجديد',
+                'guardian_phone' => '0500000000',
                 'gender' => 'male',
             ])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
 
+        $student = Student::query()->where('name', 'عبد الله الجديد')->firstOrFail();
+
+        $this->assertSame($mosque->id, $student->tenant_id);
         $this->assertSame(1, ShariaCourseStudent::query()->count());
-        $this->assertSame(0, Student::query()->count());
-        $this->assertDatabaseHas('sharia_course_students', ['name' => 'عبد الله المستقل', 'course_id' => $course->id]);
+        $this->assertDatabaseHas('sharia_course_students', [
+            'name' => 'عبد الله الجديد',
+            'course_id' => $course->id,
+            'student_id' => $student->id,
+        ]);
     }
 
     public function test_attendance_records_all_four_statuses_and_computes_percentage(): void

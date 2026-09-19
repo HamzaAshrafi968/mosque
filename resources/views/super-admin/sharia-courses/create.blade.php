@@ -77,6 +77,24 @@
 
             <div class="space-y-2">
                 <div class="text-sm font-bold text-gray-600">تسجيل طلاب موجودين في الجامع</div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-end bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">إضافة كل طلاب صف/شعبة دفعة واحدة</label>
+                        <select id="bulk-classroom" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" disabled>
+                            <option value="">— اختر الصف —</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">الشعبة (اختياري)</label>
+                        <select id="bulk-section" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" disabled>
+                            <option value="">كل شعب الصف</option>
+                        </select>
+                    </div>
+                    <button type="button" id="bulk-select-students" class="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-lg" disabled>تحديد طلاب الصف/الشعبة</button>
+                    <p id="bulk-select-note" class="text-xs text-emerald-700 md:col-span-4"></p>
+                </div>
+
                 <input type="text" id="student-filter" placeholder="بحث سريع باسم الطالب..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <p id="students-placeholder" class="text-sm text-gray-400 py-3">اختر الجامع أولاً لعرض طلابه.</p>
                 <div id="students-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-80 overflow-y-auto border border-gray-100 rounded-xl p-3 hidden"></div>
@@ -85,7 +103,10 @@
 
             <div class="border-t border-gray-100 pt-4 space-y-3">
                 <div class="flex items-center justify-between flex-wrap gap-2">
-                    <div class="text-sm font-bold text-gray-600">إضافة طلاب جدد (غير موجودين في الجامع)</div>
+                    <div>
+                        <div class="text-sm font-bold text-gray-600">تسجيل طلاب جدد في الجامع (سجل رسمي) وربطهم بالدورة</div>
+                        <p class="text-xs text-gray-400 mt-0.5">سيظهر الطالب الجديد في قائمة طلاب الجامع العادية، ويمكن تحديد الصف/الشعبة له.</p>
+                    </div>
                     <button type="button" id="add-new-student" class="bg-white border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-bold px-3 py-1.5 rounded-lg">+ إضافة طالب جديد</button>
                 </div>
                 <div id="new-students-list" class="space-y-2"></div>
@@ -113,6 +134,12 @@
     const studentsList = document.getElementById('students-list');
     const studentsPlaceholder = document.getElementById('students-placeholder');
     const newStudentsList = document.getElementById('new-students-list');
+    const bulkClassroomSelect = document.getElementById('bulk-classroom');
+    const bulkSectionSelect = document.getElementById('bulk-section');
+    const bulkSelectButton = document.getElementById('bulk-select-students');
+    const bulkSelectNote = document.getElementById('bulk-select-note');
+
+    let classroomsData = [];
 
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -141,7 +168,7 @@
 
     function renderStudents(items) {
         studentsList.innerHTML = items.map((student) => `
-            <label class="flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-2 py-1.5 student-option">
+            <label class="flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-2 py-1.5 student-option" data-classroom-id="${escapeHtml(student.classroom_id ?? '')}" data-section-id="${escapeHtml(student.section_id ?? '')}">
                 <input type="checkbox" name="student_ids[]" value="${escapeHtml(student.id)}" class="accent-emerald-600 student-check" ${oldStudents.includes(String(student.id)) ? 'checked' : ''}>
                 <span class="font-bold">${escapeHtml(student.name)}</span>
                 ${student.classroom ? `<span class="text-xs text-gray-400">${escapeHtml(student.classroom.name)}</span>` : ''}
@@ -152,13 +179,69 @@
         updateCounts();
     }
 
+    function renderBulkClassrooms() {
+        bulkClassroomSelect.innerHTML = '<option value="">— اختر الصف —</option>'
+            + classroomsData.map((classroom) => `<option value="${escapeHtml(classroom.id)}">${escapeHtml(classroom.name)}${classroom.students_count !== undefined ? ` (${classroom.students_count})` : ''}</option>`).join('');
+        bulkClassroomSelect.disabled = classroomsData.length === 0;
+        bulkSectionSelect.innerHTML = '<option value="">كل شعب الصف</option>';
+        bulkSectionSelect.disabled = true;
+        bulkSelectButton.disabled = classroomsData.length === 0;
+        bulkSelectNote.textContent = '';
+    }
+
+    function fillBulkSections() {
+        const classroom = classroomsData.find((item) => String(item.id) === String(bulkClassroomSelect.value));
+        const sections = classroom?.active_sections ?? [];
+
+        bulkSectionSelect.innerHTML = '<option value="">كل شعب الصف</option>'
+            + sections.map((section) => `<option value="${escapeHtml(section.id)}">${escapeHtml(section.name)}</option>`).join('');
+        bulkSectionSelect.disabled = sections.length === 0;
+    }
+
+    function fillNewStudentSections(sectionSelect, classroomId, selectedValue = '') {
+        const classroom = classroomsData.find((item) => String(item.id) === String(classroomId));
+        const sections = classroom?.active_sections ?? [];
+
+        sectionSelect.innerHTML = '<option value="">— الشعبة (اختياري) —</option>'
+            + sections.map((section) => `<option value="${escapeHtml(section.id)}">${escapeHtml(section.name)}</option>`).join('');
+        sectionSelect.value = selectedValue;
+        sectionSelect.disabled = sections.length === 0;
+    }
+
+    function populateNewStudentRow(row, values = {}) {
+        const classroomSelect = row.querySelector('.new-student-classroom');
+        const sectionSelect = row.querySelector('.new-student-section');
+
+        if (!classroomSelect || !sectionSelect) {
+            return;
+        }
+
+        const currentClassroom = values.classroom_id ?? row.dataset.classroomId ?? '';
+        const currentSection = values.section_id ?? row.dataset.sectionId ?? '';
+
+        classroomSelect.innerHTML = '<option value="">— الصف (اختياري) —</option>'
+            + classroomsData.map((classroom) => `<option value="${escapeHtml(classroom.id)}">${escapeHtml(classroom.name)}</option>`).join('');
+        classroomSelect.value = currentClassroom;
+
+        fillNewStudentSections(sectionSelect, currentClassroom, currentSection);
+    }
+
+    function refreshNewStudentRows() {
+        document.querySelectorAll('.new-student-row').forEach((row) => {
+            populateNewStudentRow(row);
+        });
+    }
+
     async function loadMosqueOptions() {
         const mosqueId = mosqueSelect.value;
         if (!mosqueId) {
             supervisorsList.innerHTML = '';
             studentsList.innerHTML = '';
+            classroomsData = [];
             renderSupervisors([]);
             renderStudents([]);
+            renderBulkClassrooms();
+            refreshNewStudentRows();
             return;
         }
 
@@ -172,8 +255,11 @@
                 headers: { 'Accept': 'application/json' },
             });
             const data = await response.json();
+            classroomsData = data.classrooms ?? [];
             renderSupervisors(data.supervisors ?? []);
             renderStudents(data.students ?? []);
+            renderBulkClassrooms();
+            refreshNewStudentRows();
         } catch (error) {
             supervisorsPlaceholder.textContent = 'تعذّر تحميل بيانات الجامع.';
             studentsPlaceholder.textContent = 'تعذّر تحميل بيانات الجامع.';
@@ -195,26 +281,41 @@
         wrapper.className = 'new-student-row bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2';
         wrapper.innerHTML = `
             <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-gray-500">طالب جديد</span>
+                <span class="text-xs font-bold text-gray-500">طالب جديد — سيُسجَّل في الجامع ويُربط بالدورة</span>
                 <button type="button" class="remove-new-student text-xs text-red-600 hover:underline">إزالة</button>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <input type="text" name="new_students[${index}][name]" value="${escapeHtml(values.name)}" required maxlength="255" placeholder="الاسم *" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
-                <input type="text" name="new_students[${index}][phone]" value="${escapeHtml(values.phone)}" maxlength="30" placeholder="الجوال" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
-                <select name="new_students[${index}][gender]" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
-                    <option value="">— الجنس —</option>
+                <select name="new_students[${index}][gender]" required class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
+                    <option value="">— الجنس * —</option>
                     <option value="male" ${values.gender === 'male' ? 'selected' : ''}>ذكر</option>
                     <option value="female" ${values.gender === 'female' ? 'selected' : ''}>أنثى</option>
                 </select>
                 <input type="date" name="new_students[${index}][birth_date]" value="${escapeHtml(values.birth_date)}" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm" aria-label="تاريخ الميلاد">
+                <input type="text" name="new_students[${index}][guardian_name]" value="${escapeHtml(values.guardian_name)}" maxlength="255" placeholder="اسم ولي الأمر" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
                 <input type="text" name="new_students[${index}][guardian_phone]" value="${escapeHtml(values.guardian_phone)}" maxlength="30" placeholder="جوال ولي الأمر" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
                 <input type="text" name="new_students[${index}][notes]" value="${escapeHtml(values.notes)}" maxlength="2000" placeholder="ملاحظات" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
+                <select name="new_students[${index}][classroom_id]" class="new-student-classroom w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm"></select>
+                <select name="new_students[${index}][section_id]" class="new-student-section w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm"></select>
             </div>`;
         newStudentsList.appendChild(wrapper);
+
+        if (values.classroom_id !== undefined) {
+            wrapper.dataset.classroomId = values.classroom_id ?? '';
+        }
+
+        if (values.section_id !== undefined) {
+            wrapper.dataset.sectionId = values.section_id ?? '';
+        }
+
         wrapper.querySelector('.remove-new-student').addEventListener('click', () => {
             wrapper.remove();
             reindexNewStudents();
         });
+        wrapper.querySelector('.new-student-classroom').addEventListener('change', (event) => {
+            fillNewStudentSections(wrapper.querySelector('.new-student-section'), event.target.value);
+        });
+        populateNewStudentRow(wrapper, values);
         updateCounts();
     }
 
@@ -233,6 +334,44 @@
         studentsList.querySelectorAll('.student-option').forEach((option) => {
             option.classList.toggle('hidden', query !== '' && !option.textContent.includes(query));
         });
+    });
+
+    bulkClassroomSelect.addEventListener('change', () => {
+        fillBulkSections();
+        bulkSelectNote.textContent = '';
+    });
+
+    bulkSectionSelect.addEventListener('change', () => {
+        bulkSelectNote.textContent = '';
+    });
+
+    bulkSelectButton.addEventListener('click', () => {
+        const classroomId = bulkClassroomSelect.value;
+        const sectionId = bulkSectionSelect.value;
+
+        if (!classroomId && !sectionId) {
+            bulkSelectNote.textContent = 'اختر صفاً أو شعبة أولاً.';
+            return;
+        }
+
+        let matched = 0;
+
+        studentsList.querySelectorAll('.student-option').forEach((option) => {
+            const matches = sectionId !== ''
+                ? option.dataset.sectionId === sectionId
+                : option.dataset.classroomId === classroomId;
+
+            if (matches) {
+                option.querySelector('.student-check').checked = true;
+                matched++;
+            }
+        });
+
+        bulkSelectNote.textContent = matched > 0
+            ? `تم تحديد ${matched} طالباً — يمكنك إلغاء تحديد أي طالب قبل الحفظ.`
+            : 'لا يوجد طلاب غير مسجَّلين مطابقون للصف/الشعبة.';
+
+        updateCounts();
     });
 
     supervisorsList.addEventListener('change', updateCounts);

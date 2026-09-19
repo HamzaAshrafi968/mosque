@@ -33,6 +33,7 @@ class ShariaCourseStudent extends Model
         'phone',
         'gender',
         'birth_date',
+        'guardian_name',
         'guardian_phone',
         'notes',
         'status',
