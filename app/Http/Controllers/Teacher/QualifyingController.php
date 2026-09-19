@@ -7,6 +7,7 @@ use App\Enums\ProgramType;
 use App\Models\QualifyingWeeklyEvaluation;
 use App\Models\Student;
 use App\Services\AuditLogger;
+use App\Services\QuranListeningProgramService;
 use App\Services\QuranScopeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class QualifyingController extends BaseTeacherController
     public function __construct(
         private readonly QuranScopeService $scope,
         private readonly AuditLogger $audit,
+        private readonly QuranListeningProgramService $listeningPrograms,
     ) {}
 
     /** تقييماتي الأسبوعية + قائمة طلاب البرنامج التأهيلي ضمن نطاقي. */
@@ -34,9 +36,12 @@ class QualifyingController extends BaseTeacherController
             ->paginate(20)
             ->withQueryString();
 
+        $students = $this->qualifyingStudents($teacher);
+
         return view('teacher.quran.qualifying.index', [
             'evaluations' => $evaluations,
-            'students' => $this->qualifyingStudents($teacher),
+            'students' => $students,
+            'listeningProgramIds' => $this->listeningProgramIds($students, ProgramType::Qualifying),
         ]);
     }
 
@@ -108,6 +113,23 @@ class QualifyingController extends BaseTeacherController
                 ->where('status', ProgramEnrollmentStatus::Active))
             ->orderBy('name')
             ->get(['id', 'name']);
+    }
+
+    /** @return array<string, ?string> معرّف دورة الاستماع لكل طالب. */
+    private function listeningProgramIds($students, ProgramType $type): array
+    {
+        return $students->mapWithKeys(function (Student $student) use ($type) {
+            $enrollment = $student->programEnrollments()
+                ->where('program_type', $type)
+                ->where('status', ProgramEnrollmentStatus::Active)
+                ->first();
+
+            $program = $enrollment
+                ? $this->listeningPrograms->ensureForEnrollment($enrollment)
+                : $this->listeningPrograms->activeProgram($student, $type);
+
+            return [$student->id => $program?->id];
+        })->filter()->all();
     }
 
     private function assertInProgram(Student $student): void

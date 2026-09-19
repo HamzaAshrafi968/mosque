@@ -9,6 +9,7 @@ use App\Models\IjazahMonthlyEvaluation;
 use App\Models\IjazahWeeklyEvaluation;
 use App\Models\Student;
 use App\Services\AuditLogger;
+use App\Services\QuranListeningProgramService;
 use App\Services\QuranScopeService;
 use App\Support\QuranProgramSettings;
 use Carbon\Carbon;
@@ -23,6 +24,7 @@ class IjazahController extends BaseTeacherController
     public function __construct(
         private readonly QuranScopeService $scope,
         private readonly AuditLogger $audit,
+        private readonly QuranListeningProgramService $listeningPrograms,
     ) {}
 
     /** تقييماتي الشهرية + طلاب برنامج الإجازة ضمن نطاقي. */
@@ -37,9 +39,12 @@ class IjazahController extends BaseTeacherController
             ->paginate(20)
             ->withQueryString();
 
+        $students = $this->ijazahStudents($teacher);
+
         return view('teacher.quran.ijazah.index', [
             'evaluations' => $evaluations,
-            'students' => $this->ijazahStudents($teacher),
+            'students' => $students,
+            'listeningProgramIds' => $this->listeningProgramIds($students, ProgramType::Ijazah),
             'monthLabel' => fn (string $m) => QuranProgramSettings::monthLabel($m),
         ]);
     }
@@ -277,5 +282,22 @@ class IjazahController extends BaseTeacherController
                 ->where('status', ProgramEnrollmentStatus::Active))
             ->orderBy('name')
             ->get(['id', 'name']);
+    }
+
+    /** @return array<string, ?string> معرّف دورة الاستماع لكل طالب. */
+    private function listeningProgramIds($students, ProgramType $type): array
+    {
+        return $students->mapWithKeys(function (Student $student) use ($type) {
+            $enrollment = $student->programEnrollments()
+                ->where('program_type', $type)
+                ->where('status', ProgramEnrollmentStatus::Active)
+                ->first();
+
+            $program = $enrollment
+                ? $this->listeningPrograms->ensureForEnrollment($enrollment)
+                : $this->listeningPrograms->activeProgram($student, $type);
+
+            return [$student->id => $program?->id];
+        })->filter()->all();
     }
 }

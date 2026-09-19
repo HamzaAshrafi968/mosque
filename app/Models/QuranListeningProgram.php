@@ -13,11 +13,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
- * «برنامج استماع» (تدريبي/إجازة/تأهيلي): 6 دفعات × 5 أجزاء.
+ * «برنامج استماع» (إجازة/تأهيلي): 6 دفعات × 5 أجزاء.
  *
- * يستمع الطالب لأجزاء الدفعة ثم يُسجَّل اختبارها يدوياً (نتيجة لكل جزء)،
- * والنجاح يفتح الدفعة التالية. إتمام الدفعة السادسة يُتمّ البرنامج ويحوّل
- * الطالب تلقائياً للبرنامج التالي (تدريبي → إجازة → تأهيلي).
+ * يسمّع الطالب أجزاء الدفعة مع تسجيل الأخطاء ثم يُسجَّل اختبارها التراكمي،
+ * والنجاح يفتح الدفعة التالية، والرسوب يُعيد الأجزاء الراسبة فقط.
+ * الإتمام يُدار في QuranProgramBatchService (ختم التأهيل/إنهاء الإجازة).
  */
 class QuranListeningProgram extends Model
 {
@@ -45,7 +45,7 @@ class QuranListeningProgram extends Model
         return $this->belongsTo(Student::class)->withoutGlobalScope('study_session');
     }
 
-    /** التحاق البرنامج الأم (للتأهيلي والإجازة؛ التدريبي بلا التحاق مسبق). */
+    /** التحاق البرنامج الأم (التأهيلي/الإجازة). */
     public function enrollment(): BelongsTo
     {
         return $this->belongsTo(ProgramEnrollment::class, 'enrollment_id');

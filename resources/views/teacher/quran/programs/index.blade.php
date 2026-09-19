@@ -7,7 +7,7 @@
         <div>
             <h1 class="text-2xl font-bold text-gray-800">برامج الاستماع</h1>
             <p class="text-sm text-gray-500 mt-1">
-                استماع 5 أجزاء ← اختبار (نتيجة لكل جزء) ← الدفعة التالية. مع «وين موصل» و«شو مسمع».
+                دورة الدفعات: تسميع 5 أجزاء مع الأخطاء ← اختبار تراكمي من الجزء 1 ← الدفعة التالية. مع «وين موصل» و«شو مسمع».
             </p>
         </div>
 
@@ -20,29 +20,6 @@
                 </a>
             @endforeach
         </div>
-
-        {{-- تسجيل في البرنامج التدريبي --}}
-        @if ($selectedType === \App\Enums\ProgramType::Training)
-            <div class="bg-white rounded-2xl shadow p-5">
-                <h2 class="font-bold text-gray-700 mb-3">تسجيل طالب في البرنامج التدريبي</h2>
-                <form method="POST" action="{{ route('teacher.quran.programs.store') }}" class="flex flex-wrap items-end gap-3">
-                    @csrf
-                    <div class="min-w-56 flex-1">
-                        <label class="block text-xs font-bold text-gray-500 mb-1">الطالب (ضمن نطاقك)</label>
-                        <select name="student_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="">اختر الطالب…</option>
-                            @foreach ($students as $student)
-                                <option value="{{ $student->id }}" @selected(old('student_id') === $student->id)>{{ $student->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('student_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-                    </div>
-                    <button class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 py-2 rounded-xl text-sm">
-                        تسجيل
-                    </button>
-                </form>
-            </div>
-        @endif
 
         {{-- تصفية بالطالب --}}
         <div class="bg-white rounded-2xl shadow p-5">
@@ -77,8 +54,11 @@
                     </thead>
                     <tbody>
                         @forelse ($programs as $row)
-                            <tr class="border-b border-gray-50 hover:bg-emerald-50/40">
-                                <td class="px-4 py-3 font-bold text-gray-700">{{ $row->student?->name ?? '—' }}</td>
+                            <tr class="border-b border-gray-50 hover:bg-emerald-50/40 {{ ($program->id ?? null) === $row->id ? 'bg-emerald-50/70' : '' }}">
+                                <td class="px-4 py-3 font-bold text-gray-700">
+                                    <a href="{{ route('teacher.quran.programs.index', ['type' => $row->type->value, 'program_id' => $row->id]) }}"
+                                        class="hover:text-emerald-700 hover:underline">{{ $row->student?->name ?? '—' }}</a>
+                                </td>
                                 <td class="px-4 py-3 text-gray-500">{{ $row->type->label() }}</td>
                                 <td class="px-4 py-3">
                                     <span class="text-[11px] font-bold px-2 py-0.5 rounded-full {{ $row->isActive() ? 'bg-emerald-100 text-emerald-800' : ($row->isCompleted() ? 'bg-sky-100 text-sky-800' : 'bg-gray-100 text-gray-600') }}">

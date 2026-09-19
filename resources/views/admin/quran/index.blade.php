@@ -21,11 +21,11 @@
             <div class="text-3xl font-extrabold text-emerald-700">{{ $stats['hafiz'] }}</div>
             <div class="text-xs text-gray-500 mt-1 font-bold">عدد الحفاظ</div>
         </a>
-        <a href="{{ route('admin.quran.qualifying.index') }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+        <a href="{{ route('admin.quran.programs.index', ['type' => 'qualifying']) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
             <div class="text-3xl font-extrabold text-teal-700">{{ $stats['qualifying'] }}</div>
             <div class="text-xs text-gray-500 mt-1 font-bold">بالبرنامج التأهيلي</div>
         </a>
-        <a href="{{ route('admin.quran.ijazah.index') }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+        <a href="{{ route('admin.quran.programs.index', ['type' => 'ijazah']) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
             <div class="text-3xl font-extrabold text-amber-700">{{ $stats['ijazah'] }}</div>
             <div class="text-xs text-gray-500 mt-1 font-bold">ببرنامج الإجازة</div>
         </a>
@@ -94,7 +94,7 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex items-center justify-between">
                 <span class="font-bold text-gray-800">📋 البرنامج التأهيلي (النشط)</span>
-                <a href="{{ route('admin.quran.qualifying.index') }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+                <a href="{{ route('admin.quran.programs.index', ['type' => 'qualifying']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($qualifyingStudents as $student)

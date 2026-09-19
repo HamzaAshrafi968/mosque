@@ -17,10 +17,16 @@
         @if($students->isNotEmpty())
             <div class="flex flex-wrap gap-2">
                 @foreach($students as $student)
+                    @php
+                        $listeningProgramId = $listeningProgramIds[$student->id] ?? null;
+                        $cycleUrl = $listeningProgramId
+                            ? route('teacher.quran.programs.index', ['type' => 'qualifying', 'program_id' => $listeningProgramId])
+                            : route('teacher.quran.programs.index', ['type' => 'qualifying', 'student_id' => $student->id]);
+                    @endphp
                     <span class="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold px-3 py-1.5 rounded-full transition">
                         <a href="{{ route('teacher.quran.qualifying.evaluations.create', ['student_id' => $student->id]) }}" class="hover:underline">{{ $student->name }}</a>
                         <a href="{{ route('teacher.quran.qualifying.evaluations.create', ['student_id' => $student->id]) }}" class="text-emerald-500 hover:text-emerald-700" title="+ تقييم أسبوعي">+</a>
-                        <a href="{{ route('teacher.quran.programs.index', ['type' => 'qualifying', 'student_id' => $student->id]) }}" class="text-sky-600 hover:text-sky-800 text-xs" title="دورة الاستماع">استماع</a>
+                        <a href="{{ $cycleUrl }}" class="text-sky-600 hover:text-sky-800 text-xs" title="دورة الاستماع">استماع</a>
                     </span>
                 @endforeach
             </div>

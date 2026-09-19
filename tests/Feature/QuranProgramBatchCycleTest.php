@@ -430,7 +430,7 @@ class QuranProgramBatchCycleTest extends TestCase
                 'from_page' => 1,
                 'to_page' => 21,
             ])
-            ->assertRedirect(route('admin.quran.programs.show', $program));
+            ->assertRedirect(route('admin.quran.programs.index', ['type' => $program->type->value, 'program_id' => $program->id]));
 
         $first = $this->batch($program, 1);
         $session = QuranRecitationSession::query()
@@ -475,7 +475,7 @@ class QuranProgramBatchCycleTest extends TestCase
                 'date' => now()->toDateString(),
                 'word_statuses' => ['fake-word:1' => 'incorrect'],
             ])
-            ->assertRedirect(route('admin.quran.programs.show', $program));
+            ->assertRedirect(route('admin.quran.programs.index', ['type' => $program->type->value, 'program_id' => $program->id]));
 
         $this->assertSame(QuranListeningItemStatus::Listened, $item->fresh()->status);
         $this->assertNotNull($item->fresh()->quran_recitation_session_id);
@@ -490,7 +490,7 @@ class QuranProgramBatchCycleTest extends TestCase
         $program = $this->programFor($student, ProgramType::Qualifying);
 
         $this->actingAs($admin)
-            ->get(route('admin.quran.programs.show', $program))
+            ->get(route('admin.quran.programs.index', ['type' => $program->type->value, 'program_id' => $program->id]))
             ->assertOk()
             ->assertSee('الاختبار التراكمي')
             ->assertSee('التسميع مع المعلم')

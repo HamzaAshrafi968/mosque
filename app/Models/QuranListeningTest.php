@@ -51,7 +51,7 @@ class QuranListeningTest extends Model
         return $this->belongsTo(QuranMemorizationBatch::class, 'batch_id');
     }
 
-    /** دفعة «برامج الاستماع» (تدريبي/إجازة/تأهيلي) إن كان الاختبار لها. */
+    /** دفعة «برامج الاستماع» (إجازة/تأهيلي) إن كان الاختبار لها. */
     public function listeningBatch(): BelongsTo
     {
         return $this->belongsTo(QuranListeningProgramBatch::class, 'listening_batch_id');

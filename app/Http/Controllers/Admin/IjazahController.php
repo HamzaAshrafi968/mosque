@@ -12,6 +12,7 @@ use App\Models\ProgramEnrollment;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AuditLogger;
+use App\Services\QuranListeningProgramService;
 use App\Services\QuranProgramService;
 use App\Support\QuranProgramSettings;
 use Carbon\Carbon;
@@ -26,6 +27,7 @@ class IjazahController extends Controller
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly QuranProgramService $programs,
+        private readonly QuranListeningProgramService $listeningPrograms,
     ) {}
 
     public function index(Request $request): View
@@ -40,8 +42,15 @@ class IjazahController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $listeningProgramIds = $enrollments->getCollection()
+            ->mapWithKeys(fn (ProgramEnrollment $enrollment) => [
+                $enrollment->id => $this->listeningPrograms->ensureForEnrollment($enrollment)?->id,
+            ])
+            ->filter();
+
         return view('admin.quran.ijazah.index', [
             'enrollments' => $enrollments,
+            'listeningProgramIds' => $listeningProgramIds,
             'status' => $request->input('status', 'active'),
             'students' => Student::query()
                 ->whereHas('programEnrollments', fn ($q) => $q

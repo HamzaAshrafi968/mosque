@@ -216,9 +216,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('quran/batches/{batch}/placement-test', [Admin\QuranBatchController::class, 'placementTest'])->name('quran.batches.placement-test')->middleware('permission:quran_listening.test');
     Route::post('quran/batches/{batch}/retake', [Admin\QuranBatchController::class, 'retake'])->name('quran.batches.retake')->middleware('permission:quran_batch.update');
 
-    // ---- برامج الاستماع: تسميع الأجزاء ← اختبار (تدريبي) / تراكمي 1–5k (إجازة/تأهيلي) ----
+    // ---- برامج الاستماع: تسميع الأجزاء ← اختبار تراكمي 1–5k (إجازة/تأهيلي) ----
     Route::get('quran/programs', [Admin\QuranListeningProgramController::class, 'index'])->name('quran.programs.index')->middleware('permission:quran_training.view');
-    Route::post('quran/programs', [Admin\QuranListeningProgramController::class, 'store'])->name('quran.programs.store')->middleware('permission:quran_training.create');
     Route::get('quran/programs/items/{item}/tasmee', [Admin\QuranListeningProgramController::class, 'tasmee'])->name('quran.programs.items.tasmee')->middleware('permission:quran_training.listen');
     Route::post('quran/programs/items/{item}/tasmee', [Admin\QuranListeningProgramController::class, 'storeTasmee'])->name('quran.programs.items.tasmee.store')->middleware('permission:quran_training.listen');
     Route::post('quran/programs/batches/{batch}/test', [Admin\QuranListeningProgramController::class, 'test'])->name('quran.programs.batches.test')->middleware('permission:quran_training.test');
@@ -445,9 +444,8 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::post('quran/batches/{batch}/placement-test', [Teacher\QuranBatchController::class, 'placementTest'])->name('quran.batches.placement-test')->middleware('permission:quran_listening.test');
     Route::post('quran/batches/{batch}/retake', [Teacher\QuranBatchController::class, 'retake'])->name('quran.batches.retake')->middleware('permission:quran_batch.update');
 
-    // ---- برامج الاستماع للمعلم: تسميع الأجزاء ← اختبار (تدريبي) / تراكمي (إجازة/تأهيلي) ----
+    // ---- برامج الاستماع للمعلم: تسميع الأجزاء ← اختبار تراكمي (إجازة/تأهيلي) ----
     Route::get('quran/programs', [Teacher\QuranListeningProgramController::class, 'index'])->name('quran.programs.index')->middleware('permission:quran_training.view');
-    Route::post('quran/programs', [Teacher\QuranListeningProgramController::class, 'store'])->name('quran.programs.store')->middleware('permission:quran_training.create');
     Route::get('quran/programs/items/{item}/tasmee', [Teacher\QuranListeningProgramController::class, 'tasmee'])->name('quran.programs.items.tasmee')->middleware('permission:quran_training.listen');
     Route::post('quran/programs/items/{item}/tasmee', [Teacher\QuranListeningProgramController::class, 'storeTasmee'])->name('quran.programs.items.tasmee.store')->middleware('permission:quran_training.listen');
     Route::post('quran/programs/batches/{batch}/test', [Teacher\QuranListeningProgramController::class, 'test'])->name('quran.programs.batches.test')->middleware('permission:quran_training.test');
@@ -592,7 +590,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::post('quran-listening/items/{item}/progress', [StudentPortal\QuranListeningController::class, 'progress'])->name('quran-listening.items.progress')->middleware('permission:quran_listening.listen');
     Route::get('quran-listening/{plan}', [StudentPortal\QuranListeningController::class, 'show'])->name('quran-listening.show');
 
-    // ---- «برامجي»: برامج الاستماع (تدريبي/إجازة/تأهيلي) — عرض فقط ----
+    // ---- «برامجي»: برامج الاستماع (إجازة/تأهيلي) — عرض فقط ----
     Route::get('quran-programs', [StudentPortal\QuranListeningProgramController::class, 'index'])->name('quran-programs.index')->middleware('permission:quran_training.view');
 });
 

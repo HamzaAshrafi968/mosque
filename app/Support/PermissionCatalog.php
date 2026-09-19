@@ -151,11 +151,10 @@ final class PermissionCatalog
         // دفعات الحفظ (كل جزأين = دفعة: مراجعة 5 ← اختبار بحد نجاح الجامع)
         ['quran_batch', 'view', 'مشاهدة دفعات الحفظ'],
         ['quran_batch', 'update', 'إعادة مراجعة/اختبار دفعة الحفظ'],
-        // برامج الاستماع (تدريبي/إجازة/تأهيلي): استماع أجزاء + اختبار كل 5 أجزاء
+        // برامج الاستماع (إجازة/تأهيلي): دورة دفعات 5 أجزاء + اختبار تراكمي
         ['quran_training', 'view', 'مشاهدة برامج الاستماع'],
-        ['quran_training', 'create', 'تسجيل طالب في البرنامج التدريبي'],
         ['quran_training', 'update', 'تعديل/إلغاء برنامج استماع'],
-        ['quran_training', 'listen', 'تسجيل الاستماع لأجزاء البرنامج'],
+        ['quran_training', 'listen', 'تسجيل التسميع لأجزاء البرنامج'],
         ['quran_training', 'test', 'تسجيل اختبار دفعة البرنامج'],
         // إعدادات برنامج القرآن لكل جامع
         ['quran_settings', 'view', 'مشاهدة إعدادات برنامج القرآن'],
@@ -232,7 +231,7 @@ final class PermissionCatalog
         'quran.memorization.manage' => 'mosque',
         'quran_listening.view' => 'mosque', 'quran_listening.create' => 'mosque', 'quran_listening.update' => 'mosque', 'quran_listening.listen' => 'mosque', 'quran_listening.test' => 'mosque',
         'quran_batch.view' => 'mosque', 'quran_batch.update' => 'mosque',
-        'quran_training.view' => 'mosque', 'quran_training.create' => 'mosque', 'quran_training.update' => 'mosque', 'quran_training.listen' => 'mosque', 'quran_training.test' => 'mosque',
+        'quran_training.view' => 'mosque', 'quran_training.update' => 'mosque', 'quran_training.listen' => 'mosque', 'quran_training.test' => 'mosque',
         'quran_settings.view' => 'mosque', 'quran_settings.update' => 'mosque',
         'reward_points.view' => 'mosque', 'reward_points.create' => 'mosque', 'reward_points.delete' => 'mosque',
         'qualifying.view' => 'mosque', 'qualifying.create' => 'mosque', 'qualifying.update' => 'mosque', 'qualifying.complete' => 'mosque',
@@ -270,7 +269,7 @@ final class PermissionCatalog
         'quran.memorization.manage' => 'own',
         'quran_listening.view' => 'own', 'quran_listening.create' => 'own', 'quran_listening.update' => 'own', 'quran_listening.listen' => 'own', 'quran_listening.test' => 'own',
         'quran_batch.view' => 'own', 'quran_batch.update' => 'own',
-        'quran_training.view' => 'own', 'quran_training.create' => 'own', 'quran_training.update' => 'own', 'quran_training.listen' => 'own', 'quran_training.test' => 'own',
+        'quran_training.view' => 'own', 'quran_training.update' => 'own', 'quran_training.listen' => 'own', 'quran_training.test' => 'own',
         'reward_points.view' => 'own', 'reward_points.create' => 'own', 'reward_points.delete' => 'own',
         'qualifying.view' => 'own', 'qualifying.create' => 'own', 'qualifying.update' => 'own',
         'ijazah.view' => 'own', 'ijazah.create' => 'own', 'ijazah.update' => 'own',
@@ -385,7 +384,7 @@ final class PermissionCatalog
             'quran_khamsa' => 'مراجعة 5 (الخمسات)',
             'quran_listening' => 'خطة الاستماع والاختبار',
             'quran_batch' => 'دفعات الحفظ',
-            'quran_training' => 'برامج الاستماع (تدريبي/إجازة/تأهيلي)',
+            'quran_training' => 'برامج الاستماع (إجازة/تأهيلي)',
             'quran_settings' => 'إعدادات برنامج القرآن',
             'reward_points' => 'نقاط المكافآت',
             'qualifying' => 'البرنامج التأهيلي',

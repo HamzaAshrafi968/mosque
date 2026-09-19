@@ -6,7 +6,6 @@ use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
 use App\Enums\QuranListeningBatchStatus;
 use App\Enums\QuranListeningItemStatus;
-use App\Enums\QuranListeningProgramStatus;
 use App\Models\Classroom;
 use App\Models\ProgramEnrollment;
 use App\Models\QuranListeningProgram;
@@ -23,18 +22,17 @@ use App\Services\QuranListeningProgramService;
 use App\Services\RoleService;
 use App\Services\StudySessionService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * «برامج الاستماع» (تدريبي/إجازة/تأهيلي):
+ * «برامج الاستماع» (الإجازة/التأهيلي):
  *
- * - 30 جزءاً ÷ 5 = 6 دفعات، والدفعة k لا تُفتح إلا بنجاح اختبار k-1.
- * - لا اختبار قبل استماع الأجزاء الخمسة كاملة.
- * - الرسوب يرجع الأجزاء الراسبة لإعادة الاستماع ثم إعادة الاختبار.
- * - إتمام الدفعة السادسة يُتمّ البرنامج ويحوّل للبرنامج التالي تلقائياً.
- * - «وين موصل» و«شو مسمع»: شبكة الأجزاء + سجل الاستماع + سجل الاختبارات.
+ * - النوعان فقط بعد إزالة البرنامج التدريبي، ولا مسار تسجيل يدوي.
+ * - الدورة تُولَّد كسولاً لالتحاق البرنامج النشط (6 دفعات × 5 أجزاء).
+ * - الواجهات تعرض دورة الدفعات التراكمية، والتسميع/الاختبار للأستاذ/المدير.
  */
 class QuranListeningProgramTest extends TestCase
 {
@@ -82,9 +80,16 @@ class QuranListeningProgramTest extends TestCase
         return app(QuranListeningProgramService::class);
     }
 
-    private function enroll(Student $student, User $actor): QuranListeningProgram
+    private function programFor(Student $student, ProgramType $type): QuranListeningProgram
     {
-        return $this->service()->enrollTraining($student, $actor);
+        $enrollment = ProgramEnrollment::create([
+            'student_id' => $student->id,
+            'program_type' => $type,
+            'started_at' => Carbon::today()->format('Y-m-d'),
+            'status' => ProgramEnrollmentStatus::Active,
+        ]);
+
+        return $this->service()->ensureForEnrollment($enrollment);
     }
 
     private function batch(QuranListeningProgram $program, int $number): QuranListeningProgramBatch
@@ -92,182 +97,96 @@ class QuranListeningProgramTest extends TestCase
         return $program->batches()->where('batch_number', $number)->firstOrFail();
     }
 
-    private function listenAll(QuranListeningProgramBatch $batch, User $actor): void
+    public function test_training_program_type_is_removed(): void
     {
-        foreach ($batch->items()->orderBy('juz')->get() as $item) {
-            if ($item->canBeListened()) {
-                $this->service()->markListened($item, $actor);
-            }
-        }
+        $this->assertNull(ProgramType::tryFrom('training'));
+
+        $this->assertSame(
+            ['qualifying', 'ijazah'],
+            array_map(fn (ProgramType $type) => $type->value, ProgramType::cases()),
+        );
+
+        $this->assertFalse(Route::has('admin.quran.programs.store'));
+        $this->assertFalse(Route::has('teacher.quran.programs.store'));
     }
 
-    private function passBatch(QuranListeningProgramBatch $batch, User $actor): void
-    {
-        $this->listenAll($batch, $actor);
-
-        $results = [];
-
-        foreach ($batch->juzNumbers() as $juz) {
-            $results[$juz] = 'pass';
-        }
-
-        $this->service()->recordBatchTest($batch, $results, $actor);
-    }
-
-    public function test_training_enrollment_creates_six_batches_and_thirty_items(): void
+    public function test_removal_migration_purges_training_data_and_permission(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $student = $this->student($mosque, $session);
 
-        $program = $this->enroll($student, $admin);
+        $programId = (string) Str::uuid();
+        $batchId = (string) Str::uuid();
+        $testId = (string) Str::uuid();
+        $enrollmentId = (string) Str::uuid();
+        $permissionId = (string) Str::uuid();
 
-        $this->assertSame(ProgramType::Training, $program->type);
-        $this->assertTrue($program->isActive());
-        $this->assertSame(6, $program->batches()->count());
-        $this->assertSame(30, $program->items()->count());
+        DB::table('program_enrollments')->insert([
+            'id' => $enrollmentId,
+            'tenant_id' => $mosque->id,
+            'student_id' => $student->id,
+            'program_type' => 'training',
+            'started_at' => now()->toDateString(),
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        $first = $this->batch($program, 1);
-        $this->assertSame(1, $first->from_juz);
-        $this->assertSame(5, $first->to_juz);
-        $this->assertSame(QuranListeningBatchStatus::Listening, $first->status);
-        $this->assertSame(5, $first->items()->where('status', QuranListeningItemStatus::Available->value)->count());
+        DB::table('quran_listening_programs')->insert([
+            'id' => $programId,
+            'tenant_id' => $mosque->id,
+            'student_id' => $student->id,
+            'enrollment_id' => $enrollmentId,
+            'type' => 'training',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        $second = $this->batch($program, 2);
-        $this->assertSame(6, $second->from_juz);
-        $this->assertSame(10, $second->to_juz);
-        $this->assertSame(QuranListeningBatchStatus::Locked, $second->status);
-        $this->assertSame(5, $second->items()->where('status', QuranListeningItemStatus::Locked->value)->count());
+        DB::table('quran_listening_program_batches')->insert([
+            'id' => $batchId,
+            'tenant_id' => $mosque->id,
+            'program_id' => $programId,
+            'student_id' => $student->id,
+            'batch_number' => 1,
+            'from_juz' => 1,
+            'to_juz' => 5,
+            'status' => 'listening',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        $enrollment = ProgramEnrollment::query()
-            ->where('student_id', $student->id)
-            ->where('program_type', ProgramType::Training)
-            ->firstOrFail();
+        DB::table('quran_listening_tests')->insert([
+            'id' => $testId,
+            'tenant_id' => $mosque->id,
+            'listening_batch_id' => $batchId,
+            'student_id' => $student->id,
+            'tested_by' => $admin->id,
+            'tested_at' => now(),
+            'result' => 'pass',
+            'score' => 100,
+            'passing_percentage' => 80,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        $this->assertSame($enrollment->id, $program->enrollment_id);
-        $this->assertSame(ProgramEnrollmentStatus::Active, $enrollment->status);
-    }
+        DB::table('permissions')->insert([
+            'id' => $permissionId,
+            'code' => 'quran_training.create',
+            'resource' => 'quran_training',
+            'action' => 'create',
+            'label' => 'تسجيل طالب في البرنامج التدريبي',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-    public function test_second_batch_is_locked_until_the_first_test_passes(): void
-    {
-        [$mosque, $admin, $session] = $this->mosque();
-        $student = $this->student($mosque, $session);
-        $program = $this->enroll($student, $admin);
+        (require database_path('migrations/2026_09_19_000001_remove_training_program_type.php'))->up();
 
-        $first = $this->batch($program, 1);
-        $second = $this->batch($program, 2);
-
-        try {
-            $this->service()->markListened($second->items()->firstOrFail(), $admin);
-            $this->fail('تسجيل استماع جزء في دفعة مقفلة يجب أن يُرفض');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('item', $exception->errors());
-        }
-
-        $this->passBatch($first, $admin);
-
-        $this->assertSame(QuranListeningBatchStatus::Passed, $first->fresh()->status);
-        $this->assertSame(QuranListeningBatchStatus::Listening, $second->fresh()->status);
-        $this->assertSame(5, $second->items()->where('status', QuranListeningItemStatus::Available->value)->count());
-    }
-
-    public function test_test_is_rejected_before_all_five_juz_are_listened(): void
-    {
-        [$mosque, $admin, $session] = $this->mosque();
-        $student = $this->student($mosque, $session);
-        $program = $this->enroll($student, $admin);
-
-        $first = $this->batch($program, 1);
-        $items = $first->items()->orderBy('juz')->get();
-
-        $this->service()->markListened($items[0], $admin);
-        $this->service()->markListened($items[1], $admin);
-
-        $this->assertSame(QuranListeningBatchStatus::Listening, $first->fresh()->status);
-
-        try {
-            $this->service()->recordBatchTest($first, [1 => 'pass', 2 => 'pass', 3 => 'pass', 4 => 'pass', 5 => 'pass'], $admin);
-            $this->fail('الاختبار قبل استماع الأجزاء الخمسة يجب أن يُرفض');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('results', $exception->errors());
-        }
-
-        $this->assertSame(0, $program->tests()->count());
-    }
-
-    public function test_failed_juz_are_returned_for_relisten_then_pass_opens_next_batch(): void
-    {
-        [$mosque, $admin, $session] = $this->mosque();
-        $student = $this->student($mosque, $session);
-        $program = $this->enroll($student, $admin);
-
-        $first = $this->batch($program, 1);
-        $this->listenAll($first, $admin);
-
-        $this->assertSame(QuranListeningBatchStatus::ReadyForTest, $first->fresh()->status);
-
-        $test = $this->service()->recordBatchTest($first, [
-            1 => 'pass', 2 => 'fail', 3 => 'pass', 4 => 'fail', 5 => 'pass',
-        ], $admin);
-
-        $this->assertFalse($test->isPass());
-        $this->assertSame(60.0, (float) $test->score);
-        $this->assertSame(QuranListeningBatchStatus::NeedsRepeat, $first->fresh()->status);
-
-        $failed = $first->items()->whereIn('juz', [2, 4])->get();
-        $this->assertCount(2, $failed);
-
-        foreach ($failed as $item) {
-            $this->assertSame(QuranListeningItemStatus::NeedsRepeat, $item->status);
-        }
-
-        // الاختبار مقفل حتى إعادة الاستماع.
-        try {
-            $this->service()->recordBatchTest($first, [1 => 'pass', 2 => 'pass', 3 => 'pass', 4 => 'pass', 5 => 'pass'], $admin);
-            $this->fail('إعادة الاختبار قبل إعادة استماع الأجزاء الراسبة يجب أن تُرفض');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('results', $exception->errors());
-        }
-
-        foreach ($failed as $item) {
-            $this->service()->markListened($item->fresh(), $admin);
-        }
-
-        $this->assertSame(QuranListeningBatchStatus::ReadyForTest, $first->fresh()->status);
-
-        $retest = $this->service()->recordBatchTest($first, [1 => 'pass', 2 => 'pass', 3 => 'pass', 4 => 'pass', 5 => 'pass'], $admin);
-
-        $this->assertTrue($retest->isPass());
-        $this->assertSame(QuranListeningBatchStatus::Passed, $first->fresh()->status);
-        $this->assertSame(QuranListeningBatchStatus::Listening, $this->batch($program, 2)->fresh()->status);
-    }
-
-    public function test_completing_the_sixth_batch_completes_program_and_enrolls_ijazah(): void
-    {
-        [$mosque, $admin, $session] = $this->mosque();
-        $student = $this->student($mosque, $session);
-        $program = $this->enroll($student, $admin);
-
-        for ($number = 1; $number <= 6; $number++) {
-            $this->passBatch($this->batch($program, $number), $admin);
-        }
-
-        $this->assertSame(QuranListeningProgramStatus::Completed, $program->fresh()->status);
-
-        $training = ProgramEnrollment::query()
-            ->where('student_id', $student->id)
-            ->where('program_type', ProgramType::Training)
-            ->firstOrFail();
-
-        $this->assertSame(ProgramEnrollmentStatus::Completed, $training->status);
-
-        $ijazah = ProgramEnrollment::query()
-            ->where('student_id', $student->id)
-            ->where('program_type', ProgramType::Ijazah)
-            ->where('status', ProgramEnrollmentStatus::Active)
-            ->first();
-
-        $this->assertNotNull($ijazah);
-        $this->assertNotNull($this->service()->activeProgram($student, ProgramType::Ijazah));
+        $this->assertSame(0, DB::table('quran_listening_programs')->where('id', $programId)->count());
+        $this->assertSame(0, DB::table('quran_listening_program_batches')->where('id', $batchId)->count());
+        $this->assertSame(0, DB::table('quran_listening_tests')->where('id', $testId)->count());
+        $this->assertSame(0, DB::table('program_enrollments')->where('id', $enrollmentId)->count());
+        $this->assertSame(0, DB::table('permissions')->where('id', $permissionId)->count());
     }
 
     public function test_qualifying_enrollment_gets_a_listening_cycle_lazily(): void
@@ -299,104 +218,6 @@ class QuranListeningProgramTest extends TestCase
             ->count());
     }
 
-    public function test_ijazah_cycle_completion_enrolls_qualifying(): void
-    {
-        [$mosque, $admin, $session] = $this->mosque();
-        $student = $this->student($mosque, $session);
-
-        $enrollment = ProgramEnrollment::create([
-            'student_id' => $student->id,
-            'program_type' => ProgramType::Ijazah,
-            'started_at' => Carbon::today()->format('Y-m-d'),
-            'status' => ProgramEnrollmentStatus::Active,
-        ]);
-
-        $program = $this->service()->ensureForEnrollment($enrollment);
-
-        for ($number = 1; $number <= 6; $number++) {
-            $this->passBatch($this->batch($program, $number), $admin);
-        }
-
-        $this->assertSame(QuranListeningProgramStatus::Completed, $program->fresh()->status);
-
-        $this->assertTrue(ProgramEnrollment::query()
-            ->where('student_id', $student->id)
-            ->where('program_type', ProgramType::Qualifying)
-            ->where('status', ProgramEnrollmentStatus::Active)
-            ->exists());
-
-        // التقييمات الشهرية للإجازة لا تتأثر: الالتحاق يبقى نشطاً.
-        $this->assertSame(ProgramEnrollmentStatus::Active, $enrollment->fresh()->status);
-    }
-
-    public function test_progress_and_history_expose_reached_and_listened_details(): void
-    {
-        [$mosque, $admin, $session] = $this->mosque();
-        $student = $this->student($mosque, $session);
-        $program = $this->enroll($student, $admin);
-
-        $first = $this->batch($program, 1);
-        $items = $first->items()->orderBy('juz')->get();
-
-        $this->service()->markListened($items[0], $admin);
-        $this->service()->markListened($items[1], $admin);
-        $this->service()->recordProgress($items[0]->fresh(), 300);
-
-        $progress = $this->service()->progress($program);
-
-        $this->assertSame(2, $progress['summary']['listened_juz']);
-        $this->assertSame(3, $progress['summary']['next_juz']);
-        $this->assertSame(6, $progress['summary']['total_batches']);
-
-        $cell = $progress['juzGrid']->firstWhere('juz', 1);
-        $this->assertSame(QuranListeningItemStatus::Listened, $cell['status']);
-        $this->assertSame($admin->name, $cell['listened_by']);
-        $this->assertSame(300, $cell['listen_seconds']);
-        $this->assertSame(1, $cell['batch_number']);
-
-        $history = $this->service()->history($program);
-        $this->assertSame(2, $history['listeningLog']->count());
-        $this->assertTrue($history['tests']->isEmpty());
-
-        $this->passBatch($first, $admin);
-
-        $history = $this->service()->history($program);
-        $this->assertSame(1, $history['tests']->count());
-        $this->assertSame(5, $history['tests']->first()->items->count());
-    }
-
-    public function test_student_portal_is_read_only(): void
-    {
-        [$mosque, $admin, $session] = $this->mosque();
-        $studentUser = User::factory()->create(['tenant_id' => $mosque->id, 'role' => 'student']);
-        $student = $this->student($mosque, $session);
-        $student->update(['user_id' => $studentUser->id]);
-
-        $program = $this->enroll($student, $admin);
-        $item = $this->batch($program, 1)->items()->where('juz', 1)->firstOrFail();
-
-        $this->actingAs($studentUser)
-            ->get(route('student.quran-programs.index'))
-            ->assertOk()
-            ->assertSee('برامجي')
-            ->assertSee('الجزء 1')
-            ->assertDontSee('فتح الصفحات وتسجيل الأخطاء');
-
-        // الطالب يفتح صفحات المصحف (معاينة الجزء/الصفحة) للقراءة فقط.
-        $this->actingAs($studentUser)
-            ->get(route('quran.pages.show', 1))
-            ->assertOk();
-
-        $this->actingAs($studentUser)
-            ->get(route('quran.pages.preview', ['page' => 1, 'to' => 5]))
-            ->assertOk();
-
-        // لا يملك الطالب أي مسار تسميع — التسميع للأستاذ/المدير فقط.
-        $this->assertFalse(Route::has('student.quran-programs.items.listen'));
-        $this->assertFalse(Route::has('student.quran-programs.items.tasmee'));
-        $this->assertSame(QuranListeningItemStatus::Available, $item->fresh()->status);
-    }
-
     public function test_teacher_in_scope_can_record_tasmee_and_test(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
@@ -424,11 +245,11 @@ class QuranListeningProgramTest extends TestCase
             'enrolled_at' => now()->toDateString(),
         ]);
 
-        $program = $this->enroll($student, $admin);
+        $program = $this->programFor($student, ProgramType::Qualifying);
         $first = $this->batch($program, 1);
 
         $this->actingAs($teacherUser)
-            ->get(route('teacher.quran.programs.index', ['type' => 'training', 'student_id' => $student->id]))
+            ->get(route('teacher.quran.programs.index', ['type' => 'qualifying', 'student_id' => $student->id]))
             ->assertOk();
 
         foreach ($first->items()->orderBy('juz')->get() as $item) {
@@ -439,7 +260,7 @@ class QuranListeningProgramTest extends TestCase
 
         $results = [];
 
-        foreach ($first->juzNumbers() as $juz) {
+        foreach (range(1, 5) as $juz) {
             $results[$juz] = 'pass';
         }
 
@@ -450,25 +271,62 @@ class QuranListeningProgramTest extends TestCase
         $this->assertSame(QuranListeningBatchStatus::Passed, $first->fresh()->status);
     }
 
-    public function test_admin_center_and_program_page_render(): void
+    public function test_admin_center_lists_only_qualifying_and_ijazah(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $student = $this->student($mosque, $session);
-        $program = $this->enroll($student, $admin);
+        $program = $this->programFor($student, ProgramType::Qualifying);
 
         $this->actingAs($admin)
-            ->get(route('admin.quran.programs.index', ['type' => 'training']))
+            ->get(route('admin.quran.programs.index'))
             ->assertOk()
             ->assertSee('برامج الاستماع')
-            ->assertSee('تسجيل طالب في البرنامج التدريبي');
+            ->assertSee('البرنامج التأهيلي')
+            ->assertSee('برنامج الإجازة')
+            ->assertDontSee('البرنامج التدريبي');
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.programs.index', ['type' => $program->type->value, 'program_id' => $program->id]))
+            ->assertOk()
+            ->assertSee('الاختبار التراكمي')
+            ->assertSee('التسميع مع المعلم')
+            ->assertSee('خريطة الأجزاء الثلاثين');
+    }
+
+    public function test_program_path_url_redirects_to_the_canonical_query_url(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+        $program = $this->programFor($student, ProgramType::Qualifying);
 
         $this->actingAs($admin)
             ->get(route('admin.quran.programs.show', $program))
+            ->assertRedirect(route('admin.quran.programs.index', ['type' => 'qualifying', 'program_id' => $program->id]));
+    }
+
+    public function test_programs_center_links_students_to_their_program_by_id(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+        $program = $this->programFor($student, ProgramType::Qualifying);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.programs.index', ['type' => 'qualifying']))
             ->assertOk()
-            ->assertSee('الدفعات الست')
-            ->assertSee('شو مسمع')
-            ->assertSee('صفحات المصحف')
-            ->assertSee('خريطة الأجزاء الثلاثين');
+            ->assertSee($student->name)
+            ->assertSee('program_id='.$program->id, false);
+    }
+
+    public function test_admin_qualifying_page_links_students_to_their_program_by_id(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+        $program = $this->programFor($student, ProgramType::Qualifying);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.qualifying.index'))
+            ->assertOk()
+            ->assertSee('program_id='.$program->id, false);
     }
 
     public function test_teacher_and_student_access_is_isolated(): void
@@ -478,7 +336,7 @@ class QuranListeningProgramTest extends TestCase
         $student = $this->student($mosque, $session);
         $other = $this->student($mosque, $session, 'طالب آخر');
 
-        $program = $this->enroll($student, $admin);
+        $program = $this->programFor($student, ProgramType::Qualifying);
         $item = $this->batch($program, 1)->items()->firstOrFail();
 
         // الأستاذ بلا شعب → خارج النطاق.

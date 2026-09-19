@@ -45,10 +45,15 @@
                         $evals = $enrollment->student->ijazahMonthlyEvaluations()->orderByDesc('month')->get();
                         $last = $evals->first();
                         $passed = $evals->where('result', 'passed')->count();
+                        $listeningProgramId = $listeningProgramIds[$enrollment->id] ?? null;
+                        $cycleUrl = $listeningProgramId
+                            ? route('admin.quran.programs.index', ['type' => 'ijazah', 'program_id' => $listeningProgramId])
+                            : route('admin.quran.programs.index', ['type' => 'ijazah', 'student_id' => $enrollment->student->id]);
                     @endphp
                     <tr class="border-t">
                         <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-800">
-                            <a href="{{ route('admin.quran.journey', $enrollment->student) }}" class="hover:text-emerald-700">{{ $enrollment->student->name }}</a>
+                            <a href="{{ $cycleUrl }}" class="hover:text-emerald-700">{{ $enrollment->student->name }}</a>
+                            <a href="{{ route('admin.quran.journey', $enrollment->student) }}" class="text-[11px] text-gray-400 hover:text-emerald-700 font-normal">الرحلة</a>
                             <div class="text-xs text-gray-400 font-normal">{{ $enrollment->student->classroom?->name }}</div>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $enrollment->started_at->format('Y-m-d') }}</td>
@@ -74,7 +79,7 @@
                             <div class="flex gap-2 justify-center">
                                 <a href="{{ route('admin.quran.ijazah.month', [$enrollment->student, $last?->month ?? now()->format('Y-m')]) }}" class="text-xs text-pine-700 hover:underline">الأسابيع</a>
                                 <a href="{{ route('admin.quran.ijazah.evaluations.create', ['student_id' => $enrollment->student->id]) }}" class="text-xs text-emerald-700 hover:underline">+ تقييم</a>
-                                <a href="{{ route('admin.quran.programs.index', ['type' => 'ijazah', 'student_id' => $enrollment->student->id]) }}" class="text-xs text-sky-700 hover:underline">دورة الاستماع</a>
+                                <a href="{{ $cycleUrl }}" class="text-xs text-sky-700 hover:underline">دورة الاستماع</a>
                                 @if($passed >= \App\Support\QuranProgramSettings::IJAZAH_MIN_PASSED_MONTHS)
                                     <form method="POST" action="{{ route('admin.quran.ijazah.enrollments.complete', $enrollment) }}"
                                           onsubmit="return confirm('سيُنهى برنامج الإجازة (اكتمال الرحلة القرآنية). متأكد؟')">

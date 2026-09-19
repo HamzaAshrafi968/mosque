@@ -183,8 +183,13 @@ class QuranTasmeeController extends BaseTeacherController
         $this->programBatches->linkTasmeeSession($session, $request->user());
 
         if ($session->program_batch_id) {
+            $program = $session->programBatch?->program;
+
             return redirect()
-                ->route('teacher.quran.programs.show', $session->programBatch?->program_id)
+                ->route('teacher.quran.programs.index', [
+                    'type' => $program?->type->value,
+                    'program_id' => $program?->id,
+                ])
                 ->with('success', 'تم تسجيل التسميع ضمن دورة البرنامج بنجاح');
         }
 

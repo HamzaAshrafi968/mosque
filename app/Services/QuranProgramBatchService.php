@@ -369,7 +369,7 @@ class QuranProgramBatchService
 
     /**
      * إنشاء جلسة تسميع «جديد» على صفحات الجزء كاملة (بلا تحديث حالة العنصر).
-     * مشتركة بين دورة التأهيلي/الإجازة ودورة التدريبي.
+     * مشتركة بين دورة التأهيلي والإجازة.
      *
      * @param  array{date?: ?string, notes?: ?string, word_statuses?: array<string, string>}  $data
      */

@@ -305,7 +305,7 @@ class QuranProgramService
     /**
      * Ensure an active enrollment exists for the student and return it
      * (existing or newly created) — idempotent. Used by the automatic
-     * transitions and by the listening programs (تدريبي/إجازة/تأهيلي).
+     * transitions and by the listening programs (إجازة/تأهيلي).
      */
     public function enrollIfAbsent(ProgramType $type, string $studentId, ?string $startedAt = null, ?User $actor = null): ProgramEnrollment
     {

@@ -56,7 +56,7 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">📋 طلاب البرنامج التأهيلي</span>
-                <a href="{{ route('teacher.quran.qualifying.index') }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+                <a href="{{ route('teacher.quran.programs.index', ['type' => 'qualifying']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($qualifyingStudents as $student)
@@ -73,7 +73,7 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">📜 طلاب برنامج الإجازة</span>
-                <a href="{{ route('teacher.quran.ijazah.index') }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+                <a href="{{ route('teacher.quran.programs.index', ['type' => 'ijazah']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($ijazahStudents as $student)

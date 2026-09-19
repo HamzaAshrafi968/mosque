@@ -20,11 +20,10 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
- * «برامج الاستماع» — مركز مدير الجامع: تدريبي/إجازة/تأهيلي.
+ * «برامج الاستماع» — مركز مدير الجامع: الإجازة/التأهيلي.
  *
- * - التدريبي: تسميع كل جزء مع الأخطاء ثم اختبار الدفعة (5 أجزاء).
- * - التأهيلي/الإجازة: دورة دفعات 5 أجزاء — تسميع ← اختبار تراكمي من الجزء 1
- *   ← إعادة الأجزاء الراسبة فقط (QuranProgramBatchService).
+ * دورة دفعات 5 أجزاء — تسميع ← اختبار تراكمي من الجزء 1
+ * ← إعادة الأجزاء الراسبة فقط (QuranProgramBatchService).
  */
 class QuranListeningProgramController extends Controller
 {
@@ -36,8 +35,8 @@ class QuranListeningProgramController extends Controller
 
     public function index(Request $request): View
     {
-        $type = ProgramType::tryFrom((string) $request->input('type', ProgramType::Training->value))
-            ?? ProgramType::Training;
+        $type = ProgramType::tryFrom((string) $request->input('type', ProgramType::Qualifying->value))
+            ?? ProgramType::Qualifying;
 
         $selectedStudent = $request->filled('student_id')
             ? Student::query()->find($request->input('student_id'))
@@ -76,30 +75,13 @@ class QuranListeningProgramController extends Controller
         ]));
     }
 
-    /** صفحة دورة تفصيلية (تُفتح من شاشات التأهيلي/الإجازة أيضاً). */
-    public function show(QuranListeningProgram $program): View
+    /** الرابط المساري القديم يحوّل إلى الرابط القانوني بالاستعلام (?type&program_id). */
+    public function show(QuranListeningProgram $program): RedirectResponse
     {
-        return view('admin.quran.programs.show', array_merge($this->panelFor($program), [
-            'types' => ProgramType::cases(),
-            'canTest' => true,
-            'canCancel' => true,
-            'actions' => $this->actions(),
-        ]));
-    }
-
-    /** تسجيل طالب في البرنامج التدريبي. */
-    public function store(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'student_id' => ['required', 'uuid', Rule::exists('students', 'id')->where('tenant_id', config('app.current_tenant_id'))],
+        return redirect()->route('admin.quran.programs.index', [
+            'type' => $program->type->value,
+            'program_id' => $program->id,
         ]);
-
-        $student = Student::query()->findOrFail($data['student_id']);
-        $program = $this->programs->enrollTraining($student, $request->user());
-
-        return redirect()
-            ->route('admin.quran.programs.index', ['program_id' => $program->id, 'type' => ProgramType::Training->value])
-            ->with('success', 'تم تسجيل '.$student->name.' في البرنامج التدريبي — الدفعة الأولى (الأجزاء 1–5) مفتوحة للتسميع');
     }
 
     /** شاشة تسميع جزء كامل مع تسجيل الأخطاء كلمة بكلمة. */
@@ -111,12 +93,10 @@ class QuranListeningProgramController extends Controller
             abort(404);
         }
 
-        if ($this->batches->supports($program)) {
-            try {
-                $this->batches->assertTasmeeAllowed($item);
-            } catch (ValidationException $e) {
-                return back()->withErrors($e->errors());
-            }
+        try {
+            $this->batches->assertTasmeeAllowed($item);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
         }
 
         $student = $program->student()->first();
@@ -140,7 +120,7 @@ class QuranListeningProgramController extends Controller
             'statuses' => [],
             'date' => now()->toDateString(),
             'storeRoute' => route('admin.quran.programs.items.tasmee.store', $item),
-            'backRoute' => route('admin.quran.programs.show', $program),
+            'backRoute' => $this->programUrl($program),
         ]);
     }
 
@@ -172,20 +152,14 @@ class QuranListeningProgramController extends Controller
             return back()->withErrors(['teacher_id' => 'لا يوجد أستاذ نشط في دوام الطالب — عيّن أستاذاً ثم أعد المحاولة']);
         }
 
-        if ($this->batches->supports($program)) {
-            $session = $this->batches->recordTasmee($item, $data, $request->user(), $teacherId);
-        } else {
-            $session = $this->batches->createTasmeeSession($item, $data, $teacherId);
-            $item->update(['quran_recitation_session_id' => $session->id]);
-            $this->programs->markListened($item, $request->user());
-        }
+        $session = $this->batches->recordTasmee($item, $data, $request->user(), $teacherId);
 
         return redirect()
-            ->route('admin.quran.programs.show', $program)
+            ->to($this->programUrl($program))
             ->with('success', 'تم تسجيل تسميع '.$item->label().' — التقدير: '.($session->result?->label() ?? '—'));
     }
 
-    /** تسجيل اختبار الدفعة: تراكمي للتأهيلي/الإجازة، ودفعة كاملة للتدريبي. */
+    /** تسجيل اختبار الدفعة التراكمي (من الجزء 1 إلى آخر جزء في الدفعة). */
     public function test(Request $request, QuranListeningProgramBatch $batch): RedirectResponse
     {
         $data = $request->validate([
@@ -194,11 +168,7 @@ class QuranListeningProgramController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $program = $batch->program()->first();
-
-        $test = $program && $this->batches->supports($program)
-            ? $this->batches->recordBatchTest($batch, $data['results'], $request->user(), $data['notes'] ?? null)
-            : $this->programs->recordBatchTest($batch, $data['results'], $request->user(), $data['notes'] ?? null);
+        $test = $this->batches->recordBatchTest($batch, $data['results'], $request->user(), $data['notes'] ?? null);
 
         $score = $this->formatPercent((float) $test->score);
 
@@ -248,9 +218,7 @@ class QuranListeningProgramController extends Controller
             return QuranListeningProgramService::emptyPanel();
         }
 
-        return $this->batches->supports($program)
-            ? $this->batches->panelData($program)
-            : $this->programs->panelData($program);
+        return $this->batches->panelData($program);
     }
 
     /** أستاذ التسميع: أستاذ المستخدم إن وُجد، وإلا أستاذ من دوام الطالب. */
@@ -270,12 +238,21 @@ class QuranListeningProgramController extends Controller
     {
         return [
             'index' => route('admin.quran.programs.index'),
-            'show' => fn (QuranListeningProgram $program) => route('admin.quran.programs.show', $program),
+            'show' => fn (QuranListeningProgram $program) => $this->programUrl($program),
             'tasmee' => fn (QuranListeningProgramItem $item) => route('admin.quran.programs.items.tasmee', $item),
             'test' => fn (QuranListeningProgramBatch $batch) => route('admin.quran.programs.batches.test', $batch),
             'placement' => fn (QuranListeningProgramBatch $batch) => route('admin.quran.programs.batches.placement-test', $batch),
             'cancel' => fn (QuranListeningProgram $program) => route('admin.quran.programs.cancel', $program),
         ];
+    }
+
+    /** الرابط القانوني لدورة البرنامج: الفهرس مع نوعها ومعرّفها. */
+    private function programUrl(QuranListeningProgram $program): string
+    {
+        return route('admin.quran.programs.index', [
+            'type' => $program->type->value,
+            'program_id' => $program->id,
+        ]);
     }
 
     private function formatPercent(float $value): string

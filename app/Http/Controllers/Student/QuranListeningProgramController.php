@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * «برامجي» في بوابة الطالب: برامج الاستماع (تدريبي/إجازة/تأهيلي) —
+ * «برامجي» في بوابة الطالب: برامج الاستماع (الإجازة/التأهيلي) —
  * عرض فقط: التقدم، سجل التسميع، ونتائج الاختبارات. التسميع والاختبار
  * يسجّلهما الأستاذ/المدير.
  */
@@ -34,9 +34,7 @@ class QuranListeningProgramController extends BaseStudentController
             ?? $programs->first();
 
         $panel = $selected
-            ? ($this->batches->supports($selected)
-                ? $this->batches->panelData($selected)
-                : $this->programs->panelData($selected))
+            ? $this->batches->panelData($selected)
             : QuranListeningProgramService::emptyPanel();
 
         return view('student.quran-programs', array_merge($panel, [
