@@ -3,11 +3,13 @@
 namespace App\Providers;
 
 use App\Models\PersonalAccessToken;
+use App\View\Composers\SidebarComposer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
@@ -33,6 +35,9 @@ class AppServiceProvider extends ServiceProvider
         Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());
 
         Vite::useAggressivePrefetching();
+
+        // روابط البرامج المفعّلة في القائمة الجانبية (تحت «البرامج والتخصصات»).
+        View::composer('layouts.app', SidebarComposer::class);
 
         // حماية مسارات أداء الامتحانات: 30 طلباً في الدقيقة لكل مستخدم/IP.
         RateLimiter::for('exam-actions', fn (Request $request) => Limit::perMinute(30)

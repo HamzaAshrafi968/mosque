@@ -9,7 +9,9 @@ use App\Enums\ScheduleProgramType;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
 use App\Models\Program;
+use App\Models\ProgramAttribute;
 use App\Services\AuditLogger;
+use App\Services\AuthorizationService;
 use App\Services\ProgramService;
 use App\Support\ProgramRules;
 use Illuminate\Http\RedirectResponse;
@@ -25,6 +27,7 @@ class ProgramController extends Controller
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly ProgramService $service,
+        private readonly AuthorizationService $authorization,
     ) {}
 
     public function index(Request $request): View
@@ -69,6 +72,29 @@ class ProgramController extends Controller
         return redirect()
             ->route('admin.programs.index')
             ->with('success', "تم إنشاء البرنامج «{$program->name}»");
+    }
+
+    public function show(Request $request, Program $program): View
+    {
+        $program->load(['periods', 'attributes', 'studySessions:id,name'])
+            ->loadCount(['periods', 'attributes', 'schedules']);
+
+        $attributeRows = $program->attributes->map(function (ProgramAttribute $attribute) {
+            $value = $this->service->deserialise($attribute);
+
+            return [
+                'model' => $attribute,
+                'display' => $this->service->toDisplay($attribute, $value),
+                'options' => $this->attributeOptions($attribute),
+            ];
+        });
+
+        return view('admin.programs.show', [
+            'program' => $program,
+            'attributeRows' => $attributeRows,
+            'canEdit' => $this->authorization->can($request->user(), 'programs.update', $program),
+            'canSchedule' => $this->authorization->can($request->user(), 'schedule.view'),
+        ]);
     }
 
     public function edit(Request $request, Program $program): View
@@ -173,5 +199,19 @@ class ProgramController extends Controller
             'studentOptions' => $this->service->studentOptionRows($tenantId),
             'classrooms' => Classroom::query()->orderBy('name')->get(['id', 'name']),
         ];
+    }
+
+    /**
+     * الخيارات الفعلية للخصائص القائمة على الاختيار (يدوية أو محسوبة من الطلاب).
+     *
+     * @return array<int, string>
+     */
+    private function attributeOptions(ProgramAttribute $attribute): array
+    {
+        if (! in_array($attribute->field_type, [CustomFieldType::Select, CustomFieldType::Multiselect], true)) {
+            return [];
+        }
+
+        return $this->service->resolvedOptions($attribute);
     }
 }

@@ -179,7 +179,7 @@
                                 $rowSource = $row['options_source'] ?? 'manual';
                                 $rowConfig = $row['options_config'] ?? [];
                             @endphp
-                            <tr class="border-t attribute-row" data-value="{{ $rowValueAttr }}">
+                            <tr class="border-t attribute-row" data-value="{{ $rowValueAttr }}" data-server-error="{{ $errors->first('attributes.'.$index.'.value') }}">
                                 <td class="px-2 py-2">
                                     <input type="hidden" name="attributes[{{ $index }}][id]" value="{{ $row['id'] ?? '' }}">
                                     <input type="text" name="attributes[{{ $index }}][name]" value="{{ $row['name'] ?? '' }}" maxlength="255"
@@ -301,7 +301,7 @@
 </template>
 
 <template id="attribute-template">
-    <tr class="border-t attribute-row" data-value="">
+    <tr class="border-t attribute-row" data-value="" data-server-error="">
         <td class="px-2 py-2">
             <input type="hidden" name="attributes[__INDEX__][id]" value="">
             <input type="text" name="attributes[__INDEX__][name]" maxlength="255" class="w-full border border-gray-300 rounded-lg px-2 py-1.5">
@@ -515,14 +515,63 @@
         return '<input type="text" name="' + name + '" value="' + escapeAttribute(value) + '" class="' + classes + '">';
     }
 
-    function refreshAttributeRow(row) {
+    function rowIndex(row) {
         const typeField = row.querySelector('.attr-type');
-        const index = (typeField.name.match(/\[(\d+)\]/) || [])[1];
-        const type = typeField.value;
-        const selected = currentSelection(row);
-        const options = collectAttributeOptions(row);
+        return (typeField.name.match(/\[(\d+)\]/) || [])[1];
+    }
 
-        row.querySelector('.attr-value-cell').innerHTML = attributeValueHtml(index, type, selected, options);
+    function isRequired(row) {
+        return !!row.querySelector('[name*="[required]"]:checked');
+    }
+
+    function valueControl(row) {
+        return row.querySelector('.attr-value-cell select, .attr-value-cell input, .attr-value-cell textarea');
+    }
+
+    function valueMetaHtml(row, selected, dropped) {
+        const parts = [];
+        if (isRequired(row)) {
+            parts.push('<span class="text-red-600 text-[11px] font-bold">* مطلوبة</span>');
+        }
+        if (row.querySelector('.attr-type')?.value === 'multiselect') {
+            const count = (selected || []).length;
+            parts.push('<span class="text-gray-500 text-[11px]">' + (count > 0 ? 'تم تحديد ' + count + ' خيار' : 'اضغط على الاسم للاختيار — Ctrl لاختيار أكثر من واحد') + '</span>');
+        }
+        if (dropped && dropped.length) {
+            parts.push('<span class="text-amber-600 text-[11px]">أُزيلت قيم لم تعد ضمن الخيارات الحالية: ' + escapeAttribute(dropped.join('، ')) + '</span>');
+        }
+        if (row.dataset.serverError) {
+            parts.push('<span class="attr-server-error text-red-600 text-[11px] font-bold">' + escapeAttribute(row.dataset.serverError) + '</span>');
+        }
+        return parts.length ? '<div class="attr-value-meta mt-1 space-y-1">' + parts.join('') + '</div>' : '';
+    }
+
+    function markRequiredState(row) {
+        const control = valueControl(row);
+        if (!control) { return; }
+        const required = isRequired(row);
+        control.classList.toggle('border-red-400', required);
+        control.classList.toggle('ring-1', required);
+        control.classList.toggle('ring-red-200', required);
+    }
+
+    function refreshAttributeRow(row) {
+        const index = rowIndex(row);
+        const type = row.querySelector('.attr-type').value;
+        let selected = currentSelection(row);
+        const options = collectAttributeOptions(row);
+        let dropped = [];
+
+        if (type === 'select' || type === 'multiselect') {
+            dropped = selected.filter(function (value) { return options.indexOf(value) === -1; });
+            selected = selected.filter(function (value) { return options.indexOf(value) !== -1; });
+        }
+
+        row.querySelector('.attr-value-cell').innerHTML =
+            attributeValueHtml(index, type, selected, options) + valueMetaHtml(row, selected, dropped);
+
+        markRequiredState(row);
+
         row.querySelector('.attr-options-cell').style.display = (type === 'select' || type === 'multiselect') ? '' : 'none';
 
         const source = row.querySelector('.attr-options-source')?.value || 'manual';
@@ -538,6 +587,17 @@
         refreshAttributeRow(document.querySelector('#attributes-body .attribute-row:last-child'));
     }
 
+    function clearRowInvalid(row) {
+        row.classList.remove('bg-red-50');
+        const control = valueControl(row);
+        if (control) {
+            control.classList.remove('border-red-500', 'ring-2', 'ring-red-300');
+            markRequiredState(row);
+        }
+        row.querySelector('.attr-client-error')?.remove();
+        row.querySelector('.attr-server-error')?.remove();
+    }
+
     function onAttributeFieldChanged(event) {
         const row = event.target.closest('.attribute-row');
         if (!row) { return; }
@@ -547,13 +607,75 @@
         }
         if (event.target.matches('.attr-options-source, .attr-manual-options textarea, .attr-student-options input, .attr-student-options select')) {
             refreshAttributeRow(row);
+            return;
         }
+        if (event.target.matches('[name*="[required]"]')) {
+            markRequiredState(row);
+            return;
+        }
+        if (event.target.matches('.attr-value-cell select, .attr-value-cell input, .attr-value-cell textarea')) {
+            row.dataset.serverError = '';
+            clearRowInvalid(row);
+        }
+    }
+
+    function markRowInvalid(row, control) {
+        row.classList.add('bg-red-50');
+        if (control) {
+            control.classList.add('border-red-500', 'ring-2', 'ring-red-300');
+        }
+        const meta = row.querySelector('.attr-value-cell .attr-value-meta');
+        const cell = row.querySelector('.attr-value-cell');
+        const name = (row.querySelector('input[name$="[name]"]')?.value || '').trim() || 'الخصيصة';
+        let error = row.querySelector('.attr-client-error');
+        if (!error) {
+            if (meta) {
+                meta.insertAdjacentHTML('beforeend', '<span class="attr-client-error text-red-600 text-[11px] font-bold"></span>');
+            } else {
+                cell.insertAdjacentHTML('beforeend', '<div class="attr-value-meta mt-1"><span class="attr-client-error text-red-600 text-[11px] font-bold"></span></div>');
+            }
+            error = row.querySelector('.attr-client-error');
+        }
+        error.textContent = 'الخصيصة «' + name + '» مطلوبة';
+    }
+
+    function validateRequiredAttributes(form) {
+        let firstInvalidRow = null;
+        form.querySelectorAll('#attributes-body .attribute-row').forEach(function (row) {
+            if (!isRequired(row)) { return; }
+            const control = valueControl(row);
+            const empty = !control
+                || (control.tagName === 'SELECT'
+                    ? (control.multiple ? control.selectedOptions.length === 0 : control.value === '')
+                    : control.value.trim() === '');
+            if (empty) {
+                markRowInvalid(row, control);
+                firstInvalidRow = firstInvalidRow || row;
+            }
+        });
+        if (firstInvalidRow) {
+            firstInvalidRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const control = valueControl(firstInvalidRow);
+            if (control) { control.focus({ preventScroll: true }); }
+            return false;
+        }
+        return true;
     }
 
     document.querySelectorAll('#attributes-body .attribute-row').forEach(refreshAttributeRow);
 
     document.getElementById('attributes-body')?.addEventListener('input', onAttributeFieldChanged);
     document.getElementById('attributes-body')?.addEventListener('change', onAttributeFieldChanged);
+
+    document.querySelector('form[action*="/programs"]')?.addEventListener('submit', function (event) {
+        if (!validateRequiredAttributes(this)) { event.preventDefault(); }
+    });
+
+    document.querySelectorAll('#attributes-body .attribute-row[data-server-error]').forEach(function (row) {
+        if ((row.dataset.serverError || '').trim() !== '') {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
 
     document.getElementById('use-type-color')?.addEventListener('click', function () {
         const select = document.getElementById('program-type');

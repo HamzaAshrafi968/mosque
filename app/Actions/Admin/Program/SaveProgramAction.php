@@ -50,7 +50,7 @@ class SaveProgramAction
                 'type' => $type,
                 'description' => $data['description'] ?? null,
                 'color' => ! empty($data['color']) ? $data['color'] : $type->color(),
-                'is_active' => $data['is_active'] ?? false,
+                'is_active' => array_key_exists('is_active', $data) ? (bool) $data['is_active'] : $program->is_active,
                 'sort_order' => $data['sort_order'] ?? 0,
             ]);
 

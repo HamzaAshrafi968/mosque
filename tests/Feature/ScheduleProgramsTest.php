@@ -556,6 +556,9 @@ class ScheduleProgramsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.name', 'برنامج الإتقان المطور');
 
+        // PATCH without `is_active` must not deactivate the program.
+        $this->assertTrue($program->fresh()->is_active);
+
         $this->deleteJson("/api/v1/admin/programs/{$program->id}")
             ->assertStatus(422);
     }
@@ -744,5 +747,189 @@ class ScheduleProgramsTest extends TestCase
                 'options_source' => 'students',
                 'options' => $expected,
             ]);
+    }
+
+    public function test_required_student_sourced_multiselect_is_created_and_validated(): void
+    {
+        [$mosque, $manager] = $this->mosqueWithPrograms();
+
+        $students = Student::factory(3)->create(['tenant_id' => $mosque->id]);
+        $selected = [$students[0]->name, $students[1]->name];
+
+        // Empty required multiselect → the error is attached to the row value.
+        $this->actingAs($manager)
+            ->post(route('admin.programs.store'), [
+                'name' => 'اللقاء القراني',
+                'type' => 'custom',
+                'is_active' => 1,
+                'attributes' => [[
+                    'name' => 'اسمية الطلاب',
+                    'field_type' => 'multiselect',
+                    'required' => 1,
+                    'options_source' => 'students',
+                    'value' => [],
+                    'is_active' => 1,
+                ]],
+            ])
+            ->assertSessionHasErrors('attributes.0.value');
+
+        $this->assertDatabaseMissing('programs', ['tenant_id' => $mosque->id, 'name' => 'اللقاء القراني']);
+
+        // The same program with the required multiselect filled is created.
+        $this->actingAs($manager)
+            ->post(route('admin.programs.store'), [
+                'name' => 'اللقاء القراني',
+                'type' => 'custom',
+                'is_active' => 1,
+                'attributes' => [[
+                    'name' => 'اسمية الطلاب',
+                    'field_type' => 'multiselect',
+                    'required' => 1,
+                    'options_source' => 'students',
+                    'value' => $selected,
+                    'is_active' => 1,
+                ]],
+            ])
+            ->assertRedirect(route('admin.programs.index'))
+            ->assertSessionHasNoErrors();
+
+        $attribute = ProgramAttribute::where('tenant_id', $mosque->id)->where('name', 'اسمية الطلاب')->firstOrFail();
+
+        $this->assertSame($selected, json_decode($attribute->value, true));
+    }
+
+    // ------------------------------------------- program details & sidebar
+
+    public function test_program_details_page_renders_the_custom_attributes_table(): void
+    {
+        [$mosque, $manager] = $this->mosqueWithPrograms();
+        $program = $this->tahfeez($mosque);
+
+        ProgramPeriod::create([
+            'tenant_id' => $mosque->id,
+            'program_id' => $program->id,
+            'name' => 'الفترة الأولى',
+            'starts_at' => '06:00',
+            'ends_at' => '07:00',
+            'is_active' => true,
+        ]);
+
+        ProgramAttribute::create([
+            'tenant_id' => $mosque->id,
+            'program_id' => $program->id,
+            'name' => 'عدد الأجزاء',
+            'field_key' => 'weekly_juz',
+            'field_type' => 'number',
+            'value' => '5',
+            'is_active' => true,
+        ]);
+
+        ProgramAttribute::create([
+            'tenant_id' => $mosque->id,
+            'program_id' => $program->id,
+            'name' => 'مكتمل',
+            'field_key' => 'is_complete',
+            'field_type' => 'boolean',
+            'value' => '1',
+            'is_active' => true,
+        ]);
+
+        ProgramAttribute::create([
+            'tenant_id' => $mosque->id,
+            'program_id' => $program->id,
+            'name' => 'المستوى',
+            'field_key' => 'level',
+            'field_type' => 'select',
+            'options' => ['مبتدئ', 'متوسط', 'متقدم'],
+            'value' => 'متوسط',
+            'is_active' => true,
+        ]);
+
+        ProgramAttribute::create([
+            'tenant_id' => $mosque->id,
+            'program_id' => $program->id,
+            'name' => 'أيام البرنامج',
+            'field_key' => 'days',
+            'field_type' => 'multiselect',
+            'options' => ['الأحد', 'الاثنين', 'الثلاثاء'],
+            'value' => json_encode(['الأحد', 'الاثنين'], JSON_UNESCAPED_UNICODE),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($manager)
+            ->get(route('admin.programs.show', $program))
+            ->assertOk()
+            ->assertSee('الخصائص المخصصة')
+            ->assertSee('الفترة الأولى')
+            ->assertSee('عدد الأجزاء')
+            ->assertSee('weekly_juz')
+            ->assertSee('قائمة اختيار')
+            ->assertSee('نعم')
+            ->assertSee('متوسط')
+            ->assertSee('الأحد، الاثنين');
+    }
+
+    public function test_program_details_are_isolated_between_mosques(): void
+    {
+        [$mosque, $manager] = $this->mosqueWithPrograms();
+
+        $otherMosque = Tenant::factory()->create();
+        config(['app.current_tenant_id' => $otherMosque->id]);
+        app(ProgramService::class)->provisionTenantPrograms($otherMosque);
+        $foreign = Program::where('tenant_id', $otherMosque->id)->firstOrFail();
+
+        config(['app.current_tenant_id' => $mosque->id]);
+
+        $this->actingAs($manager)
+            ->get(route('admin.programs.show', $foreign))
+            ->assertNotFound();
+    }
+
+    public function test_program_details_require_the_view_permission(): void
+    {
+        [$mosque] = $this->mosqueWithPrograms();
+        $program = $this->tahfeez($mosque);
+
+        $teacher = User::factory()->for($mosque)->create();
+
+        $this->actingAs($teacher)
+            ->get(route('admin.programs.show', $program))
+            ->assertForbidden();
+    }
+
+    public function test_sidebar_lists_active_programs_with_schedule_links(): void
+    {
+        [$mosque, $manager] = $this->mosqueWithPrograms();
+        $program = $this->tahfeez($mosque);
+
+        Program::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'برنامج معطّل',
+            'code' => 'disabled_program',
+            'type' => 'custom',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($manager)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee(route('admin.schedules.index', ['program_id' => $program->id]), false)
+            ->assertSee('برنامج التحفيظ')
+            ->assertDontSee('برنامج معطّل');
+    }
+
+    public function test_super_admin_inside_a_mosque_sees_the_program_sidebar_links(): void
+    {
+        [$mosque] = $this->mosqueWithPrograms();
+        $program = $this->tahfeez($mosque);
+
+        $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => User::ROLE_SUPER_ADMIN]);
+        app(RoleService::class)->assignRole($superAdmin, RoleService::ROLE_SUPER_ADMIN);
+
+        $this->actingAs($superAdmin)
+            ->withSession(['super_admin_mosque_id' => $mosque->id])
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee(route('admin.schedules.index', ['program_id' => $program->id]), false);
     }
 }

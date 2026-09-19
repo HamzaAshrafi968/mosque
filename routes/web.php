@@ -120,6 +120,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('programs/{program}/edit', [Admin\ProgramController::class, 'edit'])->name('programs.edit')->middleware('permission:programs.update');
     Route::patch('programs/{program}', [Admin\ProgramController::class, 'update'])->name('programs.update')->middleware('permission:programs.update');
     Route::delete('programs/{program}', [Admin\ProgramController::class, 'destroy'])->name('programs.destroy')->middleware('permission:programs.delete');
+    Route::get('programs/{program}', [Admin\ProgramController::class, 'show'])->name('programs.show')->middleware('permission:programs.view');
 
     Route::get('attendance', [Admin\AttendanceController::class, 'index'])->name('attendance.index')->middleware('permission:attendance.view');
     Route::get('attendance/summary', [Admin\AttendanceController::class, 'summary'])->name('attendance.summary')->middleware('permission:attendance.view');

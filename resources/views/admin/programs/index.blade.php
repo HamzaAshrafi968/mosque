@@ -47,7 +47,7 @@
                     <div class="flex items-center gap-2 min-w-0">
                         <span class="w-3.5 h-3.5 rounded-full shrink-0" style="background: {{ $program->color ?: $program->type->color() }}"></span>
                         <div class="min-w-0">
-                            <div class="font-extrabold text-gray-800 truncate">{{ $program->name }}</div>
+                            <a href="{{ route('admin.programs.show', $program) }}" class="font-extrabold text-gray-800 truncate hover:text-emerald-700">{{ $program->name }}</a>
                             <div class="text-[11px] text-gray-400 font-mono">{{ $program->code }}</div>
                         </div>
                     </div>
@@ -98,6 +98,7 @@
                 <div class="flex items-center justify-between border-t border-gray-100 pt-3 mt-auto">
                     <a href="{{ route('admin.schedules.index', ['program_id' => $program->id]) }}" class="text-xs text-emerald-700 hover:underline">جدول البرنامج</a>
                     <div class="flex items-center gap-3">
+                        <a href="{{ route('admin.programs.show', $program) }}" class="text-xs text-gray-600 hover:underline">عرض</a>
                         <a href="{{ route('admin.programs.edit', $program) }}" class="text-xs text-blue-600 hover:underline">تعديل</a>
                         <form method="POST" action="{{ route('admin.programs.destroy', $program) }}" onsubmit="return confirm('حذف البرنامج «{{ $program->name }}»؟')">
                             @csrf

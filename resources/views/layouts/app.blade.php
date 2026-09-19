@@ -176,6 +176,23 @@
                             @endif
                             @if ($can('programs.view'))
                                 <x-nav-link sub :href="route('admin.programs.index')" :active="request()->routeIs('admin.programs.*')" label="البرامج والتخصصات" />
+                                @foreach (($sidebarPrograms ?? []) as $sidebarProgram)
+                                    @php
+                                        $sidebarProgramUrl = $can('schedule.view')
+                                            ? route('admin.schedules.index', ['program_id' => $sidebarProgram->id])
+                                            : route('admin.programs.show', $sidebarProgram);
+                                        $boundProgram = request()->route('program');
+                                        $boundProgramId = $boundProgram instanceof \App\Models\Program ? $boundProgram->id : $boundProgram;
+                                        $sidebarProgramActive = (request()->routeIs('admin.schedules.*') && request('program_id') === $sidebarProgram->id)
+                                            || (request()->routeIs('admin.programs.show') && (string) $boundProgramId === (string) $sidebarProgram->id);
+                                    @endphp
+                                    <a href="{{ $sidebarProgramUrl }}" data-label="{{ $sidebarProgram->name }}"
+                                        class="group relative flex items-center gap-2.5 ps-4 pe-3 py-2 rounded-lg text-[13px] transition-all duration-300 {{ $sidebarProgramActive ? 'bg-gold-400/15 text-gold-100 font-bold' : 'text-emerald-50/65 hover:text-white hover:bg-white/[0.05]' }}">
+                                        <span class="w-1.5 h-1.5 rounded-full shrink-0 transition-transform duration-300 group-hover:scale-125"
+                                            style="background: {{ $sidebarProgram->color ?: $sidebarProgram->type->color() }}"></span>
+                                        <span class="sidebar-label flex-1 min-w-0 truncate">{{ $sidebarProgram->name }}</span>
+                                    </a>
+                                @endforeach
                             @endif
                         </x-nav-group>
                     @endif
