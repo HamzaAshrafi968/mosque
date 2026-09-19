@@ -10,6 +10,7 @@ use App\Enums\QuranListeningPlanStatus;
 use App\Enums\QuranListeningTestResult;
 use App\Enums\QuranMemorizationBatchStatus;
 use App\Enums\QuranTasmeeType;
+use App\Models\HafizProfile;
 use App\Models\QuranCompletion;
 use App\Models\QuranKhamsaReview;
 use App\Models\QuranKhamsaReviewItem;
@@ -1303,26 +1304,45 @@ class QuranMemorizationGatingService
         $this->openCompletion($batch, $student, $actor);
     }
 
-    /** اكتمال حفظ القرآن بعد تثبيت آخر دفعة: فتح طلب الإتمام والمسار التأهيلي. */
+    /**
+     * اكتمال حفظ القرآن بعد تثبيت آخر دفعة: تسجيل الإتمام ثم اعتماد الحافظ
+     * تلقائياً عند تفعيل مفتاح الجامع (مفعّل افتراضياً) — فيظهر الطالب فوراً
+     * في «الحفاظ المؤكدين» ويلتحق بالبرنامج التأهيلي، وإلا يبقى الطلب
+     * «بانتظار التأكيد» اليدوي.
+     */
     private function openCompletion(QuranMemorizationBatch $batch, Student $student, User $actor): void
     {
         if (QuranCompletion::query()->where('student_id', $student->id)->exists()) {
             return;
         }
 
-        app(QuranProgramService::class)->recordCompletion(
+        $programs = app(QuranProgramService::class);
+
+        $completion = $programs->recordCompletion(
             $student,
             Carbon::today()->toDateString(),
             'اكتمل حفظ القرآن بإتمام جميع دفعات الحفظ ('.QuranMemorizationBatch::TOTAL_BATCHES.' دفعة)',
             $actor
         );
 
+        $autoConfirmed = false;
+
+        // طالب لديه ملف حافظ مسبقاً (بيانات قديمة/إصلاح يدوي) لا يُكسر تسجيل
+        // اختباره، ويُترك الإتمام بانتظار معالجة الإدارة.
+        if ($this->settings->autoConfirmCompletion()
+            && ! HafizProfile::query()->where('student_id', $student->id)->exists()) {
+            $programs->confirmCompletion($completion, $actor);
+            $autoConfirmed = $completion->refresh()->isConfirmed();
+        }
+
         $this->audit->logModel('memorization_batch.journey_completed', $batch, actor: $actor);
 
         $this->notifications->notifyStudentCircle(
             $student,
             'اكتمل حفظ القرآن',
-            'ما شاء الله! أتممت حفظ القرآن الكريم — بانتظار تأكيد الإدارة لبدء البرنامج التأهيلي.',
+            $autoConfirmed
+                ? 'ما شاء الله! أتممت حفظ القرآن الكريم واعتُمدت حافظاً — والتحقت بالبرنامج التأهيلي تلقائياً.'
+                : 'ما شاء الله! أتممت حفظ القرآن الكريم — بانتظار تأكيد الإدارة لبدء البرنامج التأهيلي.',
             route('student.quran-profile'),
             staffToo: true
         );

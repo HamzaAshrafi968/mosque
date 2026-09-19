@@ -2,9 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProgramEnrollmentStatus;
+use App\Enums\ProgramType;
+use App\Enums\QuranCompletionStatus;
 use App\Enums\QuranKhamsaReviewType;
 use App\Enums\QuranListeningPlanStatus;
 use App\Enums\QuranMemorizationBatchStatus;
+use App\Models\HafizProfile;
+use App\Models\ProgramEnrollment;
 use App\Models\QuranCompletion;
 use App\Models\QuranListeningTest;
 use App\Models\QuranMemorizationBatch;
@@ -198,6 +203,45 @@ class PlacementTestTest extends TestCase
         $this->assertTrue($batch->review5()->firstOrFail()->isCompleted());
         $this->assertSame(QuranListeningPlanStatus::Completed, $batch->plan()->firstOrFail()->status);
         $this->assertSame(QuranMemorizationBatchStatus::PendingMemorization, $this->batch($student, 2)->status);
+    }
+
+    public function test_placement_test_without_a_cycle_still_confirms_the_hafiz_automatically(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+
+        // طالب قادم بحفظ كامل (30 جزءاً) بلا أي دورة سابقة.
+        $this->memorize($student, range(1, 30));
+
+        $batch = $this->batch($student, 1);
+
+        $this->assertTrue($this->gating()->placementTestAllowed($batch));
+        $this->assertSame(range(1, 30), $this->gating()->placementTestJuzNumbers($batch));
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.batches.placement-test', $batch), $this->placementPayload($this->placementResults(range(1, 30))))
+            ->assertRedirect();
+
+        // كل الدفعات مثبتة والحافظ معتمد تلقائياً بلا خطوة يدوية.
+        $this->assertSame(
+            QuranMemorizationBatch::TOTAL_BATCHES,
+            QuranMemorizationBatch::query()
+                ->where('student_id', $student->id)
+                ->where('status', QuranMemorizationBatchStatus::Passed)
+                ->count()
+        );
+
+        $completion = QuranCompletion::query()->where('student_id', $student->id)->firstOrFail();
+
+        $this->assertSame(QuranCompletionStatus::Confirmed, $completion->status);
+        $this->assertSame(1, HafizProfile::where('student_id', $student->id)->count());
+        $this->assertTrue(
+            ProgramEnrollment::query()
+                ->where('student_id', $student->id)
+                ->where('program_type', ProgramType::Qualifying)
+                ->where('status', ProgramEnrollmentStatus::Active)
+                ->exists()
+        );
     }
 
     public function test_placement_test_is_blocked_once_review_5_has_started(): void
@@ -588,7 +632,7 @@ class PlacementTestTest extends TestCase
         $this->assertSame(1, QuranMemorizationBatch::query()->where('student_id', $student->id)->count());
     }
 
-    public function test_placement_test_for_thirty_juz_opens_the_completion_request(): void
+    public function test_placement_test_for_thirty_juz_confirms_the_hafiz_automatically(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $this->teacher($mosque, $session);
@@ -608,10 +652,18 @@ class PlacementTestTest extends TestCase
                 ->count()
         );
 
-        $completion = QuranCompletion::query()->where('student_id', $student->id)->first();
+        $completion = QuranCompletion::query()->where('student_id', $student->id)->firstOrFail();
 
-        $this->assertNotNull($completion);
-        $this->assertSame('pending', $completion->status->value);
+        $this->assertSame(QuranCompletionStatus::Confirmed, $completion->status);
+        $this->assertSame($admin->id, $completion->confirmed_by);
+        $this->assertSame(1, HafizProfile::where('student_id', $student->id)->count());
+        $this->assertTrue(
+            ProgramEnrollment::query()
+                ->where('student_id', $student->id)
+                ->where('program_type', ProgramType::Qualifying)
+                ->where('status', ProgramEnrollmentStatus::Active)
+                ->exists()
+        );
     }
 
     public function test_student_form_with_eight_memorized_juz_opens_an_eight_juz_placement_test(): void

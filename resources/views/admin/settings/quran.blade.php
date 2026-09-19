@@ -35,6 +35,25 @@
             تُحفظ القيمة المستخدمة مع كل اختبار (لقطة) — فلو غيّرت الحد لاحقاً من {{ $minimumPassingPercentage }}% إلى قيمة أخرى، تبقى نتائج الاختبارات القديمة محسوبة وفق الحد الذي كان سارياً وقتها.
         </div>
 
+        <div class="rounded-xl border border-gray-200 p-4">
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="hidden" name="auto_confirm_completion" value="0">
+                <input type="checkbox" name="auto_confirm_completion" value="1"
+                    class="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    @checked(old('auto_confirm_completion', $autoConfirmCompletion))>
+                <span>
+                    <span class="block text-sm font-bold text-gray-700">الاعتماد التلقائي للحافظ عند إتمام حفظ القرآن (30 جزءاً)</span>
+                    <span class="block text-xs text-gray-500 mt-1 leading-relaxed">
+                        عند نجاح الطالب في آخر اختبار تراكمي (الدفعة 15 — الجزآن 29–30) يُعتمد حافظاً فوراً: يظهر في «الحفاظ المؤكدين»، ويُنشأ ملف الحافظ، ويلتحق بالبرنامج التأهيلي تلقائياً.
+                        تعطيل المفتاح يُرجع المسار اليدوي: يبقى الطلب في «بانتظار التأكيد» حتى تعتمده الإدارة.
+                    </span>
+                </span>
+            </label>
+            @error('auto_confirm_completion')
+                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+            @enderror
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-5 py-2.5 rounded-lg">حفظ الإعدادات</button>
         </div>

@@ -11,7 +11,8 @@ use Illuminate\View\View;
 
 /**
  * «مدير الجامع → الإعدادات → برنامج القرآن»:
- * حد النجاح في اختبار دفعات الحفظ (minimum passing percentage).
+ * حد النجاح في اختبار دفعات الحفظ (minimum passing percentage)
+ * + الاعتماد التلقائي للحافظ عند إتمام 30 جزءاً.
  */
 class QuranSettingsController extends Controller
 {
@@ -24,6 +25,7 @@ class QuranSettingsController extends Controller
     {
         return view('admin.settings.quran', [
             'minimumPassingPercentage' => $this->settings->minimumPassingPercentage(),
+            'autoConfirmCompletion' => $this->settings->autoConfirmCompletion(),
         ]);
     }
 
@@ -36,19 +38,29 @@ class QuranSettingsController extends Controller
                 'min:'.QuranSettingsService::MIN_PASSING_PERCENTAGE,
                 'max:'.QuranSettingsService::MAX_PASSING_PERCENTAGE,
             ],
+            'auto_confirm_completion' => ['nullable', 'boolean'],
         ]);
 
-        $before = $this->settings->minimumPassingPercentage();
+        $autoConfirm = $request->boolean('auto_confirm_completion');
+
+        $before = [
+            'minimum_passing_percentage' => $this->settings->minimumPassingPercentage(),
+            'auto_confirm_completion' => $this->settings->autoConfirmCompletion(),
+        ];
 
         $this->settings->setMinimumPassingPercentage((float) $data['minimum_passing_percentage']);
+        $this->settings->setAutoConfirmCompletion($autoConfirm);
 
         $this->audit->log(
             'quran.settings.updated',
             'tenant_setting',
             null,
             config('app.current_tenant_id'),
-            before: ['minimum_passing_percentage' => $before],
-            after: ['minimum_passing_percentage' => (float) $data['minimum_passing_percentage']],
+            before: $before,
+            after: [
+                'minimum_passing_percentage' => (float) $data['minimum_passing_percentage'],
+                'auto_confirm_completion' => $autoConfirm,
+            ],
             actor: $request->user()
         );
 

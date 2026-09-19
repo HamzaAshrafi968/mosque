@@ -2,8 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProgramEnrollmentStatus;
+use App\Enums\ProgramType;
+use App\Enums\QuranCompletionStatus;
 use App\Enums\QuranListeningPlanStatus;
 use App\Enums\QuranMemorizationBatchStatus;
+use App\Models\HafizMonthlyExam;
+use App\Models\HafizProfile;
+use App\Models\ProgramEnrollment;
 use App\Models\QuranCompletion;
 use App\Models\QuranListeningTest;
 use App\Models\QuranMemorizationBatch;
@@ -18,6 +24,7 @@ use App\Services\QuranMemorizationGatingService;
 use App\Services\QuranSettingsService;
 use App\Services\RoleService;
 use App\Services\StudySessionService;
+use App\Support\QuranProgramSettings;
 use Database\Seeders\QuranDataSeeder;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -30,7 +37,7 @@ use Tests\TestCase;
  * - النجاح يُحسب في الـ Backend: score من العناصر >= حد نجاح الجامع.
  * - الرسوب يبقي الدفعة التالية مقفلة، مع إمكانية توليد مراجعة جديدة.
  * - تسميع «جديد» ممنوع خارج نطاق الدفعة الحالية (فرض على الـ Backend).
- * - نجاح الدفعة الأخيرة (29–30) يفتح طلب إتمام الحفظ.
+ * - نجاح الدفعة الأخيرة (29–30) يعتمد الحافظ تلقائياً (مع مفتاح الإعدادات).
  */
 class MemorizationBatchTest extends TestCase
 {
@@ -655,11 +662,14 @@ class MemorizationBatchTest extends TestCase
         $this->assertSame(QuranMemorizationBatchStatus::PendingMemorization, $fourteenth['status']);
     }
 
-    public function test_passing_the_last_batch_opens_the_completion_request(): void
+    public function test_passing_the_last_batch_confirms_the_hafiz_automatically(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $this->teacher($mosque, $session);
         $student = $this->student($mosque, $session);
+
+        $studentUser = User::factory()->create(['tenant_id' => $mosque->id, 'role' => 'student']);
+        $student->update(['user_id' => $studentUser->id]);
 
         $this->seedPassedBatches($student, range(1, 14));
         $this->memorize($student, [29, 30]);
@@ -671,13 +681,80 @@ class MemorizationBatchTest extends TestCase
 
         $this->assertSame(QuranMemorizationBatchStatus::Passed, $this->batch($student, 15)->status);
 
+        // الإتمام يُعتمد فوراً بلا أي خطوة يدوية: حافظ + تأهيلي + اختبار شهري.
         $completion = QuranCompletion::query()->where('student_id', $student->id)->first();
 
         $this->assertNotNull($completion);
-        $this->assertSame('pending', $completion->status->value);
+        $this->assertSame(QuranCompletionStatus::Confirmed, $completion->status);
+        $this->assertSame($admin->id, $completion->confirmed_by);
+        $this->assertNotNull($completion->confirmed_at);
+
+        $this->assertSame(1, HafizProfile::where('student_id', $student->id)->count());
+
+        $this->assertTrue(
+            ProgramEnrollment::query()
+                ->where('student_id', $student->id)
+                ->where('program_type', ProgramType::Qualifying)
+                ->where('status', ProgramEnrollmentStatus::Active)
+                ->exists()
+        );
+
+        $this->assertTrue(
+            HafizMonthlyExam::query()
+                ->where('student_id', $student->id)
+                ->where('month', QuranProgramSettings::monthOf(now()))
+                ->exists()
+        );
+
+        // يظهر مباشرة في تبويب «الحفاظ المؤكدين» بلا تأكيد يدوي.
+        $this->actingAs($admin)
+            ->get(route('admin.quran.completions.index', ['status' => 'confirmed']))
+            ->assertOk()
+            ->assertSee($student->name);
+
+        // إشعار الطالب يذكر الاعتماد والالتحاق التأهيلي (لا «بانتظار التأكيد»).
+        $notification = $studentUser->notifications()
+            ->get()
+            ->first(fn ($row) => ($row->data['title'] ?? null) === 'اكتمل حفظ القرآن');
+
+        $this->assertNotNull($notification);
+        $this->assertStringContainsString('اعتُمدت حافظاً', $notification->data['body']);
+        $this->assertStringNotContainsString('بانتظار تأكيد الإدارة', $notification->data['body']);
     }
 
     public function test_student_profile_shows_the_current_batch_and_locked_juz(): void
+    public function test_auto_confirmation_can_be_disabled_from_quran_settings(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $studentUser = User::factory()->create(['tenant_id' => $mosque->id, 'role' => 'student']);
+        $student->update(['user_id' => $studentUser->id]);
+
+        app(QuranSettingsService::class)->setAutoConfirmCompletion(false);
+
+        $this->seedPassedBatches($student, range(1, 14));
+        $this->memorize($student, [29, 30]);
+
+        $this->passBatch($this->batch($student, 15), $admin);
+
+        $completion = QuranCompletion::query()->where('student_id', $student->id)->first();
+
+        $this->assertNotNull($completion);
+        $this->assertSame(QuranCompletionStatus::Pending, $completion->status);
+        $this->assertSame(0, HafizProfile::where('student_id', $student->id)->count());
+        $this->assertSame(0, ProgramEnrollment::where('student_id', $student->id)->count());
+
+        // الإشعار يبقى على مسار «بانتظار التأكيد» اليدوي.
+        $notification = $studentUser->notifications()
+            ->get()
+            ->first(fn ($row) => ($row->data['title'] ?? null) === 'اكتمل حفظ القرآن');
+
+        $this->assertNotNull($notification);
+        $this->assertStringContainsString('بانتظار تأكيد الإدارة', $notification->data['body']);
+    }
+
     {
         [$mosque, $admin, $session] = $this->mosque();
         $this->teacher($mosque, $session);
@@ -715,6 +792,40 @@ class MemorizationBatchTest extends TestCase
         $this->actingAs($admin)
             ->patch(route('admin.settings.quran.update'), ['minimum_passing_percentage' => 0])
             ->assertSessionHasErrors('minimum_passing_percentage');
+    }
+
+    public function test_admin_can_toggle_the_automatic_hafiz_confirmation(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        $settings = app(QuranSettingsService::class);
+
+        // الافتراضي: مفعّل بلا أي قيمة محفوظة.
+        $this->assertTrue($settings->autoConfirmCompletion());
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.quran.edit'))
+            ->assertOk()
+            ->assertSee('الاعتماد التلقائي للحافظ');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.settings.quran.update'), [
+                'minimum_passing_percentage' => 80,
+                'auto_confirm_completion' => 0,
+            ])
+            ->assertRedirect();
+
+        $this->assertFalse($settings->autoConfirmCompletion());
+
+        $this->actingAs($admin)
+            ->patch(route('admin.settings.quran.update'), [
+                'minimum_passing_percentage' => 80,
+                'auto_confirm_completion' => 1,
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue($settings->autoConfirmCompletion());
+
+        $this->assertDatabaseHas('audit_logs', ['action' => 'quran.settings.updated']);
     }
 
     public function test_batches_page_renders_for_manager_and_teacher(): void
