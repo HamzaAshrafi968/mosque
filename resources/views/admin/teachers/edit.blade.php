@@ -64,6 +64,13 @@
             <input type="number" step="0.01" min="0" name="monthly_salary" value="{{ old('monthly_salary', $teacher->monthly_salary) }}"
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none" dir="ltr">
             <p class="text-xs text-gray-400 mt-1">المبلغ الذي يعطيه مدير الجامع للأستاذ في الشهر.</p>
+            @if(app(\App\Services\AuthorizationService::class)->can(auth()->user(), 'hourly_rates.manage'))
+                <p class="text-xs text-gray-400 mt-1">
+                    للأجر بالساعة: حدّد سعر الساعة من
+                    <a href="{{ route('admin.settings.hourly-rates.index', ['teacher_id' => $teacher->id]) }}" class="text-emerald-700 underline">الإعدادات ← أسعار الساعة</a>
+                    فيُحتسب الراتب تلقائياً من ساعات العمل.
+                </p>
+            @endif
         </div>
         <div class="flex items-center gap-2">
             <input type="hidden" name="is_active" value="0">

@@ -11,6 +11,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WorkSlot;
 use App\Services\RoleService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -202,6 +203,8 @@ class PayrollPeriodTest extends TestCase
 
     public function test_teacher_portal_lists_only_his_own_periods(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-09-15 10:00:00'));
+
         $mosque = $this->mosque();
         [$teacherAUser, $teacherA] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 100]);
         [, $teacherB] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 200]);
@@ -228,5 +231,25 @@ class PayrollPeriodTest extends TestCase
         $this->actingAs($teacherAUser)
             ->get(route('teacher.payroll.show', $other))
             ->assertForbidden();
+    }
+
+    public function test_teacher_can_open_his_own_period_details(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+        [$teacherUser, $teacher] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 100]);
+
+        $this->actingAs($manager)
+            ->post(route('admin.payroll.pay', $teacher), ['month' => '2026-09', 'amount' => 40])
+            ->assertRedirect();
+
+        $period = PayrollPeriod::query()->where('teacher_id', $teacher->id)->firstOrFail();
+
+        $this->actingAs($teacherUser)
+            ->get(route('teacher.payroll.show', $period))
+            ->assertOk()
+            ->assertSee('سبتمبر')
+            ->assertSee('100.00')
+            ->assertSee('60.00');
     }
 }

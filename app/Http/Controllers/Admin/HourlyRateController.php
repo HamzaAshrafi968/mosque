@@ -6,21 +6,24 @@ use App\Http\Controllers\Controller;
 use App\Models\HourlyRate;
 use App\Models\Teacher;
 use App\Services\AuditLogger;
-use App\Services\HourlyRateResolver;
+use App\Services\FinanceService;
+use App\Services\HourlyRateService;
 use App\Services\PayrollPeriodService;
+use App\Support\QuranProgramSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
- * سجل أسعار الساعة التاريخي: إضافة/عرض/حذف مع منع التداخل، وتعديل السعر
- * لا يمس الكشوف المغلقة (اللقطات ثابتة).
+ * «الإعدادات → أسعار الساعة»: سجل تاريخي لسعر ساعة كل أستاذ. إضافة السعر
+ * تحوّل الأستاذ تلقائياً إلى الأجر بالساعة (عبر HourlyRateService) فيُحتسب
+ * راتبه من فترات عمله، وتعديل السعر لا يمس الكشوف المغلقة (اللقطات ثابتة).
  */
 class HourlyRateController extends Controller
 {
     public function __construct(
-        private readonly HourlyRateResolver $resolver,
+        private readonly HourlyRateService $rates,
         private readonly PayrollPeriodService $payroll,
         private readonly AuditLogger $audit,
     ) {}
@@ -28,6 +31,7 @@ class HourlyRateController extends Controller
     public function index(Request $request): View
     {
         $search = $request->string('q')->toString();
+        $selectedTeacherId = $request->string('teacher_id')->toString();
 
         $rates = HourlyRate::query()
             ->with(['teacher:id,name', 'creator:id,name'])
@@ -40,10 +44,30 @@ class HourlyRateController extends Controller
             ->paginate(30)
             ->withQueryString();
 
-        return view('admin.payroll.rates', [
+        // الأسعار السارية اليوم — لملخص الشهر الحالي (ساعات العمل × السعر).
+        $activeRates = HourlyRate::query()
+            ->with('teacher:id,name,pay_type')
+            ->activeOn(now()->toDateString())
+            ->get()
+            ->filter(fn (HourlyRate $rate) => $rate->teacher !== null)
+            ->unique('teacher_id')
+            ->values();
+
+        $month = now()->startOfMonth();
+        $teachersWithRates = $activeRates->pluck('teacher')->values();
+
+        return view('admin.settings.hourly-rates', [
             'rates' => $rates,
             'teachers' => Teacher::query()->orderBy('name')->get(['id', 'name', 'pay_type']),
             'search' => $search,
+            'selectedTeacherId' => $selectedTeacherId,
+            'activeRates' => $activeRates,
+            'summaries' => $teachersWithRates->isEmpty()
+                ? []
+                : $this->payroll->summaries($teachersWithRates, $month),
+            'monthInput' => $month->format('Y-m'),
+            'monthLabel' => QuranProgramSettings::monthLabel($month->format('Y-m')),
+            'currency' => FinanceService::DEFAULT_CURRENCY,
         ]);
     }
 
@@ -59,24 +83,15 @@ class HourlyRateController extends Controller
         $teacher = Teacher::query()->findOrFail($data['teacher_id']);
 
         try {
-            $this->resolver->assertNoOverlap($teacher, $data['effective_from'], $data['effective_to'] ?? null);
+            $this->rates->create($teacher, $data, $request->user());
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
 
-        $rate = HourlyRate::create([
-            'tenant_id' => $teacher->tenant_id,
-            'teacher_id' => $teacher->id,
-            'rate' => $data['rate'],
-            'effective_from' => $data['effective_from'],
-            'effective_to' => $data['effective_to'] ?? null,
-            'created_by' => $request->user()->id,
-        ]);
-
-        $this->audit->logModel('hourly_rate.created', $rate, actor: $request->user());
-        $this->payroll->refreshOpenForTeacher($teacher);
-
-        return back()->with('success', 'تمت إضافة سعر الساعة');
+        return back()->with(
+            'success',
+            'تمت إضافة سعر الساعة — حُوّل الأستاذ إلى الأجر بالساعة ويُحتسب راتبه من ساعات عمله'
+        );
     }
 
     public function destroy(Request $request, HourlyRate $hourlyRate): RedirectResponse
@@ -91,5 +106,11 @@ class HourlyRateController extends Controller
         }
 
         return back()->with('success', 'تم حذف سعر الساعة (الكشوف المغلقة لا تتأثر)');
+    }
+
+    /** الرابط القديم `/admin/payroll/rates` → تبويب «أسعار الساعة» في الإعدادات. */
+    public function legacyIndex(Request $request): RedirectResponse
+    {
+        return redirect()->route('admin.settings.hourly-rates.index', $request->query());
     }
 }

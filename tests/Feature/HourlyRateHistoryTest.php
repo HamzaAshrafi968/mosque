@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\PayType;
 use App\Models\HourlyRate;
 use App\Models\PayrollPeriod;
 use App\Models\Permission;
@@ -134,13 +135,77 @@ class HourlyRateHistoryTest extends TestCase
         $this->assertSame('120.00', $period->paid_amount);
     }
 
+    public function test_adding_rate_switches_teacher_to_hourly_and_refreshes_open_period(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+        [, $teacher] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 500]);
+
+        WorkSlot::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'date' => '2026-09-20',
+            'start_time' => '09:00',
+            'end_time' => '15:00',
+            'duration_minutes' => 360,
+        ]);
+
+        $period = PayrollPeriod::create([
+            'tenant_id' => $mosque->id, 'teacher_id' => $teacher->id,
+            'year' => 2026, 'month' => 9, 'total_minutes' => 0,
+            'pay_type_snapshot' => 'monthly', 'monthly_salary_snapshot' => 500,
+            'gross_amount' => 500, 'paid_amount' => 0, 'status' => 'open',
+        ]);
+
+        $this->actingAs($manager)
+            ->post(route('admin.settings.hourly-rates.store'), [
+                'teacher_id' => $teacher->id,
+                'rate' => 20,
+                'effective_from' => '2026-09-01',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame(PayType::Hourly, $teacher->fresh()->pay_type);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'teacher.salary_updated']);
+
+        $period->refresh();
+        $this->assertSame('hourly', $period->pay_type_snapshot->value);
+        $this->assertSame(360, $period->total_minutes);
+        $this->assertSame('120.00', $period->gross_amount);
+
+        // ملخص الشهر الحالي في الإعدادات يعرض الساعات × السعر تلقائياً.
+        $this->actingAs($manager)
+            ->get(route('admin.settings.hourly-rates.index'))
+            ->assertOk()
+            ->assertSee('6س')
+            ->assertSee('120.00')
+            ->assertSee('مكتمل التسعير');
+    }
+
+    public function test_settings_center_exposes_hourly_rates_tab_and_legacy_url_redirects(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+
+        $this->actingAs($manager)->get(route('admin.settings.index'))
+            ->assertOk()
+            ->assertSee('أسعار الساعة');
+
+        $this->actingAs($manager)->get(route('admin.settings.hourly-rates.index'))
+            ->assertOk()
+            ->assertSee('إضافة سعر');
+
+        $this->actingAs($manager)->get(route('admin.payroll.rates.index'))
+            ->assertRedirect(route('admin.settings.hourly-rates.index'));
+    }
+
     public function test_rate_management_follows_the_permission(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque);
 
-        $this->actingAs($manager)->get(route('admin.payroll.rates.index'))->assertOk();
+        $this->actingAs($manager)->get(route('admin.settings.hourly-rates.index'))->assertOk();
 
         $permission = Permission::query()->where('code', 'hourly_rates.manage')->firstOrFail();
         Role::query()
@@ -150,6 +215,10 @@ class HourlyRateHistoryTest extends TestCase
             ->permissions()
             ->detach($permission->id);
 
+        $this->actingAs($manager)->get(route('admin.settings.hourly-rates.index'))->assertForbidden();
         $this->actingAs($manager)->get(route('admin.payroll.rates.index'))->assertForbidden();
+        $this->actingAs($manager)->get(route('admin.settings.index'))
+            ->assertOk()
+            ->assertDontSee(route('admin.settings.hourly-rates.index'));
     }
 }

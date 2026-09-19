@@ -4,6 +4,7 @@
     $canQuranSettings = $settingsAuthorization->can($settingsUser, 'quran_settings.view');
     $canUsers = $settingsAuthorization->can($settingsUser, 'users.view');
     $canWorkHours = $settingsAuthorization->can($settingsUser, 'work_hours.view');
+    $canHourlyRates = $settingsAuthorization->can($settingsUser, 'hourly_rates.manage');
 
     $settingsTabs = [
         [
@@ -29,6 +30,12 @@
             'href' => route('admin.settings.work-hours.edit'),
             'active' => request()->routeIs('admin.settings.work-hours.*'),
             'visible' => $canWorkHours,
+        ],
+        [
+            'label' => 'أسعار الساعة',
+            'href' => route('admin.settings.hourly-rates.index'),
+            'active' => request()->routeIs('admin.settings.hourly-rates.*'),
+            'visible' => $canHourlyRates,
         ],
         [
             'label' => 'الحسابات والصلاحيات',

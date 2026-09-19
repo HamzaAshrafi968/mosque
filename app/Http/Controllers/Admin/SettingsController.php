@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\HourlyRate;
 use App\Models\RewardPointRule;
 use App\Services\AuthorizationService;
 use App\Services\QuranSettingsService;
@@ -12,7 +13,8 @@ use Illuminate\View\View;
 
 /**
  * «مدير الجامع → مركز الإعدادات»: بوابة واحدة تجمع إعدادات برنامج القرآن
- * ونقاط المكافآت والصلاحيات والدوامات والبرامج، مع بطاقة حالة لكل قسم.
+ * ونقاط المكافآت وأسعار الساعة والصلاحيات والدوامات والبرامج، مع بطاقة
+ * حالة لكل قسم.
  */
 class SettingsController extends Controller
 {
@@ -33,6 +35,8 @@ class SettingsController extends Controller
             ->where('points', '>', 0)
             ->count();
 
+        $canHourlyRates = $can('hourly_rates.manage');
+
         return view('admin.settings.index', [
             'minimumPassingPercentage' => $this->quranSettings->minimumPassingPercentage(),
             'automaticEnabled' => $this->rewardSettings->isEnabled(),
@@ -43,6 +47,10 @@ class SettingsController extends Controller
             'canPrograms' => $can('programs.view'),
             'canWorkHours' => $can('work_hours.view'),
             'maxSlotHours' => $this->workHoursSettings->maxSlotHours(),
+            'canHourlyRates' => $canHourlyRates,
+            'activeRatesCount' => $canHourlyRates
+                ? HourlyRate::query()->activeOn(now()->toDateString())->count()
+                : 0,
         ]);
     }
 }

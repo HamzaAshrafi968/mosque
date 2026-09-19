@@ -63,6 +63,56 @@ final class TimesheetAggregator
     }
 
     /**
+     * كتل الشهر الأربع الثابتة حسب رقم اليوم (١–٧، ٨–١٤، ١٥–٢١، ٢٢–نهاية الشهر)
+     * — هذا هو العرض المعتمد في واجهات الرواتب: كل شهر ٤ أسابيع واضحة.
+     *
+     * @return array<int, array{
+     *     start: CarbonImmutable,
+     *     end: CarbonImmutable,
+     *     label: string,
+     *     number: int
+     * }>
+     */
+    public static function monthDayBlocks(int $year, int $month): array
+    {
+        $monthStart = CarbonImmutable::create($year, $month, 1)->startOfMonth();
+        $monthEnd = $monthStart->endOfMonth();
+        $lastDay = (int) $monthEnd->format('j');
+
+        $definitions = [
+            [1, 7, 'الأول'],
+            [8, 14, 'الثاني'],
+            [15, 21, 'الثالث'],
+            [22, null, 'الرابع'],
+        ];
+
+        $blocks = [];
+
+        foreach ($definitions as $index => [$from, $to, $ordinal]) {
+            $start = $monthStart->setDay($from);
+            $end = $to === null ? $monthEnd : $monthStart->setDay(min($to, $lastDay));
+
+            $blocks[] = [
+                'start' => $start,
+                'end' => $end,
+                'label' => 'الأسبوع '.$ordinal.' ('.self::arabicDigits($start->format('j')).'–'.self::arabicDigits($end->format('j')).')',
+                'number' => $index + 1,
+            ];
+        }
+
+        return $blocks;
+    }
+
+    /** تحويل الأرقام إلى أرقام عربية-هندية للعناوين (١٢٣). */
+    public static function arabicDigits(string|int $value): string
+    {
+        return strtr((string) $value, [
+            '0' => '٠', '1' => '١', '2' => '٢', '3' => '٣', '4' => '٤',
+            '5' => '٥', '6' => '٦', '7' => '٧', '8' => '٨', '9' => '٩',
+        ]);
+    }
+
+    /**
      * أسابيع الشهر (الأحد–السبت) مقصوصة على حدود الشهر.
      *
      * @return array<int, array{

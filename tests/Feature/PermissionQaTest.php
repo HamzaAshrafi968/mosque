@@ -213,7 +213,10 @@ class PermissionQaTest extends TestCase
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
 
-        $this->actingAs($manager)->get(route($routeName))->assertOk();
+        $redirecting = in_array($routeName, ['admin.work-hours.index', 'admin.timesheet.index'], true);
+
+        $first = $this->actingAs($manager)->get(route($routeName));
+        $redirecting ? $first->assertRedirect() : $first->assertOk();
 
         $this->revoke($mosque, RoleService::ROLE_MOSQUE_MANAGER, $permission);
 

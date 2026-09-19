@@ -59,6 +59,22 @@
             </a>
         @endif
 
+        @if ($canHourlyRates)
+            <a href="{{ route('admin.settings.hourly-rates.index') }}"
+                class="card-hover block bg-white rounded-2xl shadow p-6 border border-transparent hover:border-rose-200">
+                <div class="flex items-start justify-between gap-3">
+                    <span class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-700 grid place-items-center">
+                        <x-icon name="wallet" class="w-6 h-6" />
+                    </span>
+                    <span class="text-[11px] font-bold rounded-full bg-rose-50 text-rose-700 px-3 py-1">
+                        {{ $activeRatesCount }} سعر ساري
+                    </span>
+                </div>
+                <h2 class="font-bold text-gray-800 mt-4">أسعار الساعة</h2>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">سعر ساعة كل أستاذ — يُحوَّل تلقائياً إلى الأجر بالساعة ويُحتسب راتبه من ساعات عمله.</p>
+            </a>
+        @endif
+
         @if ($canUsers)
             <a href="{{ route('admin.users.index') }}"
                 class="card-hover block bg-white rounded-2xl shadow p-6 border border-transparent hover:border-sky-200">

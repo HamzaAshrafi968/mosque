@@ -17,28 +17,38 @@ use Illuminate\Validation\ValidationException;
  */
 class WorkSlotService
 {
+    /** بداية افتراضية عند تسجيل الساعات بعددها فقط (بلا «من الساعة»). */
+    public const DEFAULT_START_TIME = '08:00';
+
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly WorkHoursSettingsService $settings,
         private readonly PayrollPeriodService $payroll,
     ) {}
 
+    /** الحد الأقصى لساعات الفترة الواحدة (من إعدادات الجامع). */
+    public function maxSlotHours(): float
+    {
+        return $this->settings->maxSlotHours();
+    }
+
     public function create(Teacher $teacher, array $data, User $actor): WorkSlot
     {
         $date = CarbonImmutable::parse($data['date'])->toDateString();
+        [$startTime, $endTime] = $this->resolveTimes($data);
 
         $this->assertMonthOpen($teacher->id, $date);
-        $duration = $this->assertRange($data['start_time'], $data['end_time']);
+        $duration = $this->assertRange($startTime, $endTime);
 
-        $slot = DB::transaction(function () use ($teacher, $data, $date, $duration, $actor) {
-            $this->assertNoOverlap($teacher->id, $date, $data['start_time'], $data['end_time']);
+        $slot = DB::transaction(function () use ($teacher, $data, $date, $startTime, $endTime, $duration, $actor) {
+            $this->assertNoOverlap($teacher->id, $date, $startTime, $endTime);
 
             return WorkSlot::create([
                 'tenant_id' => $teacher->tenant_id,
                 'teacher_id' => $teacher->id,
                 'date' => $date,
-                'start_time' => $data['start_time'],
-                'end_time' => $data['end_time'],
+                'start_time' => $startTime,
+                'end_time' => $endTime,
                 'duration_minutes' => $duration,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $actor->id,
@@ -54,20 +64,21 @@ class WorkSlotService
     public function update(WorkSlot $slot, array $data, User $actor): WorkSlot
     {
         $date = CarbonImmutable::parse($data['date'])->toDateString();
+        [$startTime, $endTime] = $this->resolveTimes($data);
 
         $this->assertMonthOpen($slot->teacher_id, $slot->date);
         $this->assertMonthOpen($slot->teacher_id, $date);
-        $duration = $this->assertRange($data['start_time'], $data['end_time']);
+        $duration = $this->assertRange($startTime, $endTime);
 
         $before = $slot->getAttributes();
 
-        DB::transaction(function () use ($slot, $data, $date, $duration) {
-            $this->assertNoOverlap($slot->teacher_id, $date, $data['start_time'], $data['end_time'], $slot);
+        DB::transaction(function () use ($slot, $date, $startTime, $endTime, $duration) {
+            $this->assertNoOverlap($slot->teacher_id, $date, $startTime, $endTime, $slot);
 
             $slot->update([
                 'date' => $date,
-                'start_time' => $data['start_time'],
-                'end_time' => $data['end_time'],
+                'start_time' => $startTime,
+                'end_time' => $endTime,
                 'duration_minutes' => $duration,
                 'notes' => $data['notes'] ?? null,
             ]);
@@ -135,6 +146,35 @@ class WorkSlotService
         throw ValidationException::withMessages([
             'date' => ['الشهر مغلق — يلزم إعادة فتحه قبل تعديل الفترات'],
         ]);
+    }
+
+    /**
+     * يحوّل الإدخال السريع «عدد ساعات» إلى فترة (من/إلى):
+     * - إن أُرسل `hours` يُحسب وقت النهاية من وقت البداية (أو 08:00 افتراضاً).
+     * - إن أُرسل `start_time`/`end_time` صراحةً فهما المرجع.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: string, 1: string}
+     */
+    private function resolveTimes(array $data): array
+    {
+        $start = $data['start_time'] ?? null;
+        $end = $data['end_time'] ?? null;
+
+        if (! empty($data['hours'])) {
+            $start = $start ?: self::DEFAULT_START_TIME;
+            $endMinutes = WorkSlot::toMinutes($start) + (int) round(((float) $data['hours']) * 60);
+
+            if ($endMinutes >= 24 * 60) {
+                throw ValidationException::withMessages([
+                    'hours' => ['لا يمكن أن تعبر الفترة منتصف الليل؛ قلّل عدد الساعات أو قدّم وقت البداية'],
+                ]);
+            }
+
+            $end = sprintf('%02d:%02d', intdiv($endMinutes, 60), $endMinutes % 60);
+        }
+
+        return [$start, $end];
     }
 
     private function assertRange(string $startTime, string $endTime): int

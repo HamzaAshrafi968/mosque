@@ -64,6 +64,33 @@ class TimesheetAggregationTest extends TestCase
         $this->assertTrue($weeks[4]['ends_after_month']);
     }
 
+    public function test_month_day_blocks_are_always_four_with_arabic_labels(): void
+    {
+        $blocks = TimesheetAggregator::monthDayBlocks(2026, 9);
+
+        $this->assertCount(4, $blocks);
+        $this->assertSame(['2026-09-01', '2026-09-07'], [$blocks[0]['start']->toDateString(), $blocks[0]['end']->toDateString()]);
+        $this->assertSame(['2026-09-08', '2026-09-14'], [$blocks[1]['start']->toDateString(), $blocks[1]['end']->toDateString()]);
+        $this->assertSame(['2026-09-15', '2026-09-21'], [$blocks[2]['start']->toDateString(), $blocks[2]['end']->toDateString()]);
+        $this->assertSame(['2026-09-22', '2026-09-30'], [$blocks[3]['start']->toDateString(), $blocks[3]['end']->toDateString()]);
+
+        $this->assertSame('الأسبوع الأول (١–٧)', $blocks[0]['label']);
+        $this->assertSame('الأسبوع الرابع (٢٢–٣٠)', $blocks[3]['label']);
+    }
+
+    public function test_month_day_blocks_handle_short_and_leap_months(): void
+    {
+        $february = TimesheetAggregator::monthDayBlocks(2026, 2);
+        $this->assertSame('2026-02-28', $february[3]['end']->toDateString());
+        $this->assertSame('الأسبوع الرابع (٢٢–٢٨)', $february[3]['label']);
+
+        $leap = TimesheetAggregator::monthDayBlocks(2024, 2);
+        $this->assertSame('2024-02-29', $leap[3]['end']->toDateString());
+
+        $thirty = TimesheetAggregator::monthDayBlocks(2026, 4);
+        $this->assertSame('2026-04-30', $thirty[3]['end']->toDateString());
+    }
+
     public function test_straddling_week_is_not_double_counted(): void
     {
         $slots = collect([

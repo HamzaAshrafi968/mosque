@@ -17,37 +17,6 @@ class TeacherWorkHourController extends Controller
 {
     public function __construct(private readonly AuditLogger $audit) {}
 
-    public function index(Request $request): View
-    {
-        $search = $request->input('search');
-        $day = $request->filled('day') ? (int) $request->input('day') : null;
-        [$month, $monthInput] = $this->resolveMonth($request);
-
-        $teachers = Teacher::query()
-            ->with(['workHours' => fn ($query) => $query->orderBy('day_of_week')->orderBy('start_time')])
-            ->when($search, fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
-            ->when($day !== null, fn ($query) => $query->whereHas('workHours', fn ($hours) => $hours->where('day_of_week', $day)))
-            ->orderBy('name')
-            ->paginate(20)
-            ->withQueryString();
-
-        $periods = TeacherWorkHour::query()
-            ->whereIn('teacher_id', $teachers->pluck('id'))
-            ->get()
-            ->groupBy('teacher_id');
-
-        return view('admin.work-hours.index', [
-            'teachers' => $teachers,
-            'days' => WorkDay::cases(),
-            'search' => $search,
-            'day' => $day,
-            'month' => $month,
-            'monthInput' => $monthInput,
-            'totals' => $periods->map(fn ($rows) => round($rows->sum(fn (TeacherWorkHour $hour) => $hour->durationHours()), 2)),
-            'monthlyTotals' => $periods->map(fn ($rows) => TeacherWorkHour::monthlyHoursFromPeriods($rows, $month)),
-        ]);
-    }
-
     public function teacherIndex(Teacher $teacher, Request $request): View
     {
         [$month, $monthInput] = $this->resolveMonth($request);

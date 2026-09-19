@@ -148,12 +148,6 @@
                             !request()->routeIs('admin.teachers.work-hours.*') &&
                             !request()->routeIs('admin.teachers.timesheet.*')" label="المعلمون" />
                     @endif
-                    @if ($can('work_hours.view'))
-                        <x-nav-link icon="clock" :href="route('admin.timesheet.index')" :active="request()->routeIs('admin.timesheet.*') ||
-                            request()->routeIs('admin.work-hours.*') ||
-                            request()->routeIs('admin.teachers.timesheet.*') ||
-                            request()->routeIs('admin.teachers.work-hours.*')" label="كشوف العمل" />
-                    @endif
                     {{-- @if ($can('custom_fields.view'))
                         <x-nav-link icon="fields" :href="route('admin.custom-fields.index')" :active="request()->routeIs('admin.custom-fields.*')" label="الحقول المخصصة" />
                     @endif --}}
@@ -224,7 +218,10 @@
                         <x-nav-link icon="wallet" :href="route('admin.finance.index')" :active="request()->routeIs('admin.finance.*')" label="العمليات المالية" />
                     @endif --}}
                     @if ($can('finance.view') || $can('payroll.view'))
-                        <x-nav-link icon="wallet" :href="route('admin.payroll.index')" :active="request()->routeIs('admin.payroll.*')" label="رواتب المعلمين" />
+                        <x-nav-link icon="wallet" :href="route('admin.payroll.index')" :active="request()->routeIs('admin.payroll.*') ||
+                            request()->routeIs('admin.timesheet.*') ||
+                            request()->routeIs('admin.work-hours.*') ||
+                            request()->routeIs('admin.teachers.timesheet.*')" label="دفعات المعلمين" />
                     @endif
                     @if ($can('audit_logs.view'))
                         <x-nav-link icon="history" :href="route('admin.audit-logs.index')" :active="request()->routeIs('admin.audit-logs.*')" label="سجل العمليات" />
@@ -295,10 +292,7 @@
                     <div class="mx-2 my-3 gold-hairline"></div>
 
                     @if ($can('quran_settings.view') || $can('users.view'))
-                        <x-nav-link icon="settings" :href="route('admin.settings.index')" :active="request()->routeIs('admin.settings.*')" label="الإعدادات" />
-                    @endif
-                    @if ($can('users.view'))
-                        <x-nav-link icon="shield" :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" label="الحسابات والصلاحيات" />
+                        <x-nav-link icon="settings" :href="route('admin.settings.index')" :active="request()->routeIs('admin.settings.*') || request()->routeIs('admin.users.*')" label="الإعدادات" />
                     @endif
                     @if ($can('sessions.view'))
                         <x-nav-link icon="clock" :href="route('admin.sessions.index')" :active="request()->routeIs('admin.sessions.*')" label="الدوامات" />
@@ -350,12 +344,12 @@
                     @if ($can('schedule.view'))
                         <x-nav-link icon="calendar" :href="route('teacher.schedule')" :active="request()->routeIs('teacher.schedule')" label="جدولي الدراسي" />
                     @endif
-                    @if ($can('work_hours.view'))
-                        <x-nav-link icon="clock" :href="route('teacher.timesheet.index')" :active="request()->routeIs('teacher.timesheet.*') ||
-                            request()->routeIs('teacher.work-hours.*')" label="كشوفي" />
-                    @endif
-                    @if ($can('payroll.view'))
-                        <x-nav-link icon="wallet" :href="route('teacher.payroll.index')" :active="request()->routeIs('teacher.payroll.*')" label="كشوف رواتبي" />
+                    @if ($can('payroll.view') || $can('work_hours.view'))
+                        <x-nav-link icon="wallet"
+                            :href="$can('payroll.view') ? route('teacher.payroll.index') : route('teacher.timesheet.index')"
+                            :active="request()->routeIs('teacher.payroll.*') ||
+                                request()->routeIs('teacher.timesheet.*') ||
+                                request()->routeIs('teacher.work-hours.*')" label="رواتبي" />
                     @endif
                     @if ($can('attendance.create'))
                         <x-nav-link icon="attendance" :href="route('teacher.attendance.create')" :active="request()->routeIs('teacher.attendance.*')" label="تسجيل الحضور" />

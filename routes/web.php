@@ -60,20 +60,31 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('teachers/{teacher}/certificates/{certificate}', [Admin\TeacherController::class, 'destroyCertificate'])->name('teachers.certificates.destroy')->middleware('permission:teachers.update');
 
     // ---- ساعات عمل المشرفين (spec: mosque_management_work_hours_sharia_courses_quran_pages.md) ----
-    Route::get('work-hours', [Admin\TeacherWorkHourController::class, 'index'])->name('work-hours.index')->middleware('permission:work_hours.view');
+    // نظرة «ساعات عمل المشرفين» القديمة أُدمجت في مركز الدفعات والرواتب.
+    Route::get('work-hours', fn () => redirect()->route('admin.payroll.index'))->name('work-hours.index')->middleware('permission:work_hours.view');
     Route::get('teachers/{teacher}/work-hours', [Admin\TeacherWorkHourController::class, 'teacherIndex'])->name('teachers.work-hours.index')->middleware('permission:work_hours.view');
     Route::post('teachers/{teacher}/work-hours', [Admin\TeacherWorkHourController::class, 'store'])->name('teachers.work-hours.store')->middleware('permission:work_hours.manage');
     Route::patch('work-hours/{workHour}', [Admin\TeacherWorkHourController::class, 'update'])->name('work-hours.update')->middleware('permission:work_hours.manage');
     Route::delete('work-hours/{workHour}', [Admin\TeacherWorkHourController::class, 'destroy'])->name('work-hours.destroy')->middleware('permission:work_hours.manage');
 
-    // ---- كشوف العمل الفعلية: يومي/أسبوعي/شهري (teacher_work_hours_payroll_system.md) ----
-    Route::get('timesheet', [Admin\TimesheetController::class, 'index'])->name('timesheet.index')->middleware('permission:work_hours.view');
+    // ---- كشوف العمل الفعلية: أُدمجت في كشف راتب المعلم (مركز الدفعات) ----
+    Route::get('timesheet', fn () => redirect()->route('admin.payroll.index', array_filter([
+        'month' => request()->input('month'),
+        'q' => request()->input('q'),
+        'session' => request()->input('session'),
+    ])))->name('timesheet.index')->middleware('permission:work_hours.view');
     Route::get('timesheet/day-slots', [Admin\TimesheetController::class, 'daySlots'])->name('timesheet.day-slots')->middleware('permission:work_hours.view');
     Route::post('timesheet/slots', [Admin\TimesheetController::class, 'store'])->name('timesheet.slots.store')->middleware('permission:work_hours.manage');
     Route::patch('timesheet/slots/{workSlot}', [Admin\TimesheetController::class, 'update'])->name('timesheet.slots.update')->middleware('permission:work_hours.manage');
     Route::delete('timesheet/slots/{workSlot}', [Admin\TimesheetController::class, 'destroy'])->name('timesheet.slots.destroy')->middleware('permission:work_hours.manage');
-    Route::get('teachers/{teacher}/timesheet', [Admin\TimesheetController::class, 'teacher'])->name('teachers.timesheet.index')->middleware('permission:work_hours.view');
-    Route::get('teachers/{teacher}/timesheet/print', [Admin\TimesheetController::class, 'print'])->name('teachers.timesheet.print')->middleware('permission:work_hours.view');
+    Route::get('teachers/{teacher}/timesheet', fn (string $teacher) => redirect()->route('admin.payroll.sheet', array_filter([
+        'teacher' => $teacher,
+        'month' => request()->input('month'),
+    ])))->name('teachers.timesheet.index')->middleware('permission:work_hours.view');
+    Route::get('teachers/{teacher}/timesheet/print', fn (string $teacher) => redirect()->route('admin.payroll.sheet-print', array_filter([
+        'teacher' => $teacher,
+        'month' => request()->input('month'),
+    ])))->name('teachers.timesheet.print')->middleware('permission:work_hours.view');
     Route::post('teachers/{teacher}/timesheet/generate', [Admin\TimesheetController::class, 'generate'])->name('teachers.timesheet.generate')->middleware('permission:work_hours.manage');
 
     Route::get('classrooms', [Admin\ClassroomController::class, 'index'])->name('classrooms.index')->middleware('permission:classes.view');
@@ -139,13 +150,18 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     // ---- رواتب المعلمين: الراتب الشهري + عدّاد الساعات + الدفعات ----
     Route::get('payroll', [Admin\PayrollController::class, 'index'])->name('payroll.index')->middleware('permission:finance.view,payroll.view');
-    Route::get('payroll/rates', [Admin\HourlyRateController::class, 'index'])->name('payroll.rates.index')->middleware('permission:hourly_rates.manage');
+    Route::get('payroll/rates', [Admin\HourlyRateController::class, 'legacyIndex'])->name('payroll.rates.index')->middleware('permission:hourly_rates.manage');
     Route::post('payroll/rates', [Admin\HourlyRateController::class, 'store'])->name('payroll.rates.store')->middleware('permission:hourly_rates.manage');
     Route::delete('payroll/rates/{hourlyRate}', [Admin\HourlyRateController::class, 'destroy'])->name('payroll.rates.destroy')->middleware('permission:hourly_rates.manage');
-    Route::get('payroll/close', [Admin\PayrollController::class, 'closePreview'])->name('payroll.close-preview')->middleware('permission:payroll.close');
+    Route::get('payroll/close', fn () => redirect()->route('admin.payroll.index', array_filter([
+        'month' => request()->input('month'),
+    ])))->name('payroll.close-preview')->middleware('permission:payroll.close');
     Route::post('payroll/close', [Admin\PayrollController::class, 'closeAll'])->name('payroll.close-all')->middleware('permission:payroll.close');
     Route::get('payroll/export', [Admin\PayrollController::class, 'export'])->name('payroll.export')->middleware('permission:payroll.view,finance.view');
+    Route::get('payroll/export-excel', [Admin\PayrollController::class, 'exportExcel'])->name('payroll.export-excel')->middleware('permission:payroll.view,finance.view');
+    Route::get('payroll/print', [Admin\PayrollController::class, 'printAll'])->name('payroll.print')->middleware('permission:payroll.view,finance.view');
     Route::get('payroll/{teacher}/sheet', [Admin\PayrollController::class, 'sheet'])->name('payroll.sheet')->middleware('permission:finance.view,payroll.view');
+    Route::get('payroll/{teacher}/sheet/print', [Admin\PayrollController::class, 'printSheet'])->name('payroll.sheet-print')->middleware('permission:payroll.view,finance.view');
     Route::post('payroll/{teacher}/pay', [Admin\PayrollController::class, 'pay'])->name('payroll.pay')->middleware('permission:finance.create,payroll.pay');
     Route::post('payroll/{teacher}/salary', [Admin\PayrollController::class, 'updateSalary'])->name('payroll.salary')->middleware('permission:finance.create,payroll.manage');
     Route::post('payroll/{teacher}/close', [Admin\PayrollController::class, 'close'])->name('payroll.close')->middleware('permission:payroll.close');
@@ -226,7 +242,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('quran/programs/{program}', [Admin\QuranListeningProgramController::class, 'show'])->name('quran.programs.show')->middleware('permission:quran_training.view');
 
     // ---- مركز الإعدادات: برنامج القرآن + نقاط المكافآت + الصلاحيات ----
-    Route::get('settings', [Admin\SettingsController::class, 'index'])->name('settings.index')->middleware('permission:quran_settings.view,users.view');
+    Route::get('settings', [Admin\SettingsController::class, 'index'])->name('settings.index')->middleware('permission:quran_settings.view,users.view,hourly_rates.manage,work_hours.view');
 
     // ---- إعدادات برنامج القرآن (حد النجاح في اختبار الدفعات) ----
     Route::get('settings/quran', [Admin\QuranSettingsController::class, 'edit'])->name('settings.quran.edit')->middleware('permission:quran_settings.view');
@@ -238,6 +254,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::get('settings/work-hours', [Admin\WorkHoursSettingsController::class, 'edit'])->name('settings.work-hours.edit')->middleware('permission:work_hours.view');
     Route::patch('settings/work-hours', [Admin\WorkHoursSettingsController::class, 'update'])->name('settings.work-hours.update')->middleware('permission:work_hours.manage');
+
+    // ---- إعدادات أسعار الساعة: سعر ساعة لكل أستاذ (يحوّله تلقائياً إلى الأجر بالساعة) ----
+    Route::get('settings/hourly-rates', [Admin\HourlyRateController::class, 'index'])->name('settings.hourly-rates.index')->middleware('permission:hourly_rates.manage');
+    Route::post('settings/hourly-rates', [Admin\HourlyRateController::class, 'store'])->name('settings.hourly-rates.store')->middleware('permission:hourly_rates.manage');
+    Route::delete('settings/hourly-rates/{hourlyRate}', [Admin\HourlyRateController::class, 'destroy'])->name('settings.hourly-rates.destroy')->middleware('permission:hourly_rates.manage');
 
     Route::get('reward-points', [Admin\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
 

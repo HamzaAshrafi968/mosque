@@ -3,6 +3,11 @@
 @section('title', 'الحسابات والصلاحيات')
 
 @section('content')
+<h1 class="text-2xl font-bold text-gray-800 mb-2">الحسابات والصلاحيات</h1>
+<p class="text-sm text-gray-500 mb-6">إنشاء الحسابات، تحديد الأدوار، وضبط صلاحيات المعلمين ومديري الدوامات.</p>
+
+@include('admin.settings._tabs')
+
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
     <form method="POST" action="{{ route('admin.users.store') }}" enctype="multipart/form-data" class="space-y-4">
         @csrf

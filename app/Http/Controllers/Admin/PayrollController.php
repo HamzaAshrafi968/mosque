@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\FinancialTransaction;
 use App\Models\HourlyRate;
+use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Models\WorkSlot;
 use App\Services\AuditLogger;
@@ -14,6 +15,7 @@ use App\Services\FinanceService;
 use App\Services\PayrollPeriodService;
 use App\Services\WorkSlotService;
 use App\Support\TimesheetAggregator;
+use App\Support\XlsxWriter;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,10 +39,14 @@ class PayrollController extends Controller
     {
         [$month, $monthInput] = $this->resolveMonth($request);
         $search = $request->string('q')->toString();
+        $sessionId = $request->input('session');
 
         $teachers = Teacher::query()
             ->with(['studySession:id,name', 'studySessions:id,name'])
             ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
+            ->when($sessionId, fn ($query) => $query->where(fn ($inner) => $inner
+                ->where('study_session_id', $sessionId)
+                ->orWhereHas('studySessions', fn ($sessions) => $sessions->whereKey($sessionId))))
             ->orderBy('name')
             ->paginate(25)
             ->withQueryString();
@@ -54,6 +60,8 @@ class PayrollController extends Controller
             'month' => $month,
             'monthInput' => $monthInput,
             'search' => $search,
+            'sessionId' => $sessionId,
+            'sessions' => StudySession::query()->orderBy('name')->get(),
             'currency' => FinanceService::DEFAULT_CURRENCY,
         ]);
     }
@@ -91,7 +99,7 @@ class PayrollController extends Controller
             'monthInput' => $monthInput,
             'summary' => $summary,
             'slots' => $slots,
-            'weeks' => TimesheetAggregator::monthWeeks($month->year, $month->month),
+            'blocks' => TimesheetAggregator::monthDayBlocks($month->year, $month->month),
             'slotsByDate' => $slots->groupBy(fn (WorkSlot $slot) => $slot->date->toDateString()),
             'payments' => $payments,
             'auditLogs' => $auditLogs,
@@ -200,32 +208,6 @@ class PayrollController extends Controller
         return back()->with('success', 'تم إعادة فتح كشف '.$month->format('Y-m'));
     }
 
-    /** معاينة إغلاق الشهر لكل المعلمين مع تحذيرات ما قبل الإغلاق. */
-    public function closePreview(Request $request): View
-    {
-        [$month, $monthInput] = $this->resolveMonth($request);
-
-        $teachers = Teacher::query()->orderBy('name')->get();
-        $summaries = $this->payroll->summaries($teachers, $month);
-        $warnings = [];
-
-        foreach ($teachers as $teacher) {
-            $summary = $summaries[$teacher->id];
-
-            $warnings[$teacher->id] = $this->warningsFor($teacher, $summary);
-        }
-
-        return view('admin.payroll.close', [
-            'teachers' => $teachers,
-            'summaries' => $summaries,
-            'warnings' => $warnings,
-            'totals' => $this->totals($summaries),
-            'month' => $month,
-            'monthInput' => $monthInput,
-            'currency' => FinanceService::DEFAULT_CURRENCY,
-        ]);
-    }
-
     /** إغلاق كل كشوف الشهر بعد تأكيد كتابة الشهر. */
     public function closeAll(Request $request): RedirectResponse
     {
@@ -276,6 +258,88 @@ class PayrollController extends Controller
             ->with('success', $message);
     }
 
+    /** تصدير كشف الشهر Excel (.xlsx) بلا مكتبات خارجية. */
+    public function exportExcel(Request $request): StreamedResponse
+    {
+        [$month, $monthInput] = $this->resolveMonth($request);
+        $teachers = Teacher::query()->orderBy('name')->get();
+        $summaries = $this->payroll->summaries($teachers, $month);
+
+        $rows = [[
+            'المعلم', 'نوع الأجر', 'الدقائق', 'الساعات', 'السعر/الراتب',
+            'الإجمالي', 'المدفوع', 'المتبقي', 'حالة الكشف', 'حالة السداد',
+        ]];
+
+        foreach ($teachers as $teacher) {
+            $summary = $summaries[$teacher->id];
+
+            $rows[] = [
+                $teacher->name,
+                $summary['pay_type']->label(),
+                $summary['total_minutes'],
+                WorkSlot::formatMinutes($summary['total_minutes']),
+                (float) ($summary['hourly_rate'] ?? $summary['monthly_salary'] ?? 0),
+                $summary['gross'],
+                $summary['paid'],
+                $summary['remaining'],
+                $summary['status']->label(),
+                $summary['state']->label(),
+            ];
+        }
+
+        return XlsxWriter::download(
+            "payroll-{$monthInput}.xlsx",
+            $rows,
+            [22, 12, 10, 12, 14, 12, 12, 12, 12, 12]
+        );
+    }
+
+    /** نسخة طباعة (A4) لكل كشوف الشهر — تُحفظ PDF من المتصفح. */
+    public function printAll(Request $request): View
+    {
+        [$month, $monthInput] = $this->resolveMonth($request);
+        $teachers = Teacher::query()->orderBy('name')->get();
+        $summaries = $this->payroll->summaries($teachers, $month);
+
+        return view('admin.payroll.print', [
+            'teachers' => $teachers,
+            'summaries' => $summaries,
+            'totals' => $this->totals($summaries),
+            'month' => $month,
+            'monthInput' => $monthInput,
+            'currency' => FinanceService::DEFAULT_CURRENCY,
+        ]);
+    }
+
+    /** نسخة طباعة (A4) لكشف أستاذ واحد — تُحفظ PDF من المتصفح. */
+    public function printSheet(Teacher $teacher, Request $request): View
+    {
+        [$month, $monthInput] = $this->resolveMonth($request);
+        $teacher->load(['studySession:id,name', 'studySessions:id,name']);
+
+        $slots = $this->payroll->slotsFor($teacher, $month);
+        $summary = $this->payroll->summary($teacher, $month, null, $slots);
+        $period = $summary['period'];
+
+        $payments = $period !== null
+            ? FinancialTransaction::query()
+                ->where('payroll_period_id', $period->id)
+                ->with(['creator:id,name', 'reversal:id,reverses_id'])
+                ->latest()
+                ->get()
+            : collect();
+
+        return view('admin.payroll.sheet-print', [
+            'teacher' => $teacher,
+            'month' => $month,
+            'monthInput' => $monthInput,
+            'summary' => $summary,
+            'slotsByDate' => $slots->groupBy(fn (WorkSlot $slot) => $slot->date->toDateString()),
+            'payments' => $payments,
+            'currency' => FinanceService::DEFAULT_CURRENCY,
+        ]);
+    }
+
     /** تصدير كشف الشهر CSV (أرقام مطابقة للمعروض). */
     public function export(Request $request): StreamedResponse
     {
@@ -324,34 +388,6 @@ class PayrollController extends Controller
             'remaining' => round((float) $collection->sum('remaining'), 2),
             'closed' => $collection->filter(fn (array $row) => $row['status'] === PayrollStatus::Closed)->count(),
         ];
-    }
-
-    /** @param  array<string, mixed>  $summary */
-    private function warningsFor(Teacher $teacher, array $summary): array
-    {
-        $warnings = [];
-
-        if ($summary['missing_rates'] !== []) {
-            $warnings[] = 'لا يوجد سعر ساعة في: '.implode('، ', $summary['missing_rates']);
-        }
-
-        if ($summary['total_minutes'] === 0 && $summary['pay_type']->value === 'hourly') {
-            $warnings[] = 'لا توجد فترات عمل مسجلة';
-        }
-
-        if ($summary['pay_type']->value === 'monthly' && $summary['monthly_salary'] === null) {
-            $warnings[] = 'الراتب الشهري غير محدد';
-        }
-
-        if ($summary['paid'] <= 0 && $summary['gross'] > 0) {
-            $warnings[] = 'لا توجد دفعات مسجلة';
-        }
-
-        if ($summary['status'] === PayrollStatus::Closed) {
-            $warnings[] = 'الكشف مغلق مسبقاً';
-        }
-
-        return $warnings;
     }
 
     /** @return array{0: CarbonImmutable, 1: string} */

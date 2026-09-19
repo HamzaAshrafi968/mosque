@@ -219,7 +219,6 @@ class WorkHoursTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('admin.work-hours.index'))
-            ->assertOk()
-            ->assertSee('6.5');
+            ->assertRedirect(route('admin.payroll.index'));
     }
 }

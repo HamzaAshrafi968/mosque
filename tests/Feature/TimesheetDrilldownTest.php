@@ -13,8 +13,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * شاشات الكشوف الهرمية: يومي/أسبوعي/شهري، كشف المعلم، بوابة الأستاذ،
- * والحالات الفارغة والعزل.
+ * واجهات الساعات الجديدة: مركز الدفعات، كشف المعلم بأسابيع الشهر الأربعة،
+ * بوابة الأستاذ، والتوجيهات من الشاشات القديمة.
  */
 class TimesheetDrilldownTest extends TestCase
 {
@@ -55,56 +55,43 @@ class TimesheetDrilldownTest extends TestCase
         ]);
     }
 
-    public function test_daily_view_lists_the_day_slots_and_totals(): void
+    public function test_old_timesheet_screens_redirect_to_the_payroll_hub(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
         [, $teacher] = $this->teacher($mosque);
-
-        $this->slot($mosque, $teacher, '2026-09-20', '06:00', '08:00');
-        $this->slot($mosque, $teacher, '2026-09-20', '14:00', '20:00');
-
-        $this->actingAs($manager)
-            ->get(route('admin.timesheet.index', ['view' => 'daily', 'date' => '2026-09-20']))
-            ->assertOk()
-            ->assertSee($teacher->name)
-            ->assertSee('06:00')
-            ->assertSee('8س');
-    }
-
-    public function test_weekly_view_shows_day_totals(): void
-    {
-        $mosque = $this->mosque();
-        $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque);
-
-        $this->slot($mosque, $teacher, '2026-09-20', '06:00', '08:00');
-        $this->slot($mosque, $teacher, '2026-09-21', '09:00', '13:00');
-
-        $this->actingAs($manager)
-            ->get(route('admin.timesheet.index', ['view' => 'weekly', 'date' => '2026-09-20']))
-            ->assertOk()
-            ->assertSee('2س')
-            ->assertSee('4س')
-            ->assertSee('6س');
-    }
-
-    public function test_monthly_view_shows_weekly_breakdown(): void
-    {
-        $mosque = $this->mosque();
-        $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque);
-
-        $this->slot($mosque, $teacher, '2026-09-20', '14:00', '20:00');
 
         $this->actingAs($manager)
             ->get(route('admin.timesheet.index', ['view' => 'monthly', 'month' => '2026-09']))
-            ->assertOk()
-            ->assertSee($teacher->name)
-            ->assertSee('6س');
+            ->assertRedirect(route('admin.payroll.index', ['month' => '2026-09']));
+
+        $this->actingAs($manager)
+            ->get(route('admin.work-hours.index'))
+            ->assertRedirect(route('admin.payroll.index'));
+
+        $this->actingAs($manager)
+            ->get(route('admin.teachers.timesheet.index', ['teacher' => $teacher, 'month' => '2026-09']))
+            ->assertRedirect(route('admin.payroll.sheet', ['teacher' => $teacher, 'month' => '2026-09']));
     }
 
-    public function test_teacher_sheet_shows_drilldown_and_month_state(): void
+    public function test_payroll_hub_lists_teacher_hours_and_totals(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+        [, $teacher] = $this->teacher($mosque);
+
+        $this->slot($mosque, $teacher, '2026-09-20', '06:00', '08:00');
+        $this->slot($mosque, $teacher, '2026-09-20', '14:00', '20:00');
+
+        $this->actingAs($manager)
+            ->get(route('admin.payroll.index', ['month' => '2026-09']))
+            ->assertOk()
+            ->assertSee($teacher->name)
+            ->assertSee('8س')
+            ->assertSee('دفعات المعلمين');
+    }
+
+    public function test_teacher_sheet_shows_four_week_blocks_with_from_to_hours(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
@@ -113,22 +100,30 @@ class TimesheetDrilldownTest extends TestCase
         $this->slot($mosque, $teacher, '2026-09-20', '06:00', '08:00');
 
         $this->actingAs($manager)
-            ->get(route('admin.teachers.timesheet.index', ['teacher' => $teacher, 'month' => '2026-09']))
+            ->get(route('admin.payroll.sheet', ['teacher' => $teacher, 'month' => '2026-09']))
             ->assertOk()
             ->assertSee($teacher->name)
             ->assertSee('06:00')
             ->assertSee('الأحد')
+            ->assertSee('الأسبوع الأول (١–٧)')
+            ->assertSee('الأسبوع الرابع (٢٢–٣٠)')
             ->assertSee('الشهر مفتوح');
     }
 
-    public function test_empty_month_shows_an_empty_state(): void
+    public function test_empty_month_shows_week_blocks_and_teacher_portal_empty_state(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque);
+        [$teacherUser, $teacher] = $this->teacher($mosque);
 
         $this->actingAs($manager)
-            ->get(route('admin.teachers.timesheet.index', ['teacher' => $teacher, 'month' => '2026-09']))
+            ->get(route('admin.payroll.sheet', ['teacher' => $teacher, 'month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('الأسبوع الأول (١–٧)')
+            ->assertSee('لا ساعات');
+
+        $this->actingAs($teacherUser)
+            ->get(route('teacher.timesheet.index', ['month' => '2026-09']))
             ->assertOk()
             ->assertSee('لا توجد فترات عمل');
     }
@@ -166,7 +161,9 @@ class TimesheetDrilldownTest extends TestCase
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
 
-        $this->actingAs($manager)->get(route('admin.timesheet.index'))->assertOk();
+        $this->actingAs($manager)
+            ->get(route('admin.timesheet.index'))
+            ->assertRedirect(route('admin.payroll.index'));
 
         $permission = Permission::query()->where('code', 'work_hours.view')->firstOrFail();
         Role::query()

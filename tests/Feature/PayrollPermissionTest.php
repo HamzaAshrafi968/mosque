@@ -160,4 +160,14 @@ class PayrollPermissionTest extends TestCase
 
         $this->actingAs($teacherUser)->get(route('admin.payroll.index'))->assertForbidden();
     }
+
+    public function test_merged_my_payroll_page_still_renders_without_payroll_permission(): void
+    {
+        $mosque = $this->mosque();
+        [$teacherUser] = $this->teacher($mosque);
+
+        $this->detachFromRole($mosque, RoleService::ROLE_TEACHER, ['payroll.view']);
+
+        $this->actingAs($teacherUser)->get(route('teacher.timesheet.index'))->assertOk();
+    }
 }

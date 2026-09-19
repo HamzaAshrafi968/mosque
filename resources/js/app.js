@@ -1330,6 +1330,176 @@ function initWorkSlotForms() {
     });
 }
 
+function initQuickPay() {
+    const roots = Array.from(document.querySelectorAll('[data-quick-pay]'));
+    if (roots.length === 0) return;
+
+    const closeAll = (except) => {
+        roots.forEach((root) => {
+            if (root === except) return;
+            const panel = root.querySelector('[data-quick-pay-panel]');
+            const toggle = root.querySelector('[data-quick-pay-toggle]');
+            if (panel && !panel.hidden) {
+                panel.hidden = true;
+                toggle?.setAttribute('aria-expanded', 'false');
+            }
+        });
+    };
+
+    roots.forEach((root) => {
+        const toggle = root.querySelector('[data-quick-pay-toggle]');
+        const panel = root.querySelector('[data-quick-pay-panel]');
+        if (!toggle || !panel || !panel.hidden) return;
+
+        toggle.addEventListener('click', () => {
+            closeAll(root);
+            panel.hidden = !panel.hidden;
+            toggle.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+            if (!panel.hidden) {
+                panel.querySelector('[data-quick-pay-amount]')?.focus();
+            }
+        });
+
+        root.querySelector('[data-quick-pay-close]')?.addEventListener('click', () => {
+            panel.hidden = true;
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('[data-quick-pay]')) {
+            closeAll(null);
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeAll(null);
+        }
+    });
+}
+
+function initQuickSlotForms() {
+    document.querySelectorAll('[data-quick-slot-form]').forEach((form) => {
+        const teacherInput = form.querySelector('[name="teacher_id"]');
+        const dateInput = form.querySelector('[name="date"]');
+        const hoursInput = form.querySelector('[data-quick-slot-hours]');
+        const startInput = form.querySelector('[data-quick-slot-start]');
+        const previewEl = form.querySelector('[data-quick-slot-preview]');
+        const conflictEl = form.querySelector('[data-quick-slot-conflict]');
+        const url = form.dataset.daySlotsUrl;
+        const defaultStart = '08:00';
+        const chipClasses = ['bg-emerald-50', 'border-emerald-400', 'text-emerald-700'];
+
+        if (!dateInput || !hoursInput) return;
+
+        let existing = [];
+
+        const toMinutes = (value) => {
+            const parts = String(value || '').slice(0, 5).split(':').map((part) => parseInt(part, 10));
+            return (parts[0] || 0) * 60 + (parts[1] || 0);
+        };
+
+        const formatDuration = (minutes) => {
+            const hours = Math.floor(minutes / 60);
+            const rest = minutes % 60;
+            if (hours === 0 && rest === 0) return '0س';
+            return (hours > 0 ? hours + 'س ' : '') + (rest > 0 ? rest + 'د' : '');
+        };
+
+        const formatTime = (minutes) => {
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+        };
+
+        const startValue = () => (startInput?.value ? startInput.value.slice(0, 5) : defaultStart);
+
+        const checkOverlap = (start, end) => {
+            if (!conflictEl) return;
+            const conflict = existing.find((slot) => start < toMinutes(slot.end) && end > toMinutes(slot.start));
+
+            if (conflict) {
+                conflictEl.textContent = 'تحذير: تتعارض مع ' + conflict.start + ' — ' + conflict.end;
+                conflictEl.classList.remove('hidden');
+            } else {
+                conflictEl.classList.add('hidden');
+            }
+        };
+
+        const updatePreview = () => {
+            const hours = parseFloat(hoursInput.value || '0');
+
+            if (!previewEl) return;
+
+            if (!hours || hours <= 0) {
+                previewEl.textContent = 'اختر عدد الساعات';
+                previewEl.classList.remove('text-red-600');
+                conflictEl?.classList.add('hidden');
+                return;
+            }
+
+            const start = toMinutes(startValue());
+            const end = start + Math.round(hours * 60);
+
+            if (end >= 24 * 60) {
+                previewEl.textContent = 'الفترة تعبر منتصف الليل — غير مسموحة';
+                previewEl.classList.add('text-red-600');
+                conflictEl?.classList.add('hidden');
+                return;
+            }
+
+            previewEl.classList.remove('text-red-600');
+            previewEl.textContent = 'من ' + formatTime(start) + ' إلى ' + formatTime(end) + ' — ' + formatDuration(end - start);
+            checkOverlap(start, end);
+        };
+
+        const refreshSlots = () => {
+            if (!url || !teacherInput?.value || !dateInput.value) {
+                existing = [];
+                return;
+            }
+
+            fetch(url + '?teacher_id=' + encodeURIComponent(teacherInput.value) + '&date=' + encodeURIComponent(dateInput.value), {
+                headers: { Accept: 'application/json' },
+            })
+                .then((response) => (response.ok ? response.json() : { slots: [] }))
+                .then((data) => {
+                    existing = Array.isArray(data.slots) ? data.slots : [];
+                    updatePreview();
+                })
+                .catch(() => {
+                    existing = [];
+                });
+        };
+
+        form.querySelectorAll('[data-quick-slot-chip]').forEach((chip) => {
+            chip.addEventListener('click', () => {
+                hoursInput.value = chip.dataset.quickSlotChip;
+                form.querySelectorAll('[data-quick-slot-chip]').forEach((other) => {
+                    other.classList.remove(...chipClasses);
+                    if (other === chip) {
+                        other.classList.add(...chipClasses);
+                    }
+                });
+                updatePreview();
+            });
+        });
+
+        [hoursInput, startInput, dateInput].forEach((input) => {
+            if (!input) return;
+            input.addEventListener('input', updatePreview);
+            input.addEventListener('change', updatePreview);
+        });
+
+        teacherInput?.addEventListener('change', refreshSlots);
+        dateInput.addEventListener('change', refreshSlots);
+
+        updatePreview();
+        refreshSlots();
+    });
+}
+
 function initApp() {
     initSidebarCollapse();
     initSidebarGroups();
@@ -1341,6 +1511,8 @@ function initApp() {
     initVoiceRecorders();
     initSearchPickers();
     initWorkSlotForms();
+    initQuickPay();
+    initQuickSlotForms();
     initExamTimers();
     initExamQuestionBuilders();
 }
