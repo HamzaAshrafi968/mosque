@@ -49,9 +49,9 @@ class PortalSeedTest extends TestCase
 
         $this->assertTrue($financePerms->pluck('pivot.scope')->contains('own'));
 
-        // Portal accounts can reach their dashboards (role strings + RBAC).
-        $this->actingAs($guardianUser)->get(route('guardian.dashboard'))->assertOk();
-        $this->actingAs($studentUser)->get(route('student.dashboard'))->assertOk();
+        // Portal accounts can log in but are redirected to the disabled page.
+        $this->actingAs($guardianUser)->get(route('guardian.dashboard'))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($studentUser)->get(route('student.dashboard'))->assertRedirect(route('portal.disabled'));
 
         config(['app.current_tenant_id' => $mosque->id]);
         $this->assertSame(0, FinancialTransaction::count());

@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\InitializeTenant;
+use App\Http\Middleware\PortalAccessDisabled;
 use App\Http\Middleware\PreventBrowserCache;
 use App\Providers\RepositoryServiceProvider;
 use Illuminate\Auth\Middleware\Authorize;
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
             'permission' => EnsurePermission::class,
+            'portal.disabled' => PortalAccessDisabled::class,
             'tenant' => InitializeTenant::class,
         ]);
 

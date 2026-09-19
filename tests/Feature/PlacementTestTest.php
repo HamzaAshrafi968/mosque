@@ -444,7 +444,7 @@ class PlacementTestTest extends TestCase
             ->assertSee('الطالب غير مسجّل في دوام');
     }
 
-    public function test_student_profile_shows_pre_memorized_juz(): void
+    public function test_student_profile_is_disabled(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
 
@@ -456,9 +456,7 @@ class PlacementTestTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-profile'))
-            ->assertOk()
-            ->assertSee('محفوظ مسبقاً')
-            ->assertSee('✓ محفوظ');
+            ->assertRedirect(route('portal.disabled'));
     }
 
     public function test_placement_test_scope_covers_all_consecutive_pre_memorized_batches(): void

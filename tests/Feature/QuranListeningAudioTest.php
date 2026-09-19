@@ -129,7 +129,7 @@ class QuranListeningAudioTest extends TestCase
         $this->assertStringContainsString('Husary_128kbps', $response->json('tracks.0.url'));
     }
 
-    public function test_student_audio_is_scoped_to_his_own_plan(): void
+    public function test_student_audio_is_disabled(): void
     {
         [$mosque, $admin, $session, $teacher] = $this->mosque();
 
@@ -150,15 +150,14 @@ class QuranListeningAudioTest extends TestCase
 
         $this->actingAs($studentUser)
             ->getJson(route('student.quran-listening.items.audio', $ownItem))
-            ->assertOk()
-            ->assertJsonPath('from_page', 1);
+            ->assertRedirect(route('portal.disabled'));
 
         $this->actingAs($studentUser)
             ->getJson(route('student.quran-listening.items.audio', $otherItem))
-            ->assertForbidden();
+            ->assertRedirect(route('portal.disabled'));
     }
 
-    public function test_student_show_page_renders_the_player_and_parts(): void
+    public function test_student_show_page_is_disabled(): void
     {
         [$mosque, $admin, $session, $teacher] = $this->mosque();
 
@@ -172,13 +171,6 @@ class QuranListeningAudioTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-listening.show', $plan))
-            ->assertOk()
-            ->assertSee('خطة استماع')
-            ->assertSee('العنصر والصفحات')
-            ->assertSee('صفحات 15–21')
-            ->assertSee('الاستماع / التشغيل')
-            ->assertSee('تم الاستماع')
-            ->assertSee('data-listening-player', false)
-            ->assertSee('مقفل');
+            ->assertRedirect(route('portal.disabled'));
     }
 }

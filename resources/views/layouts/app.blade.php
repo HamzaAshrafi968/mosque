@@ -308,34 +308,14 @@
                         <x-icon name="info" class="w-4 h-4 mt-0.5 shrink-0 text-gold-300/80" />
                         <span>اختر جامعاً من القائمة العلوية لفتح لوحة إدارته الكاملة.</span>
                     </div>
-                @elseif($user->isGuardian())
-                    <x-nav-link icon="home" :href="route('guardian.dashboard')" :active="request()->routeIs('guardian.dashboard')" label="الرئيسية" />
-                    <x-nav-link icon="children" :href="route('guardian.dashboard')" :active="request()->routeIs('guardian.children.*')" label="أبنائي" />
-                    <x-nav-link icon="user" :href="route('guardian.profile')" :active="request()->routeIs('guardian.profile')" label="الملف الشخصي" />
+                @elseif($user->isGuardian() || $user->isStudent())
+                    <x-nav-link icon="home" :href="route('portal.disabled')" :active="request()->routeIs('portal.disabled')" label="الرئيسية" />
                     <x-nav-link icon="bell" :href="route('notifications.index')" :active="request()->routeIs('notifications.*')" label="الإشعارات" :badge="$unreadCount > 0 ? $unreadCount : null" />
                     <div
                         class="pt-3 mt-2 border-t border-white/10 text-[11px] leading-relaxed text-gold-200/70 px-3 flex items-start gap-2">
                         <x-icon name="info" class="w-4 h-4 mt-0.5 shrink-0 text-gold-300/80" />
-                        <span>يمكنك الاطلاع على بيانات أبنائك فقط.</span>
+                        <span>تم تعطيل بوابة {{ $user->isGuardian() ? 'ولي الأمر' : 'الطالب' }} مؤقتاً. تواصل مع إدارة الجامع.</span>
                     </div>
-                @elseif($user->isStudent())
-                    <x-nav-link icon="home" :href="route('student.dashboard')" :active="request()->routeIs('student.dashboard')" label="الرئيسية" />
-                    <x-nav-link icon="user" :href="route('student.profile')" :active="request()->routeIs('student.profile')" label="ملفي الشخصي" />
-                    <x-nav-link icon="attendance" :href="route('student.attendance')" :active="request()->routeIs('student.attendance')" label="الحضور والغياب" />
-                    <x-nav-link icon="subjects" :href="route('student.subjects')" :active="request()->routeIs('student.subjects')" label="موادي الدراسية" />
-                    <x-nav-link icon="teachers" :href="route('student.teachers')" :active="request()->routeIs('student.teachers')" label="معلموّي" />
-                    <x-nav-link icon="exam" :href="route('student.exams')" :active="request()->routeIs('student.exams')" label="الامتحانات" />
-                    <x-nav-link icon="grades" :href="route('student.grades')" :active="request()->routeIs('student.grades')" label="الدرجات" />
-                    <x-nav-link icon="homework" :href="route('student.homeworks')" :active="request()->routeIs('student.homeworks')" label="الواجبات" />
-                    @if ($can('quran_batch.view'))
-                        <x-nav-link icon="quran" :href="route('student.quran-profile')" :active="request()->routeIs('student.quran-profile')" label="ملفي القرآني" />
-                    @endif
-                    @if ($can('quran_training.view'))
-                        <x-nav-link icon="quran" :href="route('student.quran-programs.index')" :active="request()->routeIs('student.quran-programs.*')" label="برامجي" />
-                    @endif
-                    <x-nav-link icon="trophy" :href="route('student.reward-points')" :active="request()->routeIs('student.reward-points')" label="نقاطي" />
-                    <x-nav-link icon="megaphone" :href="route('student.announcements')" :active="request()->routeIs('student.announcements')" label="الإعلانات" />
-                    <x-nav-link icon="bell" :href="route('notifications.index')" :active="request()->routeIs('notifications.*')" label="الإشعارات" :badge="$unreadCount > 0 ? $unreadCount : null" />
                 @else
                     <x-nav-link icon="home" :href="route('teacher.dashboard')" :active="request()->routeIs('teacher.dashboard')" label="الرئيسية" />
                     @if ($can('sections.view'))

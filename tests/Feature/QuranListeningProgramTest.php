@@ -344,14 +344,13 @@ class QuranListeningProgramTest extends TestCase
             ->get(route('teacher.quran.programs.index', ['student_id' => $student->id]))
             ->assertForbidden();
 
-        // طالب آخر لا يرى برنامج غيره في بوابته.
+        // الطالب لا يصل لبرامجه لأن بوابته معطّلة.
         $otherUser = User::factory()->create(['tenant_id' => $mosque->id, 'role' => 'student']);
         $other->update(['user_id' => $otherUser->id]);
 
         $this->actingAs($otherUser)
             ->get(route('student.quran-programs.index'))
-            ->assertOk()
-            ->assertDontSee('الطالب أحمد');
+            ->assertRedirect(route('portal.disabled'));
 
         $this->assertSame(QuranListeningItemStatus::Available, $item->fresh()->status);
     }

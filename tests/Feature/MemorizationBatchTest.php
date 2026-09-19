@@ -722,7 +722,6 @@ class MemorizationBatchTest extends TestCase
         $this->assertStringNotContainsString('بانتظار تأكيد الإدارة', $notification->data['body']);
     }
 
-    public function test_student_profile_shows_the_current_batch_and_locked_juz(): void
     public function test_auto_confirmation_can_be_disabled_from_quran_settings(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
@@ -755,6 +754,7 @@ class MemorizationBatchTest extends TestCase
         $this->assertStringContainsString('بانتظار تأكيد الإدارة', $notification->data['body']);
     }
 
+    public function test_student_profile_is_disabled(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $this->teacher($mosque, $session);
@@ -767,11 +767,7 @@ class MemorizationBatchTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-profile'))
-            ->assertOk()
-            ->assertSee('ملفي القرآني')
-            ->assertSee('الدفعة 1')
-            ->assertSee('مراجعة 5')
-            ->assertSee('مقفل');
+            ->assertRedirect(route('portal.disabled'));
     }
 
     public function test_admin_can_save_the_minimum_passing_percentage(): void
@@ -1037,7 +1033,7 @@ class MemorizationBatchTest extends TestCase
             ->assertDontSee('تسجيل نتيجة الاختبار');
     }
 
-    public function test_student_profile_shows_the_retake_review_and_failed_juz(): void
+    public function test_student_profile_is_disabled_after_a_retake_review(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $this->teacher($mosque, $session);
@@ -1054,9 +1050,7 @@ class MemorizationBatchTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-profile'))
-            ->assertOk()
-            ->assertSee('خمسات إعادة رسوب الاختبار')
-            ->assertSee('رسبت في الأجزاء');
+            ->assertRedirect(route('portal.disabled'));
     }
 
     public function test_teacher_outside_scope_cannot_record_the_cumulative_test(): void

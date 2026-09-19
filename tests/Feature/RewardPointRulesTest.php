@@ -364,7 +364,7 @@ class RewardPointRulesTest extends TestCase
         ]);
     }
 
-    public function test_student_portal_shows_points_balance_and_history(): void
+    public function test_student_portal_points_page_is_disabled(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $student = $this->student($mosque, $session);
@@ -381,9 +381,7 @@ class RewardPointRulesTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.reward-points'))
-            ->assertOk()
-            ->assertSee('مكافأة تميز')
-            ->assertSee('+7');
+            ->assertRedirect(route('portal.disabled'));
     }
 
     public function test_new_rule_types_and_master_switch_are_saved_from_settings(): void

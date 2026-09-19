@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Classroom;
 use App\Models\Exam;
-use App\Models\ExamAttempt;
 use App\Models\ExamQuestion;
 use App\Models\Student;
 use App\Models\Subject;
@@ -14,8 +13,8 @@ use App\Services\RoleService;
 use Tests\TestCase;
 
 /**
- * بوابة الطالب: ظهور الامتحانات الإلكترونية المنشورة، بدء المحاولة،
- * صفحة الامتحان بالمؤقت، التسليم، وورقة النتيجة.
+ * بوابة الطالب معطّلة: حتى مع وجود امتحان منشور صالح، كل مسارات الامتحانات
+ * الإلكترونية تحوّل إلى صفحة «البوابة معطّلة» ولا تُنشأ محاولات.
  */
 class StudentExamPortalTest extends TestCase
 {
@@ -80,7 +79,7 @@ class StudentExamPortalTest extends TestCase
         return [$student, $user];
     }
 
-    public function test_student_exams_page_lists_published_electronic_exams(): void
+    public function test_student_exam_portal_routes_are_disabled(): void
     {
         $mosque = $this->mosque();
         $classroom = $this->classroom($mosque);
@@ -88,47 +87,13 @@ class StudentExamPortalTest extends TestCase
         $this->question($exam);
         [, $user] = $this->studentUser($mosque, $classroom);
 
-        $this->actingAs($user)
-            ->get(route('student.exams'))
-            ->assertOk()
-            ->assertSee('الامتحانات الإلكترونية')
-            ->assertSee($exam->title)
-            ->assertSee('ابدأ الامتحان');
+        $this->actingAs($user)->get(route('student.exams'))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($user)->get(route('student.exams.start', $exam))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($user)->get(route('student.exams.take', $exam))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($user)->get(route('student.exams.result', $exam))->assertRedirect(route('portal.disabled'));
     }
 
-    public function test_student_can_start_take_and_submit_an_exam(): void
-    {
-        $mosque = $this->mosque();
-        $classroom = $this->classroom($mosque);
-        $exam = $this->exam($mosque, $classroom);
-        $question = $this->question($exam);
-        [, $user] = $this->studentUser($mosque, $classroom);
-
-        $this->actingAs($user)
-            ->get(route('student.exams.start', $exam))
-            ->assertRedirect(route('student.exams.take', $exam));
-
-        $this->actingAs($user)
-            ->get(route('student.exams.take', $exam))
-            ->assertOk()
-            ->assertSee($question->text)
-            ->assertSee('exam-timer', false);
-
-        $this->actingAs($user)
-            ->post(route('student.exams.submit', $exam), [
-                'answers' => [
-                    $question->id => ['selected_options' => ['الفاتحة']],
-                ],
-            ])
-            ->assertRedirect(route('student.exams.result', $exam));
-
-        $attempt = ExamAttempt::firstOrFail();
-
-        $this->assertSame('graded', $attempt->status);
-        $this->assertSame('10.00', $attempt->score);
-    }
-
-    public function test_student_result_page_shows_the_score_and_the_answer_key(): void
+    public function test_disabled_portal_does_not_create_exam_attempts(): void
     {
         $mosque = $this->mosque();
         $classroom = $this->classroom($mosque);
@@ -139,63 +104,11 @@ class StudentExamPortalTest extends TestCase
         $this->actingAs($user)->get(route('student.exams.start', $exam));
 
         $this->actingAs($user)->post(route('student.exams.submit', $exam), [
-            'answers' => [$question->id => ['selected_options' => ['الفاتحة']]],
-        ]);
+            'answers' => [
+                $question->id => ['selected_options' => ['الفاتحة']],
+            ],
+        ])->assertRedirect(route('portal.disabled'));
 
-        $this->actingAs($user)
-            ->get(route('student.exams.result', $exam))
-            ->assertOk()
-            ->assertSee('10')
-            ->assertSee('ناجح')
-            ->assertSee('الفاتحة');
-    }
-
-    public function test_student_cannot_access_an_exam_for_another_classroom(): void
-    {
-        $mosque = $this->mosque();
-        $classroom = $this->classroom($mosque);
-        $otherClassroom = $this->classroom($mosque, 'الصف الثاني');
-        $exam = $this->exam($mosque, $otherClassroom);
-        $this->question($exam);
-        [, $user] = $this->studentUser($mosque, $classroom);
-
-        $this->actingAs($user)
-            ->get(route('student.exams.start', $exam))
-            ->assertForbidden();
-
-        $this->actingAs($user)
-            ->get(route('student.exams.take', $exam))
-            ->assertForbidden();
-    }
-
-    public function test_unpublished_exam_is_not_visible_to_students(): void
-    {
-        $mosque = $this->mosque();
-        $classroom = $this->classroom($mosque);
-        $exam = $this->exam($mosque, $classroom, ['status' => 'draft', 'published_at' => null]);
-        $this->question($exam);
-        [, $user] = $this->studentUser($mosque, $classroom);
-
-        $this->actingAs($user)->get(route('student.exams'))->assertDontSee($exam->title);
-        $this->actingAs($user)->get(route('student.exams.take', $exam))->assertForbidden();
-    }
-
-    public function test_a_finished_attempt_redirects_to_the_result_instead_of_retaking(): void
-    {
-        $mosque = $this->mosque();
-        $classroom = $this->classroom($mosque);
-        $exam = $this->exam($mosque, $classroom);
-        $question = $this->question($exam);
-        [, $user] = $this->studentUser($mosque, $classroom);
-
-        $this->actingAs($user)->get(route('student.exams.start', $exam));
-
-        $this->actingAs($user)->post(route('student.exams.submit', $exam), [
-            'answers' => [$question->id => ['selected_options' => ['الفاتحة']]],
-        ]);
-
-        $this->actingAs($user)
-            ->get(route('student.exams.take', $exam))
-            ->assertRedirect(route('student.exams.result', $exam));
+        $this->assertDatabaseCount('exam_attempts', 0);
     }
 }

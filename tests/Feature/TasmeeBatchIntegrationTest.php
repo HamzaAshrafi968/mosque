@@ -289,7 +289,7 @@ class TasmeeBatchIntegrationTest extends TestCase
             ->assertDontSee('صفحات 1–5');
     }
 
-    public function test_student_profile_shows_tasmee_history_and_page_progress(): void
+    public function test_student_profile_is_disabled(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [, $teacher] = $this->teacher($mosque, $session);
@@ -303,11 +303,7 @@ class TasmeeBatchIntegrationTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-profile'))
-            ->assertOk()
-            ->assertSee('سجل التسميع مع المعلم')
-            ->assertSee('صفحات 1–5')
-            ->assertSee('5 / 41 صفحة')
-            ->assertSee('جيد جداً');
+            ->assertRedirect(route('portal.disabled'));
     }
 
     public function test_batch_progress_reaches_full_coverage_without_overlapping_duplicates(): void

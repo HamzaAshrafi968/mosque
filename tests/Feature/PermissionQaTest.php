@@ -426,18 +426,20 @@ class PermissionQaTest extends TestCase
 
         $this->actingAs($manager)->get(route('admin.dashboard'))->assertOk();
         $this->actingAs($teacherUser)->get(route('teacher.dashboard'))->assertOk();
-        $this->actingAs($guardianUser)->get(route('guardian.dashboard'))->assertOk();
-        $this->actingAs($studentUser)->get(route('student.dashboard'))->assertOk();
+
+        // Portal accounts log in but are redirected to the disabled page.
+        $this->actingAs($guardianUser)->get(route('guardian.dashboard'))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($studentUser)->get(route('student.dashboard'))->assertRedirect(route('portal.disabled'));
     }
 
-    public function test_guardian_can_open_only_linked_children(): void
+    public function test_guardian_portal_is_disabled_for_linked_and_unlinked_children(): void
     {
         $mosque = $this->mosque();
         [$guardianUser, , $child] = $this->guardianFamily($mosque);
         $otherChild = Student::factory()->create(['tenant_id' => $mosque->id]);
 
-        $this->actingAs($guardianUser)->get(route('guardian.children.overview', $child))->assertOk();
-        $this->actingAs($guardianUser)->get(route('guardian.children.overview', $otherChild))->assertForbidden();
+        $this->actingAs($guardianUser)->get(route('guardian.children.overview', $child))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($guardianUser)->get(route('guardian.children.overview', $otherChild))->assertRedirect(route('portal.disabled'));
     }
 
     public function test_guardian_from_another_mosque_cannot_open_a_child(): void
@@ -448,7 +450,7 @@ class PermissionQaTest extends TestCase
         $mosqueB = Tenant::factory()->create();
         $childB = Student::factory()->create(['tenant_id' => $mosqueB->id]);
 
-        $this->actingAs($guardianUser)->get(route('guardian.children.overview', $childB))->assertForbidden();
+        $this->actingAs($guardianUser)->get(route('guardian.children.overview', $childB))->assertRedirect(route('portal.disabled'));
     }
 
     public function test_portal_roles_are_isolated_from_other_areas(): void
@@ -574,22 +576,20 @@ class PermissionQaTest extends TestCase
             ->assertOk();
     }
 
-    public function test_known_gap_revoking_portal_permissions_does_not_block_portal_pages(): void
+    public function test_portal_pages_are_disabled_regardless_of_the_permission_matrix(): void
     {
-        $this->markTestSkipped('Known gap: guardian/student portal routes only use role middleware, so permission-matrix changes are not enforced.');
-
         $mosque = $this->mosque();
         [$guardianUser, , $child] = $this->guardianFamily($mosque);
-        [, $studentUser] = $this->studentWithAccount($mosque);
+        [$studentUser] = $this->studentWithAccount($mosque);
 
         $this->revoke($mosque, RoleService::ROLE_GUARDIAN, 'grades.view');
         $this->revoke($mosque, RoleService::ROLE_STUDENT, 'grades.view');
 
-        $this->actingAs($guardianUser)->get(route('guardian.children.grades', $child))->assertForbidden();
-        $this->actingAs($studentUser)->get(route('student.grades'))->assertForbidden();
+        $this->actingAs($guardianUser)->get(route('guardian.children.grades', $child))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($studentUser)->get(route('student.grades'))->assertRedirect(route('portal.disabled'));
     }
 
-    public function test_super_admin_created_guardian_gets_a_working_portal(): void
+    public function test_super_admin_created_guardian_gets_a_disabled_portal_account(): void
     {
         $super = $this->superAdmin();
         $mosque = $this->mosque();
@@ -608,10 +608,11 @@ class PermissionQaTest extends TestCase
 
         $this->assertSame(User::ROLE_GUARDIAN, $user->role);
         $this->assertFalse(Teacher::where('user_id', $user->id)->exists());
-        $this->actingAs($user)->get(route('guardian.dashboard'))->assertOk();
+        $this->actingAs($user)->get(route('guardian.dashboard'))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($user)->get(route('portal.disabled'))->assertOk();
     }
 
-    public function test_super_admin_created_student_gets_a_working_portal(): void
+    public function test_super_admin_created_student_gets_a_disabled_portal_account(): void
     {
         $super = $this->superAdmin();
         $mosque = $this->mosque();
@@ -630,7 +631,8 @@ class PermissionQaTest extends TestCase
 
         $this->assertSame(User::ROLE_STUDENT, $user->role);
         $this->assertFalse(Teacher::where('user_id', $user->id)->exists());
-        $this->actingAs($user)->get(route('student.dashboard'))->assertOk();
+        $this->actingAs($user)->get(route('student.dashboard'))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($user)->get(route('portal.disabled'))->assertOk();
     }
 
     public function test_known_gap_class_scope_is_not_bound_to_specific_classes(): void
