@@ -42,7 +42,7 @@
                 <tbody>
                 @forelse($enrollments as $enrollment)
                     @php
-                        $evals = $enrollment->student->ijazahMonthlyEvaluations()->orderByDesc('month')->get();
+                        $evals = $enrollment->student->ijazahMonthlyEvaluations;
                         $last = $evals->first();
                         $passed = $evals->where('result', 'passed')->count();
                         $listeningProgramId = $listeningProgramIds[$enrollment->id] ?? null;

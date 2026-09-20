@@ -41,7 +41,7 @@
                 <tbody>
                 @forelse($enrollments as $enrollment)
                     @php
-                        $evals = $enrollment->student->qualifyingWeeklyEvaluations()->orderByDesc('week_start')->get();
+                        $evals = $enrollment->student->qualifyingWeeklyEvaluations;
                         $last = $evals->first();
                         $passed = $evals->where('result', 'passed')->count();
                         $listeningProgramId = $listeningProgramIds[$enrollment->id] ?? null;
