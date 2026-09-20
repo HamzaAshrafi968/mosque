@@ -180,18 +180,20 @@
         <div class="px-4 py-3 bg-emerald-700 text-white font-bold">💰 الملف المالي</div>
         <div class="p-4 space-y-2">
             <div class="flex items-center justify-between">
-                <span class="text-sm text-gray-500">الراتب الشهري</span>
-                @if($teacher->monthly_salary !== null)
-                    <span class="font-black text-gray-800" dir="ltr">{{ number_format((float) $teacher->monthly_salary, 2) }} {{ \App\Services\FinanceService::DEFAULT_CURRENCY }}</span>
+                <span class="text-sm text-gray-500">سعر الساعة</span>
+                @if($currentRate !== null)
+                    <span class="font-black text-gray-800" dir="ltr">{{ number_format((float) $currentRate->rate, 2) }} {{ \App\Services\FinanceService::DEFAULT_CURRENCY }}</span>
                 @else
-                    <span class="text-sm text-gray-300">غير محدد</span>
+                    <a href="{{ route('admin.payroll.sheet', ['teacher' => $teacher]) }}"
+                       class="text-xs font-bold text-amber-700 hover:underline">لا يوجد سعر — أضف سعراً</a>
                 @endif
             </div>
+            <p class="text-[11px] text-gray-400">المستحق = ساعات العمل × سعر الساعة.</p>
             <div class="flex flex-wrap gap-4">
                 <a href="{{ route('admin.finance.show', ['personType' => 'teacher', 'person' => $teacher]) }}"
                    class="text-emerald-700 font-bold hover:underline text-sm">عرض السجل المالي ←</a>
                 <a href="{{ route('admin.payroll.index', ['q' => $teacher->name]) }}"
-                   class="text-emerald-700 font-bold hover:underline text-sm">الراتب والدفعات ←</a>
+                   class="text-emerald-700 font-bold hover:underline text-sm">الساعات والدفعات ←</a>
             </div>
         </div>
     </div>

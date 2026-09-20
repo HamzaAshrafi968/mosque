@@ -59,19 +59,14 @@
             <input type="date" name="hired_at" value="{{ old('hired_at') }}"
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
         </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">الراتب الشهري</label>
-            <input type="number" step="0.01" min="0" name="monthly_salary" value="{{ old('monthly_salary') }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none" dir="ltr">
-            <p class="text-xs text-gray-400 mt-1">المبلغ الذي يعطيه مدير الجامع للأستاذ في الشهر.</p>
-            @if(app(\App\Services\AuthorizationService::class)->can(auth()->user(), 'hourly_rates.manage'))
-                <p class="text-xs text-gray-400 mt-1">
-                    للأجر بالساعة: حدّد سعر الساعة من
-                    <a href="{{ route('admin.settings.hourly-rates.index') }}" class="text-emerald-700 underline">الإعدادات ← أسعار الساعة</a>
-                    فيُحتسب الراتب تلقائياً من ساعات العمل.
-                </p>
-            @endif
-        </div>
+        @if(app(\App\Services\AuthorizationService::class)->can(auth()->user(), 'hourly_rates.manage'))
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-900 leading-relaxed">
+                <span class="font-bold">الراتب بالساعات:</span>
+                حدّد سعر ساعة الأستاذ من
+                <a href="{{ route('admin.settings.hourly-rates.index') }}" class="underline font-bold">الإعدادات ← أسعار الساعة</a>
+                (أو من كشفه بعد الحفظ) فيُحتسب مستحقه تلقائياً = ساعات العمل × سعر الساعة.
+            </div>
+        @endif
         <div class="flex items-center gap-2">
             <input type="hidden" name="is_active" value="0">
             <input type="checkbox" name="is_active" value="1" @checked(old('is_active', '1') == '1') id="is_active"
