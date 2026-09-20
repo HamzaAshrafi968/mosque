@@ -516,6 +516,25 @@ class PermissionQaTest extends TestCase
         $this->actingAs($user)->get(route('teacher.finance.index'))->assertForbidden();
     }
 
+    public function test_roles_index_hides_portal_roles_and_the_create_form(): void
+    {
+        $super = $this->superAdmin();
+        $mosque = $this->mosque();
+
+        $response = $this->actingAs($super)
+            ->get(route('super-admin.mosques.roles.index', $mosque))
+            ->assertOk();
+
+        $roles = $response->viewData('roles');
+
+        $this->assertFalse($roles->contains('code', RoleService::ROLE_GUARDIAN));
+        $this->assertFalse($roles->contains('code', RoleService::ROLE_STUDENT));
+        $this->assertTrue($roles->contains('code', RoleService::ROLE_MOSQUE_MANAGER));
+        $this->assertTrue($roles->contains('code', RoleService::ROLE_TEACHER));
+
+        $response->assertDontSee('إنشاء دور جديد');
+    }
+
     // ------------------------------------------------------------ catalog
 
     public function test_catalog_permission_codes_without_route_enforcement_are_known(): void

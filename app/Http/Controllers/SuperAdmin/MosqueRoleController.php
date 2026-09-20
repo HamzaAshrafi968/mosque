@@ -15,8 +15,12 @@ class MosqueRoleController extends Controller
 {
     public function index(Tenant $mosque): View
     {
+        // Portal roles (student/guardian) are provisioned automatically for
+        // every mosque and are managed by the system, so they stay hidden here.
         $roles = Role::where('tenant_id', $mosque->id)
+            ->whereNotIn('code', [RoleService::ROLE_GUARDIAN, RoleService::ROLE_STUDENT])
             ->withCount('users')
+            ->withCount('permissions')
             ->orderBy('is_system', 'desc')
             ->orderBy('name')
             ->get();
