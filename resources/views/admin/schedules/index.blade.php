@@ -369,7 +369,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($schedules as $schedule)
+                @forelse($table as $schedule)
                     <tr>
                         <td class="px-4 py-3 border-t font-bold whitespace-nowrap">{{ $days[$schedule->day_of_week] }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ substr($schedule->starts_at, 0, 5) }}–{{ substr($schedule->ends_at, 0, 5) }}</td>
@@ -405,6 +405,7 @@
             </tbody>
         </table>
     </div>
+    <div class="mt-4 px-4">{{ $table->links() }}</div>
 </div>
 
 <script>

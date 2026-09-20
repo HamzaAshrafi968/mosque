@@ -33,7 +33,11 @@ class IjazahController extends Controller
     public function index(Request $request): View
     {
         $enrollments = ProgramEnrollment::query()
-            ->with(['student:id,name,classroom_id', 'student.classroom:id,name'])
+            ->with([
+                'student:id,name,classroom_id',
+                'student.classroom:id,name',
+                'student.ijazahMonthlyEvaluations' => fn ($q) => $q->orderByDesc('month'),
+            ])
             ->where('program_type', ProgramType::Ijazah)
             ->when($request->input('status', 'active') === 'completed',
                 fn ($q) => $q->where('status', ProgramEnrollmentStatus::Completed),
@@ -42,11 +46,9 @@ class IjazahController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $listeningProgramIds = $enrollments->getCollection()
-            ->mapWithKeys(fn (ProgramEnrollment $enrollment) => [
-                $enrollment->id => $this->listeningPrograms->ensureForEnrollment($enrollment)?->id,
-            ])
-            ->filter();
+        $listeningProgramIds = $this->listeningPrograms->listeningProgramIdsForEnrollments(
+            $enrollments->getCollection()
+        );
 
         return view('admin.quran.ijazah.index', [
             'enrollments' => $enrollments,

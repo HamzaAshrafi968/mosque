@@ -43,7 +43,7 @@
         حضور وغياب الطلاب
         <span class="text-sm font-normal text-gray-500">من {{ $from }} إلى {{ $to }}</span>
     </h2>
-    <span class="text-sm text-gray-500">عدد الطلاب: {{ $rows->count() }}</span>
+    <span class="text-sm text-gray-500">عدد الطلاب: {{ $rows->total() }}</span>
 </div>
 
 <x-attendance-summary :summary="$totals" />
@@ -113,6 +113,8 @@
         قاعدة احتساب النسبة: حاضر ومتأخر = حضر، غائب = لا يحتسب حضوراً، معذور = مستبعد من المقام والبسط.
     </div>
 </div>
+
+<div class="mt-4">{{ $rows->links() }}</div>
 
 <div class="mt-4 flex gap-3 flex-wrap">
     <a href="{{ route('admin.attendance.index', ['date' => $to]) }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">جلسات اليوم</a>

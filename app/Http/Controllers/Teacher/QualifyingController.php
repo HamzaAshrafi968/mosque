@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
+use App\Models\ProgramEnrollment;
 use App\Models\QualifyingWeeklyEvaluation;
 use App\Models\Student;
 use App\Services\AuditLogger;
@@ -118,17 +119,23 @@ class QualifyingController extends BaseTeacherController
     /** @return array<string, ?string> معرّف دورة الاستماع لكل طالب. */
     private function listeningProgramIds($students, ProgramType $type): array
     {
-        return $students->mapWithKeys(function (Student $student) use ($type) {
-            $enrollment = $student->programEnrollments()
-                ->where('program_type', $type)
-                ->where('status', ProgramEnrollmentStatus::Active)
-                ->first();
+        $enrollments = ProgramEnrollment::query()
+            ->whereIn('student_id', $students->pluck('id'))
+            ->where('program_type', $type)
+            ->where('status', ProgramEnrollmentStatus::Active)
+            ->get()
+            ->keyBy('student_id');
 
-            $program = $enrollment
-                ? $this->listeningPrograms->ensureForEnrollment($enrollment)
-                : $this->listeningPrograms->activeProgram($student, $type);
+        $map = $this->listeningPrograms->listeningProgramIdsForEnrollments($enrollments->values());
 
-            return [$student->id => $program?->id];
+        return $students->mapWithKeys(function (Student $student) use ($enrollments, $map, $type) {
+            $enrollment = $enrollments->get($student->id);
+
+            $programId = $enrollment
+                ? ($map[$enrollment->id] ?? null)
+                : $this->listeningPrograms->activeProgram($student, $type)?->id;
+
+            return [$student->id => $programId];
         })->filter()->all();
     }
 

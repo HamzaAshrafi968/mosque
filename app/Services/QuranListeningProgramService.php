@@ -78,6 +78,35 @@ class QuranListeningProgramService
             ->first();
     }
 
+    /**
+     * Batched variant of ensureForEnrollment() for list pages: one query
+     * resolves the active program for every enrollment; only enrollments with
+     * no program yet fall through to the lazy per-row creation.
+     *
+     * @param  Collection<int, ProgramEnrollment>  $enrollments
+     * @return Collection<string, ?string> enrollment_id => program_id
+     */
+    public function listeningProgramIdsForEnrollments(Collection $enrollments): Collection
+    {
+        $active = $enrollments->filter(fn (ProgramEnrollment $e) => $e->isActive());
+
+        $existing = QuranListeningProgram::query()
+            ->whereIn('student_id', $active->pluck('student_id')->filter())
+            ->where('status', QuranListeningProgramStatus::Active)
+            ->whereIn('type', [ProgramType::Qualifying->value, ProgramType::Ijazah->value])
+            ->latest()
+            ->get()
+            ->groupBy(fn (QuranListeningProgram $p) => $p->student_id.':'.$p->type->value);
+
+        return $enrollments->mapWithKeys(function (ProgramEnrollment $enrollment) use ($existing) {
+            $program = $existing->get($enrollment->student_id.':'.$enrollment->program_type->value)?->first();
+
+            $program ??= $this->ensureForEnrollment($enrollment);
+
+            return [$enrollment->id => $program?->id];
+        })->filter();
+    }
+
     /** إنشاء دورة استماع جديدة (6 دفعات × 5 أجزاء). */
     public function createProgram(Student $student, ProgramType $type, ?string $enrollmentId, ?User $actor = null): QuranListeningProgram
     {

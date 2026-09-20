@@ -34,6 +34,7 @@ class FaithMeetingController extends Controller
         $meetings = FaithMeeting::query()
             ->with(['supervisor:id,name', 'teacher:id,name'])
             ->withCount(['studentAttendances'])
+            ->withCount(['studentAttendances as marked_attendances' => fn ($q) => $q->whereNotNull('attendance_status')])
             ->when($filter === 'upcoming',
                 fn ($q) => $q->where('status', FaithMeetingStatus::Scheduled)->where('date', '>=', $today))
             ->when($filter === 'past',
@@ -46,9 +47,7 @@ class FaithMeetingController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $attendanceTaken = function (FaithMeeting $meeting): bool {
-            return $meeting->studentAttendances()->whereNotNull('attendance_status')->exists();
-        };
+        $attendanceTaken = fn (FaithMeeting $meeting): bool => $meeting->marked_attendances > 0;
 
         return view('admin.faith-meetings.index', [
             'meetings' => $meetings,

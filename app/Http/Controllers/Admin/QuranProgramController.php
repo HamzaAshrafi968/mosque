@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HafizMonthlyExam;
 use App\Models\ProgramEnrollment;
 use App\Models\QuranCompletion;
+use App\Models\QuranRecitationSession;
 use App\Models\Student;
 use App\Services\QuranJourneyService;
 use App\Support\QuranProgramSettings;
@@ -124,31 +125,43 @@ class QuranProgramController extends Controller
     /** @return Collection<int, Student> */
     private function studentsByLatestResult(string $result)
     {
-        return Student::query()
+        $candidates = Student::query()
             ->whereHas('quranRecitationSessions', function ($q) use ($result) {
                 $q->where('result', $result);
             })
             ->with('classroom:id,name')
-            ->get()
-            ->filter(function (Student $student) use ($result) {
-                $latest = $student->quranRecitationSessions()->orderByDesc('date')->orderByDesc('created_at')->first();
+            ->get();
 
-                return $latest && $latest->result?->value === $result;
-            })
-            ->take(8);
+        // Latest session per student resolved in ONE query (desc order, first
+        // occurrence per student wins) instead of a query per student.
+        $latestSessions = QuranRecitationSession::query()
+            ->whereIn('student_id', $candidates->pluck('id'))
+            ->orderByDesc('date')
+            ->orderByDesc('created_at')
+            ->get(['id', 'student_id', 'result'])
+            ->unique('student_id');
+
+        return $candidates->filter(
+            fn (Student $student) => $latestSessions->firstWhere('student_id', $student->id)?->result?->value === $result
+        )->values()->take(8);
     }
 
     private function closeToCompletionStudents()
     {
+        // Σ new-memorization pages per student in one grouped query.
+        $pageTotals = QuranRecitationSession::query()
+            ->where('type', 'new')
+            ->selectRaw('student_id, sum(amount) as total')
+            ->groupBy('student_id')
+            ->havingRaw('sum(amount) >= ?', [QuranProgramSettings::CLOSE_TO_COMPLETION_PAGES])
+            ->pluck('total', 'student_id');
+
         return Student::query()
             ->whereDoesntHave('quranCompletions', fn ($q) => $q->where('status', QuranCompletionStatus::Confirmed))
-            ->whereHas('quranRecitationSessions', fn ($q) => $q->where('type', 'new'))
-            ->get()
-            ->filter(function (Student $student) {
-                return $student->quranRecitationSessions()->where('type', 'new')->sum('amount')
-                    >= QuranProgramSettings::CLOSE_TO_COMPLETION_PAGES;
-            })
-            ->values()
-            ->take(8);
+            ->whereIn('id', $pageTotals->keys())
+            ->with('classroom:id,name')
+            ->orderBy('name')
+            ->take(8)
+            ->get();
     }
 }

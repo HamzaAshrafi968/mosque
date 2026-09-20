@@ -62,11 +62,17 @@ class QuranProgramController extends BaseTeacherController
             ->where(fn ($q) => $q->whereNull('supervisor_id')->orWhere('supervisor_id', $teacher->id))
             ->get();
 
-        $weakStudents = $students->filter(function (Student $student) {
-            $latest = $student->quranRecitationSessions()->orderByDesc('date')->orderByDesc('created_at')->first();
+        // Latest tasmee result per student in one query (desc order + unique).
+        $latestResults = $teacher->quranRecitationSessions()
+            ->whereIn('student_id', $studentIds)
+            ->orderByDesc('date')
+            ->orderByDesc('created_at')
+            ->get()
+            ->unique('student_id');
 
-            return $latest?->result === QuranTasmeeResult::NeedsReview;
-        });
+        $weakStudents = $students->filter(
+            fn (Student $student) => $latestResults->firstWhere('student_id', $student->id)?->result === QuranTasmeeResult::NeedsReview
+        );
 
         $pendingRevisions = HafizExamRevision::query()
             ->where('status', 'pending')

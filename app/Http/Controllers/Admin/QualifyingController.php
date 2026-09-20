@@ -30,7 +30,11 @@ class QualifyingController extends Controller
     public function index(Request $request): View
     {
         $enrollments = ProgramEnrollment::query()
-            ->with(['student:id,name,classroom_id', 'student.classroom:id,name'])
+            ->with([
+                'student:id,name,classroom_id',
+                'student.classroom:id,name',
+                'student.qualifyingWeeklyEvaluations' => fn ($q) => $q->orderByDesc('week_start'),
+            ])
             ->where('program_type', ProgramType::Qualifying)
             ->when($request->input('status', 'active') === 'completed',
                 fn ($q) => $q->where('status', ProgramEnrollmentStatus::Completed),
@@ -39,11 +43,9 @@ class QualifyingController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $listeningProgramIds = $enrollments->getCollection()
-            ->mapWithKeys(fn (ProgramEnrollment $enrollment) => [
-                $enrollment->id => $this->listeningPrograms->ensureForEnrollment($enrollment)?->id,
-            ])
-            ->filter();
+        $listeningProgramIds = $this->listeningPrograms->listeningProgramIdsForEnrollments(
+            $enrollments->getCollection()
+        );
 
         return view('admin.quran.qualifying.index', [
             'enrollments' => $enrollments,

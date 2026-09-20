@@ -135,13 +135,16 @@ class ShariaCourseController extends Controller
         }
 
         if ($tab === 'report') {
-            $data['report'] = $course->students()
-                ->orderBy('name')
-                ->get()
-                ->map(fn (ShariaCourseStudent $student) => [
+            $students = $course->students()->orderBy('name')->paginate(50)->withQueryString();
+
+            $summaries = $this->service->attendanceSummaries($course, $students->getCollection());
+
+            $data['report'] = $students->through(
+                fn (ShariaCourseStudent $student) => [
                     'student' => $student,
-                    'summary' => $this->service->attendanceSummary($course, $student),
-                ]);
+                    'summary' => $summaries->get($student->id),
+                ]
+            );
         }
 
         return view('admin.sharia-courses.show', $data);

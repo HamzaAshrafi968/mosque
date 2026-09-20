@@ -447,11 +447,12 @@
                             <td class="px-4 py-3 font-bold">{{ $row['summary']['percentage'] !== null ? $row['summary']['percentage'].'٪' : '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">لا يوجد طلاب في الدورة بعد</td></tr>
+                        <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">لا يوجد طلاب مسجلون في هذه الدورة</td></tr>
                     @endforelse
                     </tbody>
                 </table>
             </div>
+            <div class="px-5 py-3">{{ $report->links() }}</div>
         </div>
     @endif
 </div>

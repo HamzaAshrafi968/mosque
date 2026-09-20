@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -310,6 +311,75 @@ class FinanceService
             - $out['payments'] - $out['received'];
 
         return $out;
+    }
+
+    /**
+     * Batched summaries for a list of people: ONE grouped query instead of a
+     * query per person. Returns person_id => summary buckets (same shape as
+     * summary()), with people that have no rows defaulting to zero buckets.
+     *
+     * @param  array<int, string>  $personIds
+     * @return Collection<string, array<string, float>>
+     */
+    public function summariesForPeople(string $personType, array $personIds, ?string $tenantId = null): Collection
+    {
+        $tenantId ??= config('app.current_tenant_id');
+
+        $rows = FinancialTransaction::query()
+            ->where('tenant_id', $tenantId)
+            ->where('person_type', $personType)
+            ->whereIn('person_id', $personIds)
+            ->selectRaw('person_id, transaction_type, direction, sum(amount) as total')
+            ->groupBy('person_id', 'transaction_type', 'direction')
+            ->get()
+            ->groupBy('person_id');
+
+        $zero = fn (): array => [
+            'charges' => 0.0, 'payments' => 0.0, 'refunds' => 0.0, 'transfers' => 0.0, 'adjustments' => 0.0,
+            'received' => 0.0, 'sent' => 0.0,
+        ];
+
+        $result = collect();
+
+        foreach ($personIds as $personId) {
+            $out = $zero();
+
+            foreach ($rows->get($personId, collect()) as $row) {
+                $total = (float) $row->total;
+                $in = $row->direction === FinancialDirection::MoneyIn;
+
+                // Reversal rows reuse the type with the flipped direction, so each
+                // bucket nets by direction (out − in for debt-growing entries).
+                switch ($row->transaction_type) {
+                    case FinancialTransactionType::Charge:
+                        $out['charges'] += $in ? -$total : $total;
+                        break;
+                    case FinancialTransactionType::Payment:
+                        $out['payments'] += $in ? $total : -$total;
+                        break;
+                    case FinancialTransactionType::Refund:
+                        $out['refunds'] += $in ? -$total : $total;
+                        break;
+                    case FinancialTransactionType::Transfer:
+                        if ($in) {
+                            $out['received'] += $total;
+                        } else {
+                            $out['sent'] += $total;
+                        }
+                        break;
+                    case FinancialTransactionType::Adjustment:
+                        $out['adjustments'] += $in ? -$total : $total;
+                        break;
+                }
+            }
+
+            $out['balance'] = $out['charges'] + $out['refunds'] + $out['adjustments'] + $out['sent']
+                - $out['payments'] - $out['received'];
+
+            $result->put($personId, $out);
+        }
+
+        return $result;
     }
 
     private function directionFor(FinancialTransactionType $type, ?string $override): FinancialDirection

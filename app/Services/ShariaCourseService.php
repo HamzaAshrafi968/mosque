@@ -13,6 +13,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -119,6 +120,43 @@ class ShariaCourseService
         return $summary;
     }
 
+    /**
+     * Batched attendanceSummary() for a roster: one grouped query for all
+     * students instead of a query per student (the course report tab).
+     *
+     * @param  Collection<int, ShariaCourseStudent>  $students
+     * @return Collection<string, array{present: int, absent: int, late: int, excused: int, total: int, percentage: float|null}>
+     */
+    public function attendanceSummaries(ShariaCourse $course, Collection $students): Collection
+    {
+        $counts = ShariaCourseAttendance::query()
+            ->where('course_id', $course->id)
+            ->whereIn('student_id', $students->pluck('id'))
+            ->selectRaw('student_id, status, count(*) as total')
+            ->groupBy('student_id', 'status')
+            ->get()
+            ->groupBy('student_id');
+
+        return $students->mapWithKeys(function (ShariaCourseStudent $student) use ($counts) {
+            $rows = $counts->get($student->id, collect())->pluck('total', 'status');
+
+            $summary = [
+                'present' => (int) ($rows[ShariaAttendanceStatus::Present->value] ?? 0),
+                'absent' => (int) ($rows[ShariaAttendanceStatus::Absent->value] ?? 0),
+                'late' => (int) ($rows[ShariaAttendanceStatus::Late->value] ?? 0),
+                'excused' => (int) ($rows[ShariaAttendanceStatus::Excused->value] ?? 0),
+            ];
+            $summary['total'] = array_sum($summary);
+
+            $denominator = $summary['present'] + $summary['late'] + $summary['absent'];
+            $summary['percentage'] = $denominator > 0
+                ? round(($summary['present'] + $summary['late']) / $denominator * 100, 1)
+                : null;
+
+            return [$student->id => $summary];
+        });
+    }
+
     /** The supervisor (any of them) or any lesson/lecture teacher may access the course. */
     public function assertCourseAccess(Teacher $teacher, ShariaCourse $course): void
     {
@@ -127,7 +165,6 @@ class ShariaCourseService
         }
 
         $teaches = $course->lessons()->where('teacher_id', $teacher->id)->exists();
-
         abort_unless($teaches, 403, 'لا تملك صلاحية الوصول لهذه الدورة');
     }
 

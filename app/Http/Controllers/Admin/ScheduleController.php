@@ -18,6 +18,7 @@ use App\Services\SessionService;
 use App\Support\ScheduleRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -47,8 +48,22 @@ class ScheduleController extends Controller
             ->orderByStudySession()
             ->get();
 
+        // The weekly grid needs the full collection; the flat table below it is
+        // paginated in-memory (no extra queries, bounded rendering).
+        $perPage = 50;
+        $page = max(1, (int) $request->input('page', 1));
+
+        $table = new LengthAwarePaginator(
+            $schedules->forPage($page, $perPage)->values(),
+            $schedules->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         return view('admin.schedules.index', [
             'schedules' => $schedules,
+            'table' => $table,
             'exceptions' => $this->sessions->upcomingExceptions($schedules->pluck('id')),
             'classrooms' => Classroom::with('sections:id,classroom_id,name')->orderBy('name')->get(),
             'subjects' => Subject::orderBy('name')->get(['id', 'name']),

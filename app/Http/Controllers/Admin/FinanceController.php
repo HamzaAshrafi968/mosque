@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\FinancePersonType;
+use App\Enums\FinancialDirection;
 use App\Http\Controllers\Controller;
 use App\Models\FinancialTransaction;
 use App\Models\Student;
@@ -10,7 +11,6 @@ use App\Models\Teacher;
 use App\Services\FinanceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -26,30 +26,38 @@ class FinanceController extends Controller
         $query = $request->string('q')->toString();
         $onlyOwing = $request->boolean('owing');
 
-        $people = FinanceService::personModel($type->value)::query()
-            ->when($query !== '', fn ($q) => $q->where('name', 'like', "%{$query}%"))
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $personModel = FinanceService::personModel($type->value);
+        $table = (new $personModel)->getTable();
 
-        $rows = $people
-            ->map(fn ($person) => [
+        // Net outstanding balance subquery (balance = Σ money_out − Σ money_in),
+        // so sorting and the "owing only" filter run in SQL instead of PHP.
+        $net = FinancialTransaction::query()
+            ->selectRaw('sum(case when direction = ? then amount else -amount end) as net', [FinancialDirection::MoneyOut->value])
+            ->where('tenant_id', config('app.current_tenant_id'))
+            ->where('person_type', $type->value)
+            ->whereColumn('person_id', "{$table}.id")
+            ->groupBy('person_id');
+
+        $people = $personModel::query()
+            ->select("{$table}.id", "{$table}.name")
+            ->selectSub($net, 'balance')
+            ->when($query !== '', fn ($q) => $q->where("{$table}.name", 'like', "%{$query}%"))
+            ->when($onlyOwing, fn ($q) => $q->having('balance', '>', 0))
+            ->orderByDesc('balance')
+            ->orderBy("{$table}.name")
+            ->paginate(25)
+            ->withQueryString();
+
+        $summaries = $this->finance->summariesForPeople($type->value, $people->pluck('id')->all());
+
+        $paginator = $people->through(
+            fn ($person) => [
                 'person' => $person,
-                'summary' => $this->finance->summary($type->value, $person->id),
-            ])
-            ->filter(fn ($row) => ! $onlyOwing || $row['summary']['balance'] > 0)
-            ->sortByDesc(fn ($row) => $row['summary']['balance'])
-            ->values();
-
-        $perPage = 25;
-        $page = max(1, (int) $request->input('page', 1));
-        $slice = $rows->slice(($page - 1) * $perPage, $perPage)->values();
-
-        $paginator = new LengthAwarePaginator(
-            $slice,
-            $rows->count(),
-            $perPage,
-            $page,
-            ['path' => $request->url(), 'query' => $request->query()]
+                'summary' => $summaries->get($person->id, [
+                    'charges' => 0.0, 'payments' => 0.0, 'refunds' => 0.0, 'transfers' => 0.0, 'adjustments' => 0.0,
+                    'received' => 0.0, 'sent' => 0.0, 'balance' => 0.0,
+                ]),
+            ]
         );
 
         return view('admin.finance.index', [

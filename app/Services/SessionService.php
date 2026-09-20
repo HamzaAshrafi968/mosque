@@ -154,7 +154,7 @@ class SessionService
                 $query->where('date', '>=', today())
                     ->orWhere('postponed_date', '>=', today());
             })
-            ->with(['teacher:id,name'])
+            ->with(['teacher:id,name', 'schedule.subject:id,name', 'schedule.program:id,name', 'schedule.classroom:id,name', 'schedule.section:id,name'])
             ->orderBy('date')
             ->get()
             ->groupBy('schedule_id');

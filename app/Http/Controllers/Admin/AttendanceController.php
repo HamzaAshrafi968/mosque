@@ -70,32 +70,52 @@ class AttendanceController extends Controller
     {
         $from = $request->input('from', now()->startOfMonth()->toDateString());
         $to = $request->input('to', now()->toDateString());
+        $sectionId = $request->input('section_id');
 
         $students = Student::query()
             ->with(['classroom:id,name', 'section:id,name,classroom_id'])
             ->active()
-            ->when($request->filled('section_id'), fn ($q) => $q->where('section_id', $request->input('section_id')))
+            ->when($sectionId, fn ($q) => $q->where('section_id', $sectionId))
             ->orderBy('name')
-            ->get();
+            ->paginate(25)
+            ->withQueryString();
 
-        $rows = $metrics->studentStats($students, $from, $to)->values();
+        $rows = $metrics->studentStats($students->getCollection(), $from, $to)->values();
+
+        // Range-wide totals in a single aggregate query (page-independent),
+        // mirroring the same filters as studentStats: active students in the
+        // selected section and records of sessions between the two dates.
+        $totals = AttendanceRecord::query()
+            ->whereHas('student', fn ($q) => $q->active()
+                ->when($sectionId, fn ($s) => $s->where('section_id', $sectionId)))
+            ->whereHas('session', fn ($s) => $s->whereBetween('date', [$from, $to]))
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $present = (int) $totals->get('present', 0);
+        $late = (int) $totals->get('late', 0);
+        $absent = (int) $totals->get('absent', 0);
+        $excused = (int) $totals->get('excused', 0);
 
         $totals = [
-            'present' => $rows->sum(fn (array $row) => $row['present']),
-            'absent' => $rows->sum(fn (array $row) => $row['absent']),
-            'late' => $rows->sum(fn (array $row) => $row['late']),
-            'excused' => $rows->sum(fn (array $row) => $row['excused']),
-            'total' => $rows->sum(fn (array $row) => $row['total']),
-            'attended' => $rows->sum(fn (array $row) => $row['attended']),
+            'present' => $present,
+            'absent' => $absent,
+            'late' => $late,
+            'excused' => $excused,
+            'total' => $present + $late + $absent,
+            'attended' => $present + $late,
         ];
 
         $totals['percentage'] = $totals['total'] > 0
             ? round(($totals['attended'] / $totals['total']) * 100, 1)
             : null;
 
+        $paginator = $students->setCollection($rows);
+
         return view('admin.attendance.summary', [
             'classrooms' => Classroom::with('sections:id,classroom_id,name')->orderBy('name')->get(),
-            'rows' => $rows,
+            'rows' => $paginator,
             'from' => $from,
             'to' => $to,
             'totals' => $totals,
