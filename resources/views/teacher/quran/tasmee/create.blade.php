@@ -64,19 +64,6 @@
                 <p class="text-xs text-gray-400 mt-1">مطلوب ما لم تحدد نطاق صفحات.</p>
             </div>
             <x-quran-page-range :from="old('from_page', $suggestedFrom)" :to="old('to_page', $suggestedTo)" :review-url="route('teacher.quran.tasmee.review')" />
-            <div>
-                <label class="block text-sm font-bold text-gray-700 mb-1">النتيجة</label>
-                <select name="result" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">— بدون —</option>
-                    @foreach($results as $result)
-                        <option value="{{ $result->value }}" @selected(old('result') === $result->value)>{{ $result->label() }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="md:col-span-2">
-                <label class="block text-sm font-bold text-gray-700 mb-1">المقروء</label>
-                <input type="text" name="recited_portion" value="{{ old('recited_portion') }}" placeholder="مثال: سورة البقرة من آية 1 إلى 25" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-            </div>
             <div class="md:col-span-2">
                 <label class="block text-sm font-bold text-gray-700 mb-1">ملاحظات</label>
                 <textarea name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2">{{ old('notes') }}</textarea>
