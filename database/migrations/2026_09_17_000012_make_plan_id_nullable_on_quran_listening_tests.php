@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -33,6 +34,8 @@ return new class extends Migration
 
     public function down(): void
     {
+        DB::table('quran_listening_tests')->whereNull('plan_id')->delete();
+
         Schema::table('quran_listening_tests', function (Blueprint $table) {
             $table->dropForeign(['plan_id']);
         });

@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -47,17 +48,25 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('quran_memorization_batches', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('retake_review_id');
-        });
+        if (Schema::hasColumn('quran_memorization_batches', 'retake_review_id')) {
+            Schema::table('quran_memorization_batches', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('retake_review_id');
+            });
+        }
 
-        Schema::table('quran_khamsa_reviews', function (Blueprint $table) {
-            $table->dropColumn('type');
-        });
+        if (Schema::hasColumn('quran_khamsa_reviews', 'type')) {
+            Schema::table('quran_khamsa_reviews', function (Blueprint $table) {
+                $table->dropColumn('type');
+            });
+        }
 
-        Schema::table('quran_listening_test_items', function (Blueprint $table) {
-            $table->dropForeign(['plan_item_id']);
-        });
+        DB::table('quran_listening_test_items')->whereNull('plan_item_id')->delete();
+
+        if ($this->hasPlanItemForeignKey()) {
+            Schema::table('quran_listening_test_items', function (Blueprint $table) {
+                $table->dropForeign(['plan_item_id']);
+            });
+        }
 
         Schema::table('quran_listening_test_items', function (Blueprint $table) {
             $table->uuid('plan_item_id')->nullable(false)->change();
@@ -70,5 +79,11 @@ return new class extends Migration
                 ->cascadeOnDelete();
             $table->unique(['test_id', 'plan_item_id']);
         });
+    }
+
+    private function hasPlanItemForeignKey(): bool
+    {
+        return collect(DB::select("pragma foreign_key_list('quran_listening_test_items')"))
+            ->contains(fn ($foreignKey) => $foreignKey->from === 'plan_item_id');
     }
 };

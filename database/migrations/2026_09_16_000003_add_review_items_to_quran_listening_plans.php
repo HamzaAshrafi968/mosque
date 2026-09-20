@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -55,22 +56,49 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('quran_listening_plan_items', function (Blueprint $table) {
-            $table->dropUnique(['plan_id', 'type', 'juz', 'khamsa']);
+        if (Schema::hasColumn('quran_listening_plan_items', 'type')) {
+            Schema::table('quran_listening_plan_items', function (Blueprint $table) {
+                $table->dropUnique(['plan_id', 'type', 'juz', 'khamsa']);
 
-            $table->dropConstrainedForeignId('khamsa_review_item_id');
-            $table->dropConstrainedForeignId('quran_review_session_id');
-            $table->dropColumn(['type', 'khamsa']);
+                $table->dropConstrainedForeignId('khamsa_review_item_id');
+                $table->dropConstrainedForeignId('quran_review_session_id');
+                $table->dropColumn(['type', 'khamsa']);
+            });
+        }
 
-            $table->unique(['plan_id', 'juz']);
-        });
+        $this->deduplicatePlanItems();
 
-        Schema::table('quran_khamsa_reviews', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('listening_plan_id');
-        });
+        if (! $this->hasPlanJuzUnique()) {
+            Schema::table('quran_listening_plan_items', function (Blueprint $table) {
+                $table->unique(['plan_id', 'juz']);
+            });
+        }
 
-        Schema::table('quran_listening_plans', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('khamsa_review_id');
-        });
+        if (Schema::hasColumn('quran_khamsa_reviews', 'listening_plan_id')) {
+            Schema::table('quran_khamsa_reviews', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('listening_plan_id');
+            });
+        }
+
+        if (Schema::hasColumn('quran_listening_plans', 'khamsa_review_id')) {
+            Schema::table('quran_listening_plans', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('khamsa_review_id');
+            });
+        }
+    }
+
+    private function deduplicatePlanItems(): void
+    {
+        DB::table('quran_listening_plan_items')
+            ->whereNotIn('id', function ($query) {
+                $query->selectRaw('min(id)')->from('quran_listening_plan_items')->groupBy('plan_id', 'juz');
+            })
+            ->delete();
+    }
+
+    private function hasPlanJuzUnique(): bool
+    {
+        return collect(Schema::getIndexes('quran_listening_plan_items'))
+            ->contains(fn ($index) => $index['name'] === 'quran_listening_plan_items_plan_id_juz_unique');
     }
 };

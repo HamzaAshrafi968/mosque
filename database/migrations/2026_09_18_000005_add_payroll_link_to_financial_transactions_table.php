@@ -23,6 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('financial_transactions', function (Blueprint $table) {
+            $table->dropIndex(['tenant_id', 'payroll_period_id']);
             $table->dropConstrainedForeignId('payroll_period_id');
             $table->dropColumn('payment_method');
         });

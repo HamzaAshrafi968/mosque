@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -41,6 +42,8 @@ return new class extends Migration
             $table->dropConstrainedForeignId('study_session_id');
             $table->dropColumn(['source_type', 'source_id', 'source_pages']);
         });
+
+        DB::table('reward_points')->whereNull('awarded_by')->delete();
 
         Schema::table('reward_points', function (Blueprint $table) {
             $table->foreignUuid('awarded_by')->nullable(false)->change();
