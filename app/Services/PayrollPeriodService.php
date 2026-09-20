@@ -6,8 +6,8 @@ use App\Enums\FinancialDirection;
 use App\Enums\FinancialTransactionType;
 use App\Enums\PaymentState;
 use App\Enums\PayrollStatus;
-use App\Enums\PayType;
 use App\Models\FinancialTransaction;
+use App\Models\HourlyRate;
 use App\Models\PayrollPeriod;
 use App\Models\Teacher;
 use App\Models\TeacherWorkHour;
@@ -31,6 +31,7 @@ class PayrollPeriodService
 {
     public function __construct(
         private readonly PayrollCalculator $calculator,
+        private readonly HourlyRateResolver $rates,
         private readonly FinanceService $finance,
         private readonly NotificationService $notifications,
         private readonly AuditLogger $audit,
@@ -54,14 +55,14 @@ class PayrollPeriodService
      *
      * @return array{
      *     period: ?PayrollPeriod,
-     *     pay_type: PayType,
      *     total_minutes: int,
      *     planned_minutes: int,
      *     gross: float,
      *     breakdown: array<int, array{rate: float, minutes: int, from: string, to: string}>,
      *     missing_rates: array<int, string>,
      *     hourly_rate: ?float,
-     *     monthly_salary: ?float,
+     *     current_rate: ?float,
+     *     rate_is_mixed: bool,
      *     paid: float,
      *     remaining: float,
      *     state: PaymentState,
@@ -76,7 +77,7 @@ class PayrollPeriodService
         $paid = $period !== null ? $this->paidFor($period) : 0.0;
         $plannedMinutes = (int) round(TeacherWorkHour::monthlyHours($teacher->id, $month) * 60);
 
-        return $this->buildSummary($teacher, $slots, $period, $paid, $plannedMinutes);
+        return $this->buildSummary($teacher, $slots, $period, $paid, $plannedMinutes, currentRate: $this->rates->rateFor($teacher, CarbonImmutable::now()));
     }
 
     /**
@@ -114,6 +115,24 @@ class PayrollPeriodService
             ->get()
             ->groupBy('teacher_id');
 
+        // أسعار الساعة لكل الأساتذة في الشهر — استعلام واحد بدل استعلام لكل
+        // تاريخ لكل أستاذ داخل breakdown().
+        $hourlyRates = HourlyRate::query()
+            ->whereIn('teacher_id', $ids)
+            ->whereDate('effective_from', '<=', $month->endOfMonth()->toDateString())
+            ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $month->startOfMonth()->toDateString()))
+            ->get()
+            ->groupBy('teacher_id');
+
+        // السعر الساري اليوم لكل أستاذ — لعرض «سعر الساعة» حتى بلا فترات مسجّلة.
+        $currentRates = HourlyRate::query()
+            ->whereIn('teacher_id', $ids)
+            ->activeOn(CarbonImmutable::now()->toDateString())
+            ->orderByDesc('effective_from')
+            ->get()
+            ->unique('teacher_id')
+            ->keyBy('teacher_id');
+
         $out = [];
 
         foreach ($teachers as $teacher) {
@@ -121,13 +140,16 @@ class PayrollPeriodService
             $plannedMinutes = (int) round(
                 TeacherWorkHour::monthlyHoursFromPeriods($workHours->get($teacher->id, collect()), $month) * 60
             );
+            $currentRate = $currentRates->get($teacher->id);
 
             $out[$teacher->id] = $this->buildSummary(
                 $teacher,
                 $slots->get($teacher->id, collect()),
                 $period,
                 $period !== null ? ($paid[$period->id] ?? 0.0) : 0.0,
-                $plannedMinutes
+                $plannedMinutes,
+                $hourlyRates->get($teacher->id, collect()),
+                $currentRate !== null ? (float) $currentRate->rate : null,
             );
         }
 
@@ -166,8 +188,6 @@ class PayrollPeriodService
 
         $period->fill([
             'total_minutes' => $calculated['minutes'],
-            'pay_type_snapshot' => $calculated['pay_type'],
-            'monthly_salary_snapshot' => $calculated['monthly_salary'],
             'hourly_rate_snapshot' => $calculated['hourly_rate'],
             'rate_breakdown' => $calculated['breakdown'] !== [] ? $calculated['breakdown'] : null,
             'gross_amount' => $calculated['gross'],
@@ -222,14 +242,12 @@ class PayrollPeriodService
             throw ValidationException::withMessages(['amount' => ['المبلغ يجب أن يكون أكبر من صفر']]);
         }
 
-        if ($period->pay_type_snapshot === PayType::Hourly) {
-            $missing = $this->missingRatesFor($period);
+        $missing = $this->missingRatesFor($period);
 
-            if ($missing !== []) {
-                throw ValidationException::withMessages([
-                    'amount' => ['لا يمكن احتساب الراتب — لا يوجد سعر ساعة في: '.implode('، ', $missing)],
-                ]);
-            }
+        if ($missing !== []) {
+            throw ValidationException::withMessages([
+                'amount' => ['لا يمكن احتساب الراتب — لا يوجد سعر ساعة في: '.implode('، ', $missing)],
+            ]);
         }
 
         $gross = (float) $period->gross_amount;
@@ -269,14 +287,12 @@ class PayrollPeriodService
             return $period;
         }
 
-        if ($period->pay_type_snapshot === PayType::Hourly) {
-            $missing = $this->missingRatesFor($period);
+        $missing = $this->missingRatesFor($period);
 
-            if ($missing !== []) {
-                throw ValidationException::withMessages([
-                    'close' => ['لا يمكن إغلاق الشهر — لا يوجد سعر ساعة في: '.implode('، ', $missing)],
-                ]);
-            }
+        if ($missing !== []) {
+            throw ValidationException::withMessages([
+                'close' => ['لا يمكن إغلاق الشهر — لا يوجد سعر ساعة في: '.implode('، ', $missing)],
+            ]);
         }
 
         $period->update([
@@ -353,6 +369,12 @@ class PayrollPeriodService
         return round((float) $total, 2);
     }
 
+    /** المدفوع الفعلي من السجل المالي لكل الكشوف المعطاة (استعلام واحد). */
+    public function paidByPeriodIds(array $periodIds): array
+    {
+        return $this->paidByPeriod($periodIds);
+    }
+
     /** @param  array<int, string>  $periodIds */
     private function paidByPeriod(array $periodIds): array
     {
@@ -382,26 +404,32 @@ class PayrollPeriodService
         $teacher = $period->teacher;
         $slots = $this->slotsFor($teacher, $period->monthStart());
 
-        return app(HourlyRateResolver::class)->breakdown($teacher, $slots)['missing'];
+        return $this->rates->breakdown($teacher, $slots)['missing'];
     }
 
     /**
      * @param  Collection<int, WorkSlot>  $slots
      * @return array<string, mixed>
      */
-    private function buildSummary(Teacher $teacher, Collection $slots, ?PayrollPeriod $period, float $paid, int $plannedMinutes): array
-    {
-        $calculated = $this->calculator->calculate($teacher, $slots);
+    private function buildSummary(
+        Teacher $teacher,
+        Collection $slots,
+        ?PayrollPeriod $period,
+        float $paid,
+        int $plannedMinutes,
+        ?Collection $preloadedRates = null,
+        ?float $currentRate = null,
+    ): array {
+        $calculated = $this->calculator->calculate($teacher, $slots, $preloadedRates);
 
         if ($period !== null && $period->isClosed()) {
             $calculated = [
-                'pay_type' => $period->pay_type_snapshot,
                 'minutes' => (int) $period->total_minutes,
                 'gross' => (float) $period->gross_amount,
                 'breakdown' => $period->rate_breakdown ?? [],
                 'missing' => [],
                 'hourly_rate' => $period->hourly_rate_snapshot !== null ? (float) $period->hourly_rate_snapshot : null,
-                'monthly_salary' => $period->monthly_salary_snapshot !== null ? (float) $period->monthly_salary_snapshot : null,
+                'rate_is_mixed' => count($period->rate_breakdown ?? []) > 1,
             ];
         }
 
@@ -410,14 +438,14 @@ class PayrollPeriodService
 
         return [
             'period' => $period,
-            'pay_type' => $calculated['pay_type'],
             'total_minutes' => $calculated['minutes'],
             'planned_minutes' => $plannedMinutes,
             'gross' => $gross,
             'breakdown' => $calculated['breakdown'],
             'missing_rates' => $calculated['missing'],
             'hourly_rate' => $calculated['hourly_rate'],
-            'monthly_salary' => $calculated['monthly_salary'],
+            'current_rate' => $currentRate,
+            'rate_is_mixed' => $calculated['rate_is_mixed'],
             'paid' => $paid,
             'remaining' => $remaining,
             'state' => $this->calculator->paymentState($gross, $paid),

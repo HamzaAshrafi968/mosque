@@ -13,9 +13,10 @@
 
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-2xl shadow p-5 text-center">
-        <div class="text-sm text-gray-500 mb-1">الراتب الشهري</div>
-        @if($salary !== null)
-            <div class="text-2xl font-bold text-gray-800" dir="ltr">{{ number_format($salary, 2) }}</div>
+        <div class="text-sm text-gray-500 mb-1">سعر ساعة راتبي</div>
+        @if($hourlyRate !== null)
+            <div class="text-2xl font-bold text-gray-800" dir="ltr">{{ number_format((float) $hourlyRate->rate, 2) }}</div>
+            <div class="text-[11px] text-gray-400 mt-1">ساري من <span dir="ltr">{{ $hourlyRate->effective_from->format('Y-m-d') }}</span></div>
         @else
             <div class="text-2xl font-bold text-gray-300">—</div>
         @endif

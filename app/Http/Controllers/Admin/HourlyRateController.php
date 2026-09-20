@@ -46,7 +46,7 @@ class HourlyRateController extends Controller
 
         // الأسعار السارية اليوم — لملخص الشهر الحالي (ساعات العمل × السعر).
         $activeRates = HourlyRate::query()
-            ->with('teacher:id,name,pay_type')
+            ->with('teacher:id,name')
             ->activeOn(now()->toDateString())
             ->get()
             ->filter(fn (HourlyRate $rate) => $rate->teacher !== null)
@@ -58,7 +58,7 @@ class HourlyRateController extends Controller
 
         return view('admin.settings.hourly-rates', [
             'rates' => $rates,
-            'teachers' => Teacher::query()->orderBy('name')->get(['id', 'name', 'pay_type']),
+            'teachers' => Teacher::query()->orderBy('name')->get(['id', 'name']),
             'search' => $search,
             'selectedTeacherId' => $selectedTeacherId,
             'activeRates' => $activeRates,
@@ -90,7 +90,7 @@ class HourlyRateController extends Controller
 
         return back()->with(
             'success',
-            'تمت إضافة سعر الساعة — حُوّل الأستاذ إلى الأجر بالساعة ويُحتسب راتبه من ساعات عمله'
+            'تمت إضافة سعر الساعة — يُحتسب المستحق من ساعات العمل المسجّلة'
         );
     }
 

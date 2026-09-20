@@ -7,9 +7,9 @@
     $authorization = app(\App\Services\AuthorizationService::class);
     $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
     $closed = $summary['status'] === \App\Enums\PayrollStatus::Closed;
-    $isHourly = $summary['pay_type'] === \App\Enums\PayType::Hourly;
     $monthLabel = \App\Support\QuranProgramSettings::monthLabel($monthInput);
     $filters = ['teacher' => $teacher->id];
+    $missingRate = $summary['missing_rates'] !== [];
 @endphp
 
 <div class="max-w-6xl mx-auto space-y-6">
@@ -18,9 +18,8 @@
             <a href="{{ route('admin.payroll.index', ['month' => $monthInput]) }}" class="text-sm text-emerald-700 hover:text-emerald-800">← دفعات المعلمين</a>
             <h2 class="text-2xl font-extrabold text-gray-800 mt-1">كشف {{ $teacher->name }}</h2>
             <div class="flex flex-wrap items-center gap-1 mt-2">
-                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600">{{ $summary['pay_type']->label() }}</span>
                 @foreach($teacher->studySessions as $session)
-                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800">{{ $session->name }}</span>
+                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800">{{ $session->display_name }}</span>
                 @endforeach
                 <span class="px-2 py-0.5 rounded-full text-[11px] font-bold {{ $summary['state']->badgeClasses() }}">{{ $summary['state']->label() }}</span>
                 <span @class([
@@ -76,8 +75,7 @@
             <x-icon name="alert" class="w-5 h-5 shrink-0" />
             <span><span class="font-bold">لا يمكن الاحتساب كاملاً:</span> لا يوجد سعر ساعة في <span dir="ltr">{{ implode('، ', $summary['missing_rates']) }}</span></span>
             @if($can('hourly_rates.manage'))
-                <a href="{{ route('admin.settings.hourly-rates.index', ['q' => $teacher->name, 'teacher_id' => $teacher->id]) }}"
-                   class="underline font-bold hover:no-underline">إضافة سعر</a>
+                <a href="#rate" class="underline font-bold hover:no-underline">إضافة سعر</a>
             @endif
         </div>
     @endif
@@ -152,37 +150,78 @@
         </div>
 
         <div class="space-y-5 lg:sticky lg:top-6">
-            @if($can('payroll.manage'))
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 space-y-3">
-                    <h3 class="font-black text-pine-950">بيانات الأجر</h3>
-                    <form method="POST" action="{{ route('admin.payroll.salary', $teacher) }}" class="space-y-3">
+            <div id="rate" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 space-y-3 scroll-mt-6">
+                <div class="flex items-center justify-between gap-2">
+                    <h3 class="font-black text-pine-950">سعر الساعة</h3>
+                    @if($currentRate !== null)
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $currentRate->statusBadgeClasses() }}">{{ $currentRate->statusLabel() }}</span>
+                    @endif
+                </div>
+
+                @if($currentRate !== null)
+                    <div class="rounded-xl bg-emerald-50/70 border border-emerald-100 px-4 py-3">
+                        <div class="flex items-end justify-between gap-2">
+                            <span class="text-2xl font-black text-emerald-800" dir="ltr">{{ number_format((float) $currentRate->rate, 2) }}</span>
+                            <span class="text-[11px] font-bold text-emerald-700">{{ $currency }} / ساعة</span>
+                        </div>
+                        <div class="text-[11px] text-emerald-700/80 mt-1">
+                            ساري من <span dir="ltr">{{ $currentRate->effective_from->format('Y-m-d') }}</span>
+                            — المستحق = ساعات الشهر × هذا السعر
+                        </div>
+                    </div>
+                @else
+                    <div class="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
+                        <span class="font-bold">لا يوجد سعر ساعة ساري اليوم</span> — أضف سعراً ليُحتسب المستحق من ساعات العمل.
+                    </div>
+                @endif
+
+                @if($can('hourly_rates.manage'))
+                    <form method="POST" action="{{ route('admin.payroll.rate', $teacher) }}" class="space-y-3 border-t border-gray-100 pt-3">
                         @csrf
                         <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">نوع الأجر</label>
-                            <select name="pay_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                                @foreach(\App\Enums\PayType::cases() as $type)
-                                    <option value="{{ $type->value }}" @selected($summary['pay_type'] === $type)>{{ $type->label() }}</option>
-                                @endforeach
-                            </select>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">
+                                {{ $currentRate !== null ? 'تعديل سعر الساعة' : 'إضافة سعر الساعة' }}
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" step="0.01" min="0.01" name="rate" required
+                                       value="{{ old('rate', $currentRate !== null ? number_format((float) $currentRate->rate, 2, '.', '') : '') }}"
+                                       placeholder="سعر الساعة"
+                                       class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold" dir="ltr">
+                                <span class="text-[11px] font-bold text-gray-400">{{ $currency }}/س</span>
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">الراتب الشهري ({{ $currency }}) — للنوع الشهري</label>
-                            <input type="number" step="0.01" min="0" name="monthly_salary"
-                                   value="{{ old('monthly_salary', $summary['monthly_salary']) }}" placeholder="غير محدد"
+                            <label class="block text-xs font-bold text-gray-600 mb-1">يسري من تاريخ</label>
+                            <input type="date" name="effective_from" required value="{{ old('effective_from', now()->toDateString()) }}"
                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" dir="ltr">
+                            <p class="text-[10px] text-gray-400 mt-1">يُغلق السعر السابق تلقائياً قبل هذا التاريخ.</p>
                         </div>
-                        <button class="w-full bg-gray-800 hover:bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg">حفظ بيانات الأجر</button>
+                        <button class="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">
+                            {{ $currentRate !== null ? 'حفظ السعر الجديد' : 'إضافة السعر' }}
+                        </button>
                     </form>
-                    <p class="text-[11px] text-gray-400">
-                        @if($isHourly && $summary['hourly_rate'] !== null)
-                            سعر الساعة الحالي: <span class="font-bold text-gray-600" dir="ltr">{{ number_format($summary['hourly_rate'], 2) }}</span>
-                        @elseif($isHourly)
-                            أسعار الساعة تُدار من
-                        @endif
-                        <a href="{{ route('admin.settings.hourly-rates.index', ['q' => $teacher->name]) }}" class="text-emerald-700 underline">إعدادات أسعار الساعة</a>.
-                    </p>
-                </div>
-            @endif
+                @endif
+
+                @if($rates->isNotEmpty())
+                    <details class="border-t border-gray-100 pt-3">
+                        <summary class="cursor-pointer text-[11px] font-bold text-gray-500 select-none">سجل الأسعار ({{ $rates->count() }})</summary>
+                        <div class="mt-2 space-y-1.5">
+                            @foreach($rates as $rate)
+                                <div class="flex items-center justify-between gap-2 text-xs border-b border-gray-50 pb-1.5 last:border-0">
+                                    <span class="font-bold text-gray-700" dir="ltr">{{ number_format((float) $rate->rate, 2) }}</span>
+                                    <span class="text-gray-400" dir="ltr">{{ $rate->effective_from->format('Y-m-d') }} → {{ $rate->effective_to?->format('Y-m-d') ?? 'مفتوح' }}</span>
+                                    <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold {{ $rate->statusBadgeClasses() }}">{{ $rate->statusLabel() }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </details>
+                @endif
+
+                <p class="text-[11px] text-gray-400">
+                    الإدارة الكاملة من
+                    <a href="{{ route('admin.settings.hourly-rates.index', ['q' => $teacher->name, 'teacher_id' => $teacher->id]) }}" class="text-emerald-700 underline">إعدادات أسعار الساعة</a>.
+                </p>
+            </div>
 
             <details class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <summary class="cursor-pointer px-5 py-3 font-black text-pine-950 select-none flex items-center justify-between">
@@ -224,7 +263,7 @@
                         </form>
                     @endif
 
-                    @if($isHourly && count($summary['breakdown']) > 1)
+                    @if(count($summary['breakdown']) > 1)
                         <div>
                             <div class="text-[11px] font-bold text-gray-500 mb-2">تفصيل التسعير (تغيّر السعر داخل الشهر)</div>
                             <div class="space-y-1.5">

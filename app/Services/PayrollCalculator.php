@@ -3,15 +3,15 @@
 namespace App\Services;
 
 use App\Enums\PaymentState;
-use App\Enums\PayType;
+use App\Models\HourlyRate;
 use App\Models\Teacher;
 use App\Models\WorkSlot;
 use Illuminate\Support\Collection;
 
 /**
- * احتساب إجمالي الراتب:
- * - `monthly`: الإجمالي = الراتب الشهري الثابت (والساعات للعرض فقط).
- * - `hourly`: الإجمالي = Σ (دقائق كل فترة × سعر تاريخها) ÷ 60، مقرّباً لخانتين.
+ * احتساب إجمالي المستحقات — بالساعات فقط:
+ * الإجمالي = Σ (دقائق كل فترة عمل × سعر الساعة في تاريخها) ÷ 60، مقرّباً لخانتين.
+ * الأيام بلا سعر لا تُحتسب بصفر صامت بل تُعاد في `missing` كتنبيه.
  */
 class PayrollCalculator
 {
@@ -19,34 +19,19 @@ class PayrollCalculator
 
     /**
      * @param  Collection<int, WorkSlot>  $slots
+     * @param  Collection<int, HourlyRate>|null  $preloadedRates
      * @return array{
-     *     pay_type: PayType,
      *     minutes: int,
      *     gross: float,
      *     breakdown: array<int, array{rate: float, minutes: int, from: string, to: string}>,
      *     missing: array<int, string>,
      *     hourly_rate: ?float,
-     *     monthly_salary: ?float
+     *     rate_is_mixed: bool
      * }
      */
-    public function calculate(Teacher $teacher, Collection $slots): array
+    public function calculate(Teacher $teacher, Collection $slots, ?Collection $preloadedRates = null): array
     {
-        $payType = $teacher->pay_type ?? PayType::Monthly;
-        $minutes = WorkSlot::totalMinutesFrom($slots);
-
-        if ($payType === PayType::Monthly) {
-            return [
-                'pay_type' => PayType::Monthly,
-                'minutes' => $minutes,
-                'gross' => round((float) ($teacher->monthly_salary ?? 0), 2),
-                'breakdown' => [],
-                'missing' => [],
-                'hourly_rate' => null,
-                'monthly_salary' => $teacher->monthly_salary !== null ? (float) $teacher->monthly_salary : null,
-            ];
-        }
-
-        $resolved = $this->rates->breakdown($teacher, $slots);
+        $resolved = $this->rates->breakdown($teacher, $slots, $preloadedRates);
         $gross = 0.0;
 
         foreach ($resolved['breakdown'] as $segment) {
@@ -54,13 +39,12 @@ class PayrollCalculator
         }
 
         return [
-            'pay_type' => PayType::Hourly,
-            'minutes' => $minutes,
+            'minutes' => WorkSlot::totalMinutesFrom($slots),
             'gross' => round($gross, 2),
             'breakdown' => $resolved['breakdown'],
             'missing' => $resolved['missing'],
             'hourly_rate' => count($resolved['breakdown']) === 1 ? $resolved['breakdown'][0]['rate'] : null,
-            'monthly_salary' => null,
+            'rate_is_mixed' => count($resolved['breakdown']) > 1,
         ];
     }
 

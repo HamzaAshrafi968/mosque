@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\Exam;
 use App\Models\Grade;
 use App\Models\Homework;
+use App\Models\HourlyRate;
 use App\Models\Lesson;
 use App\Models\Schedule;
 use App\Models\StudySession;
@@ -87,6 +88,11 @@ class TeacherController extends Controller
             'assignedSections' => $teacher->assignedSections()->with('classroom:id,name')->orderBy('name')->get(),
             'workHoursTotal' => round($teacher->workHours->sum(fn ($hour) => $hour->durationHours()), 2),
             'monthlyWorkHoursTotal' => TeacherWorkHour::monthlyHours($teacher->id),
+            'currentRate' => HourlyRate::query()
+                ->where('teacher_id', $teacher->id)
+                ->activeOn(now()->toDateString())
+                ->orderByDesc('effective_from')
+                ->first(),
         ]);
     }
 
@@ -190,6 +196,11 @@ class TeacherController extends Controller
             'customFields' => $this->customFields->definitions(Teacher::CUSTOM_FIELD_ENTITY),
             'customValues' => $this->customFields->valuesFor(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id),
             'sessions' => StudySession::orderForDisplay()->get(),
+            'currentRate' => HourlyRate::query()
+                ->where('teacher_id', $teacher->id)
+                ->activeOn(now()->toDateString())
+                ->orderByDesc('effective_from')
+                ->first(),
         ]);
     }
 
@@ -250,7 +261,6 @@ class TeacherController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'specialty' => ['nullable', 'string', 'max:255'],
             'hired_at' => ['nullable', 'date'],
-            'monthly_salary' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
             'password' => ['nullable', 'string', 'min:8'],
             'custom_fields' => ['nullable', 'array'],

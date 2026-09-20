@@ -6,6 +6,7 @@ use App\Enums\FinancePersonType;
 use App\Enums\FinancialDirection;
 use App\Enums\FinancialTransactionType;
 use App\Models\FinancialTransaction;
+use App\Models\HourlyRate;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\FinanceService;
@@ -34,7 +35,7 @@ class FinanceController extends BaseTeacherController
     ) {}
 
     /**
-     * صفحة الأستاذ المالية: يعرض ما نزل له فقط — الراتب الشهري، ساعات الشهر،
+     * صفحة الأستاذ المالية: يعرض ما نزل له فقط — سعر الساعة، ساعات الشهر،
      * عدّاد الساعات منذ آخر دفعة، وسجل الدفعات الواردة (المدير هو من يسجلها).
      */
     public function index(Request $request): View
@@ -61,7 +62,11 @@ class FinanceController extends BaseTeacherController
             'handed' => $handed,
             'remaining' => round($received - $handed, 2),
             'deposits' => $this->payroll->payments($teacher),
-            'salary' => $teacher->monthly_salary !== null ? (float) $teacher->monthly_salary : null,
+            'hourlyRate' => HourlyRate::query()
+                ->where('teacher_id', $teacher->id)
+                ->activeOn(now()->toDateString())
+                ->orderByDesc('effective_from')
+                ->first(),
             'monthlyHours' => $payroll['monthly_hours'],
             'hoursSinceLastPayment' => $payroll['hours_since_last_payment'],
             'lastPayment' => $payroll['last_payment'],

@@ -6,6 +6,7 @@ use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
 use App\Models\Classroom;
 use App\Models\Guardian;
+use App\Models\HourlyRate;
 use App\Models\IjazahMonthlyEvaluation;
 use App\Models\IjazahWeeklyEvaluation;
 use App\Models\ParentStudent;
@@ -96,12 +97,21 @@ class DatabaseSeeder extends Seeder
             'user_id' => $teacherUser->id,
             'name' => $teacherUser->name,
             'gender' => 'male',
-            'monthly_salary' => 1200,
             'study_session_id' => $firstSession->id,
         ]);
 
         Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $firstSession->id, 'gender' => 'male']);
         Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $secondSession->id, 'gender' => 'female']);
+
+        // الراتب بالساعات: سعر ساعة ساري لكل معلم (المستحق = الساعات × السعر).
+        Teacher::where('tenant_id', $mosque1->id)->get()->each(function (Teacher $row) use ($mosque1) {
+            HourlyRate::create([
+                'tenant_id' => $mosque1->id,
+                'teacher_id' => $row->id,
+                'rate' => 25,
+                'effective_from' => now()->subYear()->startOfMonth()->toDateString(),
+            ]);
+        });
 
         // لكل دوام صفوفه الخاصة (الصفوف غير المرتبطة بدوام مشتركة بين الدوامات).
         $classrooms = collect([
@@ -529,9 +539,17 @@ class DatabaseSeeder extends Seeder
             'user_id' => $mosque2TeacherUser->id,
             'name' => $mosque2TeacherUser->name,
             'gender' => 'male',
-            'monthly_salary' => 1000,
             'study_session_id' => $firstSession2->id,
         ]);
+
+        Teacher::where('tenant_id', $mosque2->id)->get()->each(function (Teacher $row) use ($mosque2) {
+            HourlyRate::create([
+                'tenant_id' => $mosque2->id,
+                'teacher_id' => $row->id,
+                'rate' => 20,
+                'effective_from' => now()->subYear()->startOfMonth()->toDateString(),
+            ]);
+        });
 
         $classrooms2 = collect([
             ['name' => 'الصف الأول', 'session' => $firstSession2],

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\FinancialTransaction;
+use App\Models\HourlyRate;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Teacher;
@@ -16,8 +17,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * رواتب المعلمين: المدير يحدد الراتب الشهري، ساعات العمل تُعرض شهرياً، كل دفعة
- * تصفّر عدّاد الساعات وتُرسل إشعاراً للأستاذ، والأستاذ يرى دفعاته فقط.
+ * رواتب المعلمين بالساعات: المدير يحدد سعر الساعة، ساعات العمل تُعرض شهرياً،
+ * كل دفعة تصفّر عدّاد الساعات وتُرسل إشعاراً للأستاذ، والأستاذ يرى دفعاته فقط.
  */
 class TeacherPayrollTest extends TestCase
 {
@@ -64,32 +65,42 @@ class TeacherPayrollTest extends TestCase
         }
     }
 
-    public function test_admin_sets_the_monthly_salary(): void
+    public function test_admin_changes_the_hourly_rate_from_the_sheet(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque, ['monthly_salary' => null]);
+        [, $teacher] = $this->teacher($mosque);
 
         $this->actingAs($manager)
-            ->post(route('admin.payroll.salary', $teacher), ['monthly_salary' => 1200])
+            ->post(route('admin.payroll.rate', $teacher), ['rate' => 1200, 'effective_from' => '2026-09-01'])
             ->assertRedirect();
 
-        $this->assertSame('1200.00', $teacher->fresh()->monthly_salary);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'teacher.salary_updated']);
+        $this->assertDatabaseHas('hourly_rates', [
+            'teacher_id' => $teacher->id,
+            'rate' => 1200,
+        ]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'hourly_rate.created']);
     }
 
-    public function test_payroll_page_lists_monthly_hours_salary_and_last_payment(): void
+    public function test_payroll_page_lists_monthly_hours_rate_and_expected_amount(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque, ['monthly_salary' => 1500, 'hired_at' => now()->subDays(10)]);
+        [, $teacher] = $this->teacher($mosque, ['hired_at' => now()->subDays(10)]);
         $this->dailyHours($mosque, $teacher);
+
+        HourlyRate::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'rate' => 5,
+            'effective_from' => now()->startOfMonth()->toDateString(),
+        ]);
 
         $this->actingAs($manager)
             ->get(route('admin.payroll.index'))
             ->assertOk()
             ->assertSee($teacher->name)
-            ->assertSee('1,500.00')
+            ->assertSee('5.00')
             ->assertSee((string) (2 * now()->daysInMonth));
     }
 
@@ -97,7 +108,7 @@ class TeacherPayrollTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [$teacherUser, $teacher] = $this->teacher($mosque, ['hired_at' => now()->subDays(10), 'monthly_salary' => 2000]);
+        [$teacherUser, $teacher] = $this->teacher($mosque, ['hired_at' => now()->subDays(10)]);
         $this->dailyHours($mosque, $teacher);
 
         $payroll = app(PayrollService::class);
@@ -129,7 +140,7 @@ class TeacherPayrollTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [$teacherAUser, $teacherA] = $this->teacher($mosque, ['monthly_salary' => 2000]);
+        [$teacherAUser, $teacherA] = $this->teacher($mosque);
         [, $teacherB] = $this->teacher($mosque);
 
         $this->actingAs($manager)
@@ -193,7 +204,7 @@ class TeacherPayrollTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque, ['hired_at' => now()->subDays(5), 'monthly_salary' => 2000]);
+        [, $teacher] = $this->teacher($mosque, ['hired_at' => now()->subDays(5)]);
 
         $this->actingAs($manager)->post(route('admin.payroll.pay', $teacher), ['amount' => 500]);
 

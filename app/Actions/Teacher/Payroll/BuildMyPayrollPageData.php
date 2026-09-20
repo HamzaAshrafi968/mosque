@@ -34,11 +34,7 @@ class BuildMyPayrollPageData
             ->paginate(12)
             ->withQueryString();
 
-        $paid = [];
-
-        foreach ($periods as $period) {
-            $paid[$period->id] = $this->payroll->paidFor($period);
-        }
+        $paid = $this->payroll->paidByPeriodIds($periods->pluck('id')->all());
 
         return [
             'teacher' => $teacher,

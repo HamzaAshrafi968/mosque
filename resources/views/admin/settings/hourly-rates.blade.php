@@ -28,7 +28,7 @@
                     <option value="">اختر المعلم…</option>
                     @foreach($teachers as $teacher)
                         <option value="{{ $teacher->id }}" @selected((string) old('teacher_id', $selectedTeacherId) === (string) $teacher->id)>
-                            {{ $teacher->name }} ({{ $teacher->pay_type->label() }})
+                            {{ $teacher->name }}
                         </option>
                     @endforeach
                 </select>
@@ -52,7 +52,10 @@
                 </div>
             </div>
         </form>
-        <p class="text-[11px] text-gray-400 mt-2">عند الحفظ يُحوَّل الأستاذ تلقائياً إلى نوع الأجر «بالساعة» إن لم يكن كذلك.</p>
+        <p class="text-[11px] text-gray-400 mt-2">
+            سعر الساعة هو أساس الراتب كاملاً — لا يوجد راتب شهري. تغيير السعر لا يمس الكشوف المغلقة.
+            عند إضافة سعر جديد يتقاطع مع سعر مفتوح سابق، يُغلق السابق تلقائياً قبل تاريخ البداية.
+        </p>
     </div>
 
     @if($activeRates->isNotEmpty())
@@ -68,9 +71,8 @@
                         <tr class="bg-gray-50 text-gray-600">
                             <th scope="col" class="px-4 py-3 text-right">الأستاذ</th>
                             <th scope="col" class="px-4 py-3 text-right">السعر الساري</th>
-                            <th scope="col" class="px-4 py-3 text-center">نوع الأجر</th>
                             <th scope="col" class="px-4 py-3 text-right">ساعات الشهر</th>
-                            <th scope="col" class="px-4 py-3 text-right">الراتب المتوقع</th>
+                            <th scope="col" class="px-4 py-3 text-right">المستحق المتوقع</th>
                             <th scope="col" class="px-4 py-3 text-center">حالة التسعير</th>
                         </tr>
                     </thead>
@@ -80,13 +82,6 @@
                         <tr class="border-t">
                             <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-800">{{ $rate->teacher?->name ?? '—' }}</td>
                             <td class="px-4 py-3 font-black text-emerald-700" dir="ltr">{{ number_format((float) $rate->rate, 2) }}</td>
-                            <td class="px-4 py-3 text-center">
-                                @if($rate->teacher?->pay_type === \App\Enums\PayType::Hourly)
-                                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">بالساعة</span>
-                                @else
-                                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">شهري — لن يُحتسب بالساعات</span>
-                                @endif
-                            </td>
                             <td class="px-4 py-3 whitespace-nowrap" dir="ltr">{{ $summary !== null ? \App\Models\WorkSlot::formatMinutes($summary['total_minutes']) : '—' }}</td>
                             <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-800" dir="ltr">
                                 {{ $summary !== null ? number_format($summary['gross'], 2).' '.$currency : '—' }}

@@ -46,9 +46,10 @@ class HourlyRateResolver
      * تفصيل التسعير لمجموعة فترات: شريحة لكل سعر مع دقائقها ونطاق تواريخها.
      *
      * @param  Collection<int, WorkSlot>  $slots
+     * @param  Collection<int, HourlyRate>|null  $preloadedRates  أسعار هذا الأستاذ المحمّلة مسبقاً (لمسارات الدفعة)
      * @return array{breakdown: array<int, array{rate: float, minutes: int, from: string, to: string}>, missing: array<int, string>}
      */
-    public function breakdown(Teacher $teacher, Collection $slots): array
+    public function breakdown(Teacher $teacher, Collection $slots, ?Collection $preloadedRates = null): array
     {
         $cache = [];
         $segments = [];
@@ -58,7 +59,9 @@ class HourlyRateResolver
             $date = CarbonImmutable::parse($slot->date)->toDateString();
 
             if (! array_key_exists($date, $cache)) {
-                $cache[$date] = $this->rateFor($teacher, $date);
+                $cache[$date] = $preloadedRates !== null
+                    ? $this->rateFromRows($preloadedRates, $date)
+                    : $this->rateFor($teacher, $date);
             }
 
             $rate = $cache[$date];
@@ -91,6 +94,18 @@ class HourlyRateResolver
         return ['breakdown' => array_values($segments), 'missing' => array_values($missing)];
     }
 
+    /** السعر الساري في تاريخ من صفوف أسعار محمّلة مسبقاً (دون استعلام). */
+    private function rateFromRows(Collection $rows, string $date): ?float
+    {
+        $match = $rows
+            ->filter(fn (HourlyRate $rate) => $rate->effective_from->toDateString() <= $date
+                && ($rate->effective_to === null || $rate->effective_to->toDateString() >= $date))
+            ->sortByDesc(fn (HourlyRate $rate) => $rate->effective_from->toDateString())
+            ->first();
+
+        return $match !== null ? (float) $match->rate : null;
+    }
+
     /** منع تداخل فترات السعر لنفس الأستاذ (شامل المفتوح). */
     public function assertNoOverlap(Teacher $teacher, string $from, ?string $to, ?string $ignoreId = null): void
     {
@@ -111,7 +126,8 @@ class HourlyRateResolver
 
             throw ValidationException::withMessages([
                 'effective_from' => [
-                    'يتعارض مع سعر قائم: '.$first->effective_from->format('Y-m-d').' — '.($first->effective_to?->format('Y-m-d') ?? 'مفتوح'),
+                    'يتعارض مع سعر مسجّل للفترة '.$first->effective_from->format('Y-m-d').' — '.($first->effective_to?->format('Y-m-d') ?? 'مفتوح')
+                    .'. اختر تاريخاً بعد انتهائه أو احذف السعر المتعارض.',
                 ],
             ]);
         }

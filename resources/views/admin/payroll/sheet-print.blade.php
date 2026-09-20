@@ -27,14 +27,20 @@
     <div class="muted">
         {{ $teacher->tenant?->name }}
         @if($teacher->studySessions->isNotEmpty())
-            — {{ $teacher->studySessions->pluck('name')->implode('، ') }}
+            — {{ $teacher->studySessions->pluck('display_name')->implode('، ') }}
         @endif
         — {{ \App\Support\QuranProgramSettings::monthLabel($monthInput) }}
-        — {{ $summary['pay_type']->label() }}
     </div>
 
     <div class="cards">
         <div>الساعات: <b>{{ \App\Models\WorkSlot::formatMinutes($summary['total_minutes']) }}</b></div>
+        @if($summary['hourly_rate'] !== null)
+            <div>سعر الساعة: <b dir="ltr">{{ number_format((float) $summary['hourly_rate'], 2) }}</b></div>
+        @elseif($summary['rate_is_mixed'])
+            <div>سعر الساعة: <b>متغيّر داخل الشهر</b></div>
+        @elseif($summary['current_rate'] !== null)
+            <div>سعر الساعة: <b dir="ltr">{{ number_format((float) $summary['current_rate'], 2) }}</b></div>
+        @endif
         <div>الإجمالي: <b dir="ltr">{{ number_format($summary['gross'], 2) }} {{ $currency }}</b></div>
         <div>المدفوع: <b dir="ltr">{{ number_format($summary['paid'], 2) }}</b></div>
         <div>المتبقي: <b dir="ltr">{{ number_format($summary['remaining'], 2) }}</b></div>

@@ -32,7 +32,7 @@ class PayrollController extends BaseApiController
         $search = $request->string('q')->toString();
 
         $teachers = Teacher::query()
-            ->with(['studySession:id,name', 'studySessions:id,name'])
+            ->with(['studySession:id,name,gender', 'studySessions:id,name,gender'])
             ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
             ->orderBy('name')
             ->paginate(25);
@@ -68,7 +68,7 @@ class PayrollController extends BaseApiController
     public function sheet(Teacher $teacher, Request $request): JsonResponse
     {
         $month = $this->resolveMonth($request);
-        $teacher->load(['studySession:id,name', 'studySessions:id,name']);
+        $teacher->load(['studySession:id,name,gender', 'studySessions:id,name,gender']);
 
         $summary = $this->payroll->summary($teacher, $month);
         $period = $summary['period'];
@@ -237,8 +237,9 @@ class PayrollController extends BaseApiController
 
         return $this->created([
             'id' => $rate->id,
-            'pay_type' => $teacher->fresh()->pay_type?->value,
-        ], 'تمت إضافة سعر الساعة وتحويل الأستاذ إلى الأجر بالساعة');
+            'rate' => (float) $rate->rate,
+            'effective_from' => $rate->effective_from->toDateString(),
+        ], 'تمت إضافة سعر الساعة — يُحتسب المستحق من ساعات العمل المسجّلة');
     }
 
     public function ratesDestroy(Request $request, HourlyRate $hourlyRate): JsonResponse

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\PayType;
 use App\Models\HourlyRate;
 use App\Models\PayrollPeriod;
 use App\Models\Permission;
@@ -90,11 +89,114 @@ class HourlyRateHistoryTest extends TestCase
         $this->assertSame(1, HourlyRate::query()->count());
     }
 
+    public function test_adding_a_new_rate_auto_closes_the_previous_open_rate(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+        [, $teacher] = $this->teacher($mosque);
+
+        $previous = HourlyRate::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'rate' => 20,
+            'effective_from' => '2026-09-01',
+        ]);
+
+        $this->actingAs($manager)
+            ->post(route('admin.settings.hourly-rates.store'), [
+                'teacher_id' => $teacher->id,
+                'rate' => 30,
+                'effective_from' => '2026-09-20',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame('2026-09-19', $previous->fresh()->effective_to->toDateString());
+
+        $current = HourlyRate::query()
+            ->where('teacher_id', $teacher->id)
+            ->orderByDesc('effective_from')
+            ->firstOrFail();
+
+        $this->assertSame('30.00', $current->rate);
+        $this->assertSame('2026-09-20', $current->effective_from->toDateString());
+        $this->assertNull($current->effective_to);
+        $this->assertSame(2, HourlyRate::query()->count());
+        $this->assertDatabaseHas('audit_logs', ['action' => 'hourly_rate.updated']);
+    }
+
+    public function test_adding_a_rate_on_the_same_start_date_replaces_the_open_rate(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+        [, $teacher] = $this->teacher($mosque);
+
+        HourlyRate::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'rate' => 20,
+            'effective_from' => '2026-09-20',
+        ]);
+
+        $this->actingAs($manager)
+            ->post(route('admin.settings.hourly-rates.store'), [
+                'teacher_id' => $teacher->id,
+                'rate' => 30,
+                'effective_from' => '2026-09-20',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $rates = HourlyRate::query()->where('teacher_id', $teacher->id)->get();
+
+        $this->assertCount(1, $rates);
+        $this->assertSame('30.00', $rates->first()->rate);
+        $this->assertNull($rates->first()->effective_to);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'hourly_rate.deleted']);
+    }
+
+    public function test_a_closed_rate_shifts_the_open_rate_to_after_its_end(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+        [, $teacher] = $this->teacher($mosque);
+
+        $open = HourlyRate::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'rate' => 20,
+            'effective_from' => '2026-01-15',
+        ]);
+
+        $this->actingAs($manager)
+            ->post(route('admin.settings.hourly-rates.store'), [
+                'teacher_id' => $teacher->id,
+                'rate' => 30,
+                'effective_from' => '2026-01-01',
+                'effective_to' => '2026-01-31',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $open->refresh();
+        $this->assertSame('2026-02-01', $open->effective_from->toDateString());
+        $this->assertNull($open->effective_to);
+        $this->assertSame('20.00', $open->rate);
+
+        $new = HourlyRate::query()
+            ->where('teacher_id', $teacher->id)
+            ->where('rate', 30)
+            ->firstOrFail();
+
+        $this->assertSame('2026-01-01', $new->effective_from->toDateString());
+        $this->assertSame('2026-01-31', $new->effective_to->toDateString());
+    }
+
     public function test_rate_change_refreshes_open_periods_but_not_closed_ones(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque, ['pay_type' => 'hourly', 'monthly_salary' => null]);
+        [, $teacher] = $this->teacher($mosque);
 
         WorkSlot::create([
             'tenant_id' => $mosque->id,
@@ -109,7 +211,7 @@ class HourlyRateHistoryTest extends TestCase
         $closed = PayrollPeriod::create([
             'tenant_id' => $mosque->id, 'teacher_id' => $teacher->id,
             'year' => 2026, 'month' => 8, 'total_minutes' => 360,
-            'pay_type_snapshot' => 'hourly', 'gross_amount' => 100,
+            'gross_amount' => 100,
             'paid_amount' => 0, 'status' => 'closed',
         ]);
 
@@ -135,11 +237,11 @@ class HourlyRateHistoryTest extends TestCase
         $this->assertSame('120.00', $period->paid_amount);
     }
 
-    public function test_adding_rate_switches_teacher_to_hourly_and_refreshes_open_period(): void
+    public function test_adding_rate_refreshes_open_period(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 500]);
+        [, $teacher] = $this->teacher($mosque);
 
         WorkSlot::create([
             'tenant_id' => $mosque->id,
@@ -153,8 +255,7 @@ class HourlyRateHistoryTest extends TestCase
         $period = PayrollPeriod::create([
             'tenant_id' => $mosque->id, 'teacher_id' => $teacher->id,
             'year' => 2026, 'month' => 9, 'total_minutes' => 0,
-            'pay_type_snapshot' => 'monthly', 'monthly_salary_snapshot' => 500,
-            'gross_amount' => 500, 'paid_amount' => 0, 'status' => 'open',
+            'gross_amount' => 0, 'paid_amount' => 0, 'status' => 'open',
         ]);
 
         $this->actingAs($manager)
@@ -166,11 +267,7 @@ class HourlyRateHistoryTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertSame(PayType::Hourly, $teacher->fresh()->pay_type);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'teacher.salary_updated']);
-
         $period->refresh();
-        $this->assertSame('hourly', $period->pay_type_snapshot->value);
         $this->assertSame(360, $period->total_minutes);
         $this->assertSame('120.00', $period->gross_amount);
 
@@ -181,6 +278,40 @@ class HourlyRateHistoryTest extends TestCase
             ->assertSee('6س')
             ->assertSee('120.00')
             ->assertSee('مكتمل التسعير');
+    }
+
+    public function test_manager_changes_the_rate_from_the_sheet_and_the_previous_rate_is_closed(): void
+    {
+        $mosque = $this->mosque();
+        $manager = $this->manager($mosque);
+        [, $teacher] = $this->teacher($mosque);
+
+        $previous = HourlyRate::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'rate' => 20,
+            'effective_from' => '2026-09-01',
+        ]);
+
+        $this->actingAs($manager)
+            ->post(route('admin.payroll.rate', $teacher), [
+                'rate' => 30,
+                'effective_from' => '2026-09-20',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame('2026-09-19', $previous->fresh()->effective_to->toDateString());
+
+        $current = HourlyRate::query()
+            ->where('teacher_id', $teacher->id)
+            ->orderByDesc('effective_from')
+            ->firstOrFail();
+
+        $this->assertSame('30.00', $current->rate);
+        $this->assertSame('2026-09-20', $current->effective_from->toDateString());
+        $this->assertNull($current->effective_to);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'hourly_rate.updated']);
     }
 
     public function test_settings_center_exposes_hourly_rates_tab_and_legacy_url_redirects(): void

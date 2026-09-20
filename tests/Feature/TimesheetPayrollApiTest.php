@@ -143,7 +143,7 @@ class TimesheetPayrollApiTest extends TestCase
     {
         $mosque = $this->mosque();
         Sanctum::actingAs($this->manager($mosque));
-        [, $teacher] = $this->teacher($mosque, ['pay_type' => 'hourly', 'monthly_salary' => null]);
+        [, $teacher] = $this->teacher($mosque);
 
         HourlyRate::create([
             'tenant_id' => $mosque->id,
@@ -169,7 +169,15 @@ class TimesheetPayrollApiTest extends TestCase
     {
         $mosque = $this->mosque();
         Sanctum::actingAs($this->manager($mosque));
-        [, $teacher] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 1000]);
+        [, $teacher] = $this->teacher($mosque);
+
+        HourlyRate::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'rate' => 100,
+            'effective_from' => '2026-09-01',
+        ]);
+        $this->slot($mosque, $teacher, '2026-09-20', '09:00', '19:00');
 
         $this->postJson("/api/v1/admin/payroll/teachers/{$teacher->id}/pay", [
             'month' => '2026-09',
@@ -192,7 +200,7 @@ class TimesheetPayrollApiTest extends TestCase
     {
         $mosque = $this->mosque();
         Sanctum::actingAs($this->manager($mosque));
-        [, $teacher] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 500]);
+        [, $teacher] = $this->teacher($mosque);
 
         $this->postJson("/api/v1/admin/payroll/teachers/{$teacher->id}/close", ['month' => '2026-09'])
             ->assertOk()
@@ -247,7 +255,7 @@ class TimesheetPayrollApiTest extends TestCase
     public function test_teacher_api_shows_only_his_own_timesheet_and_payroll(): void
     {
         $mosque = $this->mosque();
-        [$teacherUser, $teacher] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 300]);
+        [$teacherUser, $teacher] = $this->teacher($mosque);
         [, $otherTeacher] = $this->teacher($mosque);
 
         $this->slot($mosque, $teacher, '2026-09-20', '07:15', '09:45');
@@ -256,7 +264,6 @@ class TimesheetPayrollApiTest extends TestCase
         $otherPeriod = PayrollPeriod::create([
             'tenant_id' => $mosque->id, 'teacher_id' => $otherTeacher->id,
             'year' => 2026, 'month' => 10, 'total_minutes' => 0,
-            'pay_type_snapshot' => 'monthly', 'monthly_salary_snapshot' => 300,
             'gross_amount' => 300, 'paid_amount' => 0, 'status' => 'open',
         ]);
 

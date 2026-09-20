@@ -3,7 +3,6 @@
 namespace Tests\Unit;
 
 use App\Enums\PaymentState;
-use App\Enums\PayType;
 use App\Models\HourlyRate;
 use App\Models\Teacher;
 use App\Models\Tenant;
@@ -12,7 +11,7 @@ use App\Services\PayrollCalculator;
 use Tests\TestCase;
 
 /**
- * احتساب الإجمالي: الشهري ثابت، وبالساعة = Σ (دقائق × سعر تاريخها) ÷ 60.
+ * احتساب الإجمالي بالساعات فقط: Σ (دقائق × سعر تاريخها) ÷ 60.
  */
 class PayrollCalculatorTest extends TestCase
 {
@@ -32,26 +31,10 @@ class PayrollCalculatorTest extends TestCase
         return $slot;
     }
 
-    public function test_monthly_teacher_gross_is_the_monthly_salary_regardless_of_slots(): void
+    public function test_gross_multiplies_minutes_by_rate(): void
     {
         $mosque = $this->mosque();
-        $teacher = Teacher::factory()->create([
-            'tenant_id' => $mosque->id,
-            'pay_type' => 'monthly',
-            'monthly_salary' => 1500,
-        ]);
-
-        $result = app(PayrollCalculator::class)->calculate($teacher, collect([$this->slot('2026-09-20', 480)]));
-
-        $this->assertSame(PayType::Monthly, $result['pay_type']);
-        $this->assertSame(480, $result['minutes']);
-        $this->assertSame(1500.0, $result['gross']);
-    }
-
-    public function test_hourly_teacher_gross_multiplies_minutes_by_rate(): void
-    {
-        $mosque = $this->mosque();
-        $teacher = Teacher::factory()->create(['tenant_id' => $mosque->id, 'pay_type' => 'hourly', 'monthly_salary' => null]);
+        $teacher = Teacher::factory()->create(['tenant_id' => $mosque->id]);
 
         HourlyRate::create([
             'tenant_id' => $mosque->id,
@@ -64,16 +47,16 @@ class PayrollCalculatorTest extends TestCase
 
         $result = app(PayrollCalculator::class)->calculate($teacher, $slots);
 
-        $this->assertSame(PayType::Hourly, $result['pay_type']);
         $this->assertSame(360, $result['minutes']);
         $this->assertSame(120.0, $result['gross']);
         $this->assertSame(20.0, $result['hourly_rate']);
+        $this->assertFalse($result['rate_is_mixed']);
     }
 
     public function test_rate_change_mid_month_prices_each_slot_by_its_date(): void
     {
         $mosque = $this->mosque();
-        $teacher = Teacher::factory()->create(['tenant_id' => $mosque->id, 'pay_type' => 'hourly']);
+        $teacher = Teacher::factory()->create(['tenant_id' => $mosque->id]);
 
         HourlyRate::create(['tenant_id' => $mosque->id, 'teacher_id' => $teacher->id, 'rate' => 18, 'effective_from' => '2026-09-01', 'effective_to' => '2026-09-15']);
         HourlyRate::create(['tenant_id' => $mosque->id, 'teacher_id' => $teacher->id, 'rate' => 20, 'effective_from' => '2026-09-16']);
@@ -85,12 +68,13 @@ class PayrollCalculatorTest extends TestCase
         $this->assertSame(116.0, $result['gross']);
         $this->assertCount(2, $result['breakdown']);
         $this->assertNull($result['hourly_rate']);
+        $this->assertTrue($result['rate_is_mixed']);
     }
 
     public function test_amounts_are_rounded_half_up_to_two_decimals(): void
     {
         $mosque = $this->mosque();
-        $teacher = Teacher::factory()->create(['tenant_id' => $mosque->id, 'pay_type' => 'hourly']);
+        $teacher = Teacher::factory()->create(['tenant_id' => $mosque->id]);
 
         HourlyRate::create(['tenant_id' => $mosque->id, 'teacher_id' => $teacher->id, 'rate' => 19.99, 'effective_from' => '2026-09-01']);
 
@@ -102,7 +86,7 @@ class PayrollCalculatorTest extends TestCase
     public function test_missing_rates_are_reported_and_excluded_from_the_gross(): void
     {
         $mosque = $this->mosque();
-        $teacher = Teacher::factory()->create(['tenant_id' => $mosque->id, 'pay_type' => 'hourly']);
+        $teacher = Teacher::factory()->create(['tenant_id' => $mosque->id]);
 
         $result = app(PayrollCalculator::class)->calculate($teacher, collect([$this->slot('2026-09-10', 120)]));
 

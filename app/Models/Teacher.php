@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\PayType;
 use App\Traits\FlushesTenantCache;
 use App\Traits\HasAvatar;
 use App\Traits\MultiTenantTrait;
@@ -32,8 +31,6 @@ class Teacher extends Model
         'email',
         'specialty',
         'hired_at',
-        'monthly_salary',
-        'pay_type',
         'is_active',
         'photo',
     ];
@@ -42,8 +39,6 @@ class Teacher extends Model
     {
         return [
             'hired_at' => 'date',
-            'monthly_salary' => 'decimal:2',
-            'pay_type' => PayType::class,
             'is_active' => 'boolean',
         ];
     }

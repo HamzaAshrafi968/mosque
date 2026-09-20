@@ -14,7 +14,7 @@
     <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-800">دفعات المعلمين</h2>
-            <p class="text-sm text-gray-500 mt-1">ساعات كل معلم ومستحقاته ودفعاته في شاشة واحدة — سجّل الساعات، وادفع بنقرة.</p>
+            <p class="text-sm text-gray-500 mt-1">الراتب بالساعات: ساعات كل معلم × سعر الساعة — سجّل الساعات، وادفع بنقرة.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             @if($can('payroll.close'))
@@ -81,7 +81,7 @@
             <select name="session" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <option value="">كل الدوامات</option>
                 @foreach($sessions as $session)
-                    <option value="{{ $session->id }}" @selected((string) $sessionId === (string) $session->id)>{{ $session->name }}</option>
+                    <option value="{{ $session->id }}" @selected((string) $sessionId === (string) $session->id)>{{ $session->display_name }}</option>
                 @endforeach
             </select>
         </div>
@@ -115,9 +115,8 @@
                                     <a href="{{ route('admin.payroll.sheet', ['teacher' => $teacher, 'month' => $monthInput]) }}"
                                        class="font-black text-gray-800 hover:text-emerald-700 truncate">{{ $teacher->name }}</a>
                                     <div class="flex flex-wrap items-center gap-1 mt-1">
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600">{{ $summary['pay_type']->label() }}</span>
                                         @foreach($teacher->studySessions as $session)
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800">{{ $session->name }}</span>
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800">{{ $session->display_name }}</span>
                                         @endforeach
                                         @if($closed)
                                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-600">مغلق</span>
@@ -126,7 +125,7 @@
                                         @endif
                                         @if($hasMissingRate)
                                             @if($can('hourly_rates.manage'))
-                                                <a href="{{ route('admin.settings.hourly-rates.index', ['q' => $teacher->name, 'teacher_id' => $teacher->id]) }}"
+                                                <a href="{{ route('admin.payroll.sheet', ['teacher' => $teacher, 'month' => $monthInput]) }}#rate"
                                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200">⚠ لا يوجد سعر — أضف سعراً</a>
                                             @else
                                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">⚠ لا يوجد سعر</span>
@@ -139,6 +138,22 @@
                             <div class="text-center min-w-[5.5rem]">
                                 <div class="text-[11px] font-bold text-gray-400">الساعات</div>
                                 <x-duration :minutes="$summary['total_minutes']" class="text-lg font-black text-emerald-700" />
+                                @if($summary['planned_minutes'] > 0)
+                                    <div class="text-[10px] text-gray-400">المخطط {{ \App\Models\WorkSlot::formatMinutes($summary['planned_minutes']) }}</div>
+                                @endif
+                            </div>
+
+                            <div class="text-center min-w-[6rem]">
+                                <div class="text-[11px] font-bold text-gray-400">سعر الساعة</div>
+                                @if($summary['hourly_rate'] !== null)
+                                    <div class="font-black text-gray-700" dir="ltr">{{ number_format($summary['hourly_rate'], 2) }}</div>
+                                @elseif($summary['rate_is_mixed'])
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800">متغيّر داخل الشهر</span>
+                                @elseif($summary['current_rate'] !== null)
+                                    <div class="font-black text-gray-700" dir="ltr">{{ number_format($summary['current_rate'], 2) }}</div>
+                                @else
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-400">غير محدد</span>
+                                @endif
                             </div>
 
                             <div class="text-center min-w-[7rem]">

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\HourlyRate;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Teacher;
@@ -55,11 +56,22 @@ class PayrollExportTest extends TestCase
         ]);
     }
 
+    private function rate(Tenant $mosque, Teacher $teacher, float $rate = 20): void
+    {
+        HourlyRate::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'rate' => $rate,
+            'effective_from' => '2026-09-01',
+        ]);
+    }
+
     public function test_csv_export_contains_the_month_rows(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 1500]);
+        [, $teacher] = $this->teacher($mosque);
+        $this->rate($mosque, $teacher);
         $this->slot($mosque, $teacher);
 
         $response = $this->actingAs($manager)
@@ -71,7 +83,8 @@ class PayrollExportTest extends TestCase
         $content = $response->streamedContent();
 
         $this->assertStringContainsString($teacher->name, $content);
-        $this->assertStringContainsString('1500.00', $content);
+        $this->assertStringContainsString('120.00', $content);
+        $this->assertStringContainsString('سعر الساعة', $content);
         $this->assertStringContainsString('المعلم', $content);
     }
 
@@ -79,7 +92,8 @@ class PayrollExportTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 1500]);
+        [, $teacher] = $this->teacher($mosque);
+        $this->rate($mosque, $teacher);
         $this->slot($mosque, $teacher);
 
         $response = $this->actingAs($manager)
@@ -134,7 +148,8 @@ class PayrollExportTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        [, $teacher] = $this->teacher($mosque, ['pay_type' => 'monthly', 'monthly_salary' => 1500]);
+        [, $teacher] = $this->teacher($mosque);
+        $this->rate($mosque, $teacher);
         $this->slot($mosque, $teacher);
 
         $this->actingAs($manager)
@@ -142,7 +157,7 @@ class PayrollExportTest extends TestCase
             ->assertOk()
             ->assertSee('كشوف رواتب المعلمين')
             ->assertSee($teacher->name)
-            ->assertSee('1,500.00');
+            ->assertSee('120.00');
 
         $this->actingAs($manager)
             ->get(route('admin.payroll.sheet-print', ['teacher' => $teacher, 'month' => '2026-09']))

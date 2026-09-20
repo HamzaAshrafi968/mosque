@@ -18,7 +18,6 @@
             <a href="{{ route('teacher.payroll.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← رواتبي</a>
             <h2 class="text-2xl font-extrabold text-gray-800 mt-1">كشف {{ $period->monthLabel() }}</h2>
             <div class="flex flex-wrap items-center gap-1 mt-2">
-                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600">{{ $period->pay_type_snapshot->label() }}</span>
                 <span class="px-2 py-0.5 rounded-full text-[11px] font-bold {{ $state->badgeClasses() }}">{{ $state->label() }}</span>
                 @if($period->isClosed())
                     <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-200 text-gray-600">مغلق</span>

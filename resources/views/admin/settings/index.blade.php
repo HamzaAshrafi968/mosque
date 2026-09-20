@@ -71,7 +71,7 @@
                     </span>
                 </div>
                 <h2 class="font-bold text-gray-800 mt-4">أسعار الساعة</h2>
-                <p class="text-xs text-gray-500 mt-1 leading-relaxed">سعر ساعة كل أستاذ — يُحوَّل تلقائياً إلى الأجر بالساعة ويُحتسب راتبه من ساعات عمله.</p>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">سعر ساعة كل أستاذ — الراتب كله بالساعات: ساعات العمل × سعر الساعة.</p>
             </a>
         @endif
 

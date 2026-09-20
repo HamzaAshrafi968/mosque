@@ -40,7 +40,6 @@ class PayrollController extends BaseTeacherController
                 'id' => $period->id,
                 'month' => $period->monthKey(),
                 'month_label' => $period->monthLabel(),
-                'pay_type' => $period->pay_type_snapshot->value,
                 'total_minutes' => (int) $period->total_minutes,
                 'gross' => (float) $period->gross_amount,
                 'paid' => $paid,

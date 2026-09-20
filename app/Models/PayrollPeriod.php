@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\PaymentState;
 use App\Enums\PayrollStatus;
-use App\Enums\PayType;
 use App\Support\QuranProgramSettings;
 use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
@@ -16,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * كشف راتب شهري لأستاذ واحد.
+ * كشف مستحقات شهري لأستاذ واحد — بالساعات فقط (بلا راتب شهري).
  *
  * المفتوح يُحتسب حياً من فترات العمل والسعر الساري، وعند الإغلاق تُثبَّت
  * القيم كلقطة (snapshot) لا تتأثر بتغيير السعر أو الفترات لاحقاً.
@@ -31,8 +30,6 @@ class PayrollPeriod extends Model
         'year',
         'month',
         'total_minutes',
-        'pay_type_snapshot',
-        'monthly_salary_snapshot',
         'hourly_rate_snapshot',
         'rate_breakdown',
         'gross_amount',
@@ -49,8 +46,6 @@ class PayrollPeriod extends Model
             'year' => 'integer',
             'month' => 'integer',
             'total_minutes' => 'integer',
-            'pay_type_snapshot' => PayType::class,
-            'monthly_salary_snapshot' => 'decimal:2',
             'hourly_rate_snapshot' => 'decimal:2',
             'rate_breakdown' => 'array',
             'gross_amount' => 'decimal:2',

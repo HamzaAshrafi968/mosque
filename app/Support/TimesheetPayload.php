@@ -16,8 +16,6 @@ final class TimesheetPayload
         return [
             'id' => $teacher->id,
             'name' => $teacher->name,
-            'pay_type' => $teacher->pay_type?->value,
-            'pay_type_label' => $teacher->pay_type?->label(),
             'study_sessions' => $teacher->relationLoaded('studySessions')
                 ? $teacher->studySessions->pluck('name')->values()
                 : [],
@@ -43,14 +41,13 @@ final class TimesheetPayload
     {
         return [
             'period_id' => $summary['period']?->id,
-            'pay_type' => $summary['pay_type']->value,
-            'pay_type_label' => $summary['pay_type']->label(),
             'total_minutes' => $summary['total_minutes'],
             'total_label' => WorkSlot::formatMinutes($summary['total_minutes']),
             'planned_minutes' => $summary['planned_minutes'],
             'planned_label' => WorkSlot::formatMinutes($summary['planned_minutes']),
             'hourly_rate' => $summary['hourly_rate'],
-            'monthly_salary' => $summary['monthly_salary'],
+            'current_rate' => $summary['current_rate'],
+            'rate_is_mixed' => $summary['rate_is_mixed'],
             'gross' => $summary['gross'],
             'paid' => $summary['paid'],
             'remaining' => $summary['remaining'],

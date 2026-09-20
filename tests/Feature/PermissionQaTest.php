@@ -45,6 +45,7 @@ class PermissionQaTest extends TestCase
         'mosques.delete',
         'mosques.update',
         'mosques.view',
+        'payroll.manage',
         'permissions.manage',
         'qualifying.update',
         'reports.export',

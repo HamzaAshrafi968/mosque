@@ -10,10 +10,9 @@ use App\Models\HourlyRate;
 use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Models\WorkSlot;
-use App\Services\AuditLogger;
 use App\Services\FinanceService;
+use App\Services\HourlyRateService;
 use App\Services\PayrollPeriodService;
-use App\Services\WorkSlotService;
 use App\Support\TimesheetAggregator;
 use App\Support\XlsxWriter;
 use Carbon\CarbonImmutable;
@@ -31,8 +30,7 @@ class PayrollController extends Controller
 {
     public function __construct(
         private readonly PayrollPeriodService $payroll,
-        private readonly WorkSlotService $slots,
-        private readonly AuditLogger $audit,
+        private readonly HourlyRateService $rates,
     ) {}
 
     public function index(Request $request): View
@@ -42,7 +40,7 @@ class PayrollController extends Controller
         $sessionId = $request->input('session');
 
         $teachers = Teacher::query()
-            ->with(['studySession:id,name', 'studySessions:id,name'])
+            ->with(['studySession:id,name,gender', 'studySessions:id,name,gender'])
             ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
             ->when($sessionId, fn ($query) => $query->where(fn ($inner) => $inner
                 ->where('study_session_id', $sessionId)
@@ -61,7 +59,7 @@ class PayrollController extends Controller
             'monthInput' => $monthInput,
             'search' => $search,
             'sessionId' => $sessionId,
-            'sessions' => StudySession::query()->orderBy('name')->get(),
+            'sessions' => StudySession::query()->orderForDisplay()->get(),
             'currency' => FinanceService::DEFAULT_CURRENCY,
         ]);
     }
@@ -69,7 +67,7 @@ class PayrollController extends Controller
     public function sheet(Teacher $teacher, Request $request): View
     {
         [$month, $monthInput] = $this->resolveMonth($request);
-        $teacher->load(['studySession:id,name', 'studySessions:id,name']);
+        $teacher->load(['studySession:id,name,gender', 'studySessions:id,name,gender']);
 
         $slots = $this->payroll->slotsFor($teacher, $month);
         $summary = $this->payroll->summary($teacher, $month, null, $slots);
@@ -107,6 +105,11 @@ class PayrollController extends Controller
                 ->where('teacher_id', $teacher->id)
                 ->orderByDesc('effective_from')
                 ->get(),
+            'currentRate' => HourlyRate::query()
+                ->where('teacher_id', $teacher->id)
+                ->activeOn(now()->toDateString())
+                ->orderByDesc('effective_from')
+                ->first(),
             'currency' => FinanceService::DEFAULT_CURRENCY,
         ]);
     }
@@ -146,33 +149,21 @@ class PayrollController extends Controller
         );
     }
 
-    /** تحديد/تعديل الراتب الشهري للأستاذ (للنوع الشهري). */
-    public function updateSalary(Request $request, Teacher $teacher): RedirectResponse
+    /** تغيير سعر الساعة من كشف الأستاذ (يُغلق السعر السابق ويسري الجديد من تاريخه). */
+    public function updateRate(Request $request, Teacher $teacher): RedirectResponse
     {
         $data = $request->validate([
-            'monthly_salary' => ['nullable', 'numeric', 'min:0'],
-            'pay_type' => ['nullable', 'in:monthly,hourly'],
+            'rate' => ['required', 'numeric', 'gt:0'],
+            'effective_from' => ['required', 'date_format:Y-m-d'],
         ]);
 
-        $before = $teacher->getAttributes();
-        $update = [];
-
-        if ($request->exists('monthly_salary')) {
-            $update['monthly_salary'] = $data['monthly_salary'];
+        try {
+            $this->rates->change($teacher, $data['rate'], $data['effective_from'], $request->user());
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
         }
 
-        if (! empty($data['pay_type'])) {
-            $update['pay_type'] = $data['pay_type'];
-        }
-
-        if ($update !== []) {
-            $teacher->update($update);
-        }
-
-        $this->audit->logModel('teacher.salary_updated', $teacher, $before, actor: $request->user());
-        $this->payroll->refreshOpenForTeacher($teacher);
-
-        return back()->with('success', 'تم تحديث بيانات الأجر');
+        return back()->with('success', 'تم تحديث سعر الساعة — أُعيد احتساب الكشوف المفتوحة فوراً');
     }
 
     public function close(Request $request, Teacher $teacher): RedirectResponse
@@ -266,8 +257,7 @@ class PayrollController extends Controller
         $summaries = $this->payroll->summaries($teachers, $month);
 
         $rows = [[
-            'المعلم', 'نوع الأجر', 'الدقائق', 'الساعات', 'السعر/الراتب',
-            'الإجمالي', 'المدفوع', 'المتبقي', 'حالة الكشف', 'حالة السداد',
+            'المعلم', 'الساعات', 'سعر الساعة', 'الإجمالي', 'المدفوع', 'المتبقي', 'حالة الكشف', 'حالة السداد',
         ]];
 
         foreach ($teachers as $teacher) {
@@ -275,10 +265,10 @@ class PayrollController extends Controller
 
             $rows[] = [
                 $teacher->name,
-                $summary['pay_type']->label(),
-                $summary['total_minutes'],
                 WorkSlot::formatMinutes($summary['total_minutes']),
-                (float) ($summary['hourly_rate'] ?? $summary['monthly_salary'] ?? 0),
+                $summary['hourly_rate'] !== null
+                    ? (float) $summary['hourly_rate']
+                    : ($summary['rate_is_mixed'] ? 'سعر متغيّر' : ($summary['current_rate'] !== null ? (float) $summary['current_rate'] : '—')),
                 $summary['gross'],
                 $summary['paid'],
                 $summary['remaining'],
@@ -290,7 +280,7 @@ class PayrollController extends Controller
         return XlsxWriter::download(
             "payroll-{$monthInput}.xlsx",
             $rows,
-            [22, 12, 10, 12, 14, 12, 12, 12, 12, 12]
+            [22, 12, 12, 12, 12, 12, 12, 12]
         );
     }
 
@@ -315,7 +305,7 @@ class PayrollController extends Controller
     public function printSheet(Teacher $teacher, Request $request): View
     {
         [$month, $monthInput] = $this->resolveMonth($request);
-        $teacher->load(['studySession:id,name', 'studySessions:id,name']);
+        $teacher->load(['studySession:id,name,gender', 'studySessions:id,name,gender']);
 
         $slots = $this->payroll->slotsFor($teacher, $month);
         $summary = $this->payroll->summary($teacher, $month, null, $slots);
@@ -352,8 +342,7 @@ class PayrollController extends Controller
             fwrite($handle, "\xEF\xBB\xBF");
 
             fputcsv($handle, [
-                'المعلم', 'نوع الأجر', 'الدقائق', 'الساعات', 'السعر/الراتب',
-                'الإجمالي', 'المدفوع', 'المتبقي', 'الحالة',
+                'المعلم', 'الساعات', 'سعر الساعة', 'الإجمالي', 'المدفوع', 'المتبقي', 'الحالة',
             ]);
 
             foreach ($teachers as $teacher) {
@@ -361,10 +350,12 @@ class PayrollController extends Controller
 
                 fputcsv($handle, [
                     $teacher->name,
-                    $summary['pay_type']->label(),
-                    $summary['total_minutes'],
                     WorkSlot::formatMinutes($summary['total_minutes']),
-                    number_format((float) ($summary['hourly_rate'] ?? $summary['monthly_salary'] ?? 0), 2, '.', ''),
+                    $summary['hourly_rate'] !== null
+                        ? number_format($summary['hourly_rate'], 2, '.', '')
+                        : ($summary['rate_is_mixed']
+                            ? 'متغيّر'
+                            : ($summary['current_rate'] !== null ? number_format($summary['current_rate'], 2, '.', '') : '—')),
                     number_format($summary['gross'], 2, '.', ''),
                     number_format($summary['paid'], 2, '.', ''),
                     number_format($summary['remaining'], 2, '.', ''),

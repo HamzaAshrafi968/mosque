@@ -32,9 +32,8 @@
         <thead>
             <tr>
                 <th>المعلم</th>
-                <th>النوع</th>
                 <th>الساعات</th>
-                <th>السعر/الراتب</th>
+                <th>سعر الساعة</th>
                 <th>الإجمالي</th>
                 <th>المدفوع</th>
                 <th>المتبقي</th>
@@ -47,9 +46,18 @@
             @if($summary)
                 <tr>
                     <td>{{ $teacher->name }}</td>
-                    <td>{{ $summary['pay_type']->label() }}</td>
                     <td>{{ \App\Models\WorkSlot::formatMinutes($summary['total_minutes']) }}</td>
-                    <td dir="ltr">{{ number_format((float) ($summary['hourly_rate'] ?? $summary['monthly_salary'] ?? 0), 2) }}</td>
+                    <td dir="ltr">
+                        @if($summary['hourly_rate'] !== null)
+                            {{ number_format((float) $summary['hourly_rate'], 2) }}
+                        @elseif($summary['rate_is_mixed'])
+                            متغيّر
+                        @elseif($summary['current_rate'] !== null)
+                            {{ number_format((float) $summary['current_rate'], 2) }}
+                        @else
+                            —
+                        @endif
+                    </td>
                     <td dir="ltr">{{ number_format($summary['gross'], 2) }}</td>
                     <td dir="ltr">{{ number_format($summary['paid'], 2) }}</td>
                     <td dir="ltr">{{ number_format($summary['remaining'], 2) }}</td>

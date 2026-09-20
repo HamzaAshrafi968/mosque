@@ -152,7 +152,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('finance/transfers', [Admin\FinanceController::class, 'storeTransfer'])->name('finance.transfers.store')->middleware('permission:finance.create');
     Route::post('finance/transactions/{transaction}/reverse', [Admin\FinanceController::class, 'reverse'])->name('finance.reverse')->middleware('permission:finance.update');
 
-    // ---- رواتب المعلمين: الراتب الشهري + عدّاد الساعات + الدفعات ----
+    // ---- رواتب المعلمين: بالساعات فقط (فترات فعلية × سعر الساعة) + الدفعات ----
     Route::get('payroll', [Admin\PayrollController::class, 'index'])->name('payroll.index')->middleware('permission:finance.view,payroll.view');
     Route::get('payroll/rates', [Admin\HourlyRateController::class, 'legacyIndex'])->name('payroll.rates.index')->middleware('permission:hourly_rates.manage');
     Route::post('payroll/rates', [Admin\HourlyRateController::class, 'store'])->name('payroll.rates.store')->middleware('permission:hourly_rates.manage');
@@ -167,7 +167,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('payroll/{teacher}/sheet', [Admin\PayrollController::class, 'sheet'])->name('payroll.sheet')->middleware('permission:finance.view,payroll.view');
     Route::get('payroll/{teacher}/sheet/print', [Admin\PayrollController::class, 'printSheet'])->name('payroll.sheet-print')->middleware('permission:payroll.view,finance.view');
     Route::post('payroll/{teacher}/pay', [Admin\PayrollController::class, 'pay'])->name('payroll.pay')->middleware('permission:finance.create,payroll.pay');
-    Route::post('payroll/{teacher}/salary', [Admin\PayrollController::class, 'updateSalary'])->name('payroll.salary')->middleware('permission:finance.create,payroll.manage');
+    Route::post('payroll/{teacher}/rate', [Admin\PayrollController::class, 'updateRate'])->name('payroll.rate')->middleware('permission:hourly_rates.manage');
     Route::post('payroll/{teacher}/close', [Admin\PayrollController::class, 'close'])->name('payroll.close')->middleware('permission:payroll.close');
     Route::post('payroll/{teacher}/reopen', [Admin\PayrollController::class, 'reopen'])->name('payroll.reopen')->middleware('permission:payroll.reopen');
 

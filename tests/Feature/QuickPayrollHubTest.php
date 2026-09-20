@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\HourlyRate;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Teacher;
@@ -153,7 +154,23 @@ class QuickPayrollHubTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        $teacher = $this->teacher($mosque, ['monthly_salary' => 1000]);
+        $teacher = $this->teacher($mosque);
+
+        HourlyRate::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'rate' => 100,
+            'effective_from' => '2026-09-01',
+        ]);
+
+        WorkSlot::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'date' => '2026-09-20',
+            'start_time' => '08:00',
+            'end_time' => '18:00',
+            'duration_minutes' => 600,
+        ]);
 
         $this->actingAs($manager)
             ->post(route('admin.payroll.pay', $teacher), [
@@ -170,11 +187,11 @@ class QuickPayrollHubTest extends TestCase
             ->assertSee('مدفوع');
     }
 
-    public function test_hub_warns_when_an_hourly_teacher_has_no_rate(): void
+    public function test_hub_warns_when_a_teacher_has_no_rate(): void
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        $teacher = $this->teacher($mosque, ['pay_type' => 'hourly']);
+        $teacher = $this->teacher($mosque);
 
         WorkSlot::create([
             'tenant_id' => $mosque->id,
@@ -195,7 +212,23 @@ class QuickPayrollHubTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
-        $teacher = $this->teacher($mosque, ['monthly_salary' => 1000]);
+        $teacher = $this->teacher($mosque);
+
+        HourlyRate::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'rate' => 20,
+            'effective_from' => '2026-09-01',
+        ]);
+
+        WorkSlot::create([
+            'tenant_id' => $mosque->id,
+            'teacher_id' => $teacher->id,
+            'date' => '2026-09-20',
+            'start_time' => '08:00',
+            'end_time' => '14:00',
+            'duration_minutes' => 360,
+        ]);
 
         $this->actingAs($manager)
             ->post(route('admin.payroll.close-all'), ['month' => '2026-09', 'confirm_month' => '2026-09'])
