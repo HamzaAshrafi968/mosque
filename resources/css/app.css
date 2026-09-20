@@ -181,7 +181,8 @@
 }
 
 .sidebar-pattern {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23e8cd66' stroke-width='0.6' opacity='0.10'%3E%3Cpath d='M60 8 71 31 94 40 71 49 60 72 49 49 26 40 49 31Z'/%3E%3Ccircle cx='60' cy='40' r='7'/%3E%3Ccircle cx='26' cy='96' r='5'/%3E%3Ccircle cx='94' cy='96' r='5'/%3E%3Ccircle cx='60' cy='96' r='5'/%3E%3Cpath d='M0 96h16M104 96h16'/%3E%3Cpath d='M60 60v36'/%3E%3C/g%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23e8cd66' stroke-width='0.6' opacity='0.09'%3E%3Ccircle cx='0' cy='0' r='50'/%3E%3Ccircle cx='80' cy='0' r='50'/%3E%3Ccircle cx='0' cy='80' r='50'/%3E%3Ccircle cx='80' cy='80' r='50'/%3E%3C/g%3E%3Cg fill='%23e8cd66' stroke='none' opacity='0.16'%3E%3Ccircle cx='40' cy='40' r='1.4'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 80px 80px;
 }
 
 .topbar-sheen {
@@ -419,6 +420,11 @@ body.sidebar-collapsed .icon-when-expanded { display: none; }
 /* ============================================================
    عناصر النظام العامة
 ============================================================ */
+/* حجم الخط العام — 14px بدل 16px ليصغر كل البرنامج بتناسق (كل الوحدات rem) */
+html {
+    font-size: 14px;
+}
+
 body {
     font-feature-settings: 'kern';
     text-rendering: optimizeLegibility;
