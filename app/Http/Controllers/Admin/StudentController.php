@@ -198,7 +198,7 @@ class StudentController extends Controller
 
         $data = $this->applyAvatar($data, $request, $student->photo);
 
-        $student->update(collect($data)->except(['custom_fields', 'section_id', 'portal_email', 'portal_password', 'guardian_ids', 'guardian_ids_present', 'memorized_juz_numbers', 'memorized_juz_numbers_present'])->all());
+        $student->update(collect($data)->except(['custom_fields', 'section_id', 'portal_email', 'portal_password', 'portal_account_present', 'guardian_ids', 'guardian_ids_present', 'memorized_juz_numbers', 'memorized_juz_numbers_present'])->all());
 
         if ($student->user_id && array_key_exists('photo', $data)) {
             $student->user()->update(['photo' => $data['photo']]);
@@ -208,10 +208,14 @@ class StudentController extends Controller
             $this->customFields->save(Student::CUSTOM_FIELD_ENTITY, $student->id, $customFieldPayload);
         });
 
-        try {
-            $this->syncPortalAccount($student, $data, $request);
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
+        // The portal account changes only when the manager explicitly enables
+        // the account section; editing profile data never touches it.
+        if ($request->boolean('portal_account_present')) {
+            try {
+                $this->syncPortalAccount($student, $data, $request);
+            } catch (ValidationException $e) {
+                return back()->withErrors($e->errors())->withInput();
+            }
         }
 
         if ($request->boolean('guardian_ids_present')) {
@@ -360,6 +364,7 @@ class StudentController extends Controller
             'notes' => ['nullable', 'string'],
             'portal_email' => ['nullable', 'email', 'max:255'],
             'portal_password' => ['nullable', 'string', 'min:6', 'max:255'],
+            'portal_account_present' => ['nullable', 'boolean'],
             'custom_fields' => ['nullable', 'array'],
             'memorized_juz_numbers' => ['nullable', 'array'],
             'memorized_juz_numbers.*' => ['integer', 'min:1', 'max:30'],
@@ -435,27 +440,26 @@ class StudentController extends Controller
      */
     private function syncPortalAccount(Student $student, array $data, Request $request): void
     {
+        // Partial updates (API, photo-only saves) must not touch the portal account.
+        if (! array_key_exists('portal_email', $data) && ! array_key_exists('portal_password', $data)) {
+            return;
+        }
+
         $email = trim($data['portal_email'] ?? '');
         $password = $data['portal_password'] ?? null;
 
         $user = $student->user_id ? User::find($student->user_id) : null;
 
         if ($email === '') {
-            // Revoke: remove the account link (keep the user if reused elsewhere).
             if ($user) {
+                // Revoke: remove the account link (keep the user if reused elsewhere).
                 $student->update(['user_id' => null]);
 
                 if (! $user->teacher()->exists() && ! $user->guardian()->exists()) {
                     $user->delete();
                 }
-            }
-
-            return;
-        }
-
-        if ($password === null) {
-            if (! $user) {
-                throw ValidationException::withMessages(['portal_password' => 'كلمة المرور مطلوبة لإنشاء حساب جديد']);
+            } elseif ($password !== null) {
+                throw ValidationException::withMessages(['portal_email' => 'البريد الإلكتروني مطلوب لإنشاء حساب جديد']);
             }
 
             return;
@@ -464,13 +468,28 @@ class StudentController extends Controller
         $tenantId = $request->user()->tenant_id;
 
         if ($user) {
-            $user->update([
-                'name' => $student->name,
-                'password' => $password,
-                'email' => $email,
-            ]);
+            // Email and password are both optional on edit: each can change alone.
+            $payload = ['name' => $student->name, 'email' => $email];
+
+            if ($password !== null) {
+                $payload['password'] = $password;
+            }
+
+            if ($email !== $user->email) {
+                $exists = User::query()->where('email', $email)->where('id', '!=', $user->id)->exists();
+
+                if ($exists) {
+                    throw ValidationException::withMessages(['portal_email' => ['البريد مستخدم من قبل حساب آخر']]);
+                }
+            }
+
+            $user->update($payload);
 
             return;
+        }
+
+        if ($password === null) {
+            throw ValidationException::withMessages(['portal_password' => 'كلمة المرور مطلوبة لإنشاء حساب جديد']);
         }
 
         $exists = User::query()->where('email', $email)->exists();

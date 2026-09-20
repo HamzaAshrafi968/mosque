@@ -288,6 +288,27 @@ document.querySelectorAll('[data-dismiss-parent]').forEach((btn) => {
 });
 
 /* ============================================================
+   7.1) تفعيل حساب البوابة عند التعديل فقط (لا يتغيّر الحساب افتراضياً)
+============================================================ */
+function initPortalAccountToggles() {
+    document.querySelectorAll('[data-portal-account]').forEach((section) => {
+        const toggle = section.querySelector('[data-portal-account-toggle]');
+        const fields = section.querySelector('[data-portal-account-fields]');
+        if (!toggle || !fields) return;
+
+        const sync = () => {
+            fields.querySelectorAll('input').forEach((input) => {
+                input.disabled = !toggle.checked;
+            });
+            fields.classList.toggle('opacity-50', !toggle.checked);
+        };
+
+        toggle.addEventListener('change', sync);
+        sync();
+    });
+}
+
+/* ============================================================
    8) مسجّل الرسائل الصوتية (مثل واتساب)
 ============================================================ */
 function initVoiceRecorders() {
@@ -1553,6 +1574,7 @@ function initApp() {
     initFlashToasts();
     initPasswordToggles();
     initPhotoPreviews();
+    initPortalAccountToggles();
     initVoiceRecorders();
     initSearchPickers();
     initWorkSlotForms();

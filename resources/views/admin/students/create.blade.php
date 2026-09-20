@@ -102,12 +102,12 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
-                    <input type="email" name="portal_email" value="{{ old('portal_email') }}" dir="ltr"
+                    <input type="email" name="portal_email" value="{{ old('portal_email') }}" dir="ltr" autocomplete="off"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
-                    <input type="password" name="portal_password"
+                    <input type="password" name="portal_password" autocomplete="new-password"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
             </div>

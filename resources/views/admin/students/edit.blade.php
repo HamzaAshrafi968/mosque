@@ -127,18 +127,25 @@
         </div>
         <x-memorized-juz-script />
 
-        <div class="border-t border-gray-100 pt-4">
+        <div class="border-t border-gray-100 pt-4" data-portal-account>
             <h3 class="font-bold text-gray-800 mb-1">حساب بوابة الطالب</h3>
-            <p class="text-xs text-gray-400 mb-3">لإزالة الحساب امسح البريد الإلكتروني واحفظ. كلمة المرور تُترك فارغة لعدم تغييرها.</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <p class="text-xs text-gray-400 mb-3">حساب البوابة لا يتغيّر عند تعديل بيانات الطالب. فعّل «تعديل حساب البوابة» لتغيير البريد أو كلمة المرور: اترك كلمة المرور فارغة لعدم تغييرها، وامسح البريد لحذف الحساب، وأدخل البريد وكلمة المرور معاً لإنشاء حساب جديد.</p>
+            <label class="flex items-center gap-2 mb-3 cursor-pointer">
+                <input type="checkbox" name="portal_account_present" value="1"
+                       @checked(old('portal_account_present', $errors->has('portal_email') || $errors->has('portal_password')))
+                       data-portal-account-toggle
+                       class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-500">
+                <span class="text-sm font-medium text-gray-700">تعديل حساب البوابة</span>
+            </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" data-portal-account-fields>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
-                    <input type="email" name="portal_email" value="{{ old('portal_email', $student->user?->email) }}" dir="ltr"
+                    <input type="email" name="portal_email" value="{{ old('portal_email', $student->user?->email) }}" dir="ltr" autocomplete="off"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">كلمة مرور جديدة</label>
-                    <input type="password" name="portal_password"
+                    <input type="password" name="portal_password" autocomplete="new-password"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
             </div>
