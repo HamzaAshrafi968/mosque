@@ -6,8 +6,8 @@
 @include('guardian.children.partials.header')
 
 @php
-    $audienceMap = ['all' => 'عام', 'classroom' => 'لصف ' . ($child->classroom?->name ?? ''), 'guardians' => 'لأولياء الأمور'];
-    $audienceTint = ['all' => 'bg-pine-100 text-pine-700', 'classroom' => 'bg-gold-100 text-gold-800', 'guardians' => 'bg-sky-100 text-sky-700'];
+    $audienceMap = ['all' => 'عام', 'classroom' => 'لصف ' . ($child->classroom?->name ?? ''), 'classrooms' => 'لجميع الصفوف', 'guardians' => 'لأولياء الأمور'];
+    $audienceTint = ['all' => 'bg-pine-100 text-pine-700', 'classroom' => 'bg-gold-100 text-gold-800', 'classrooms' => 'bg-gold-100 text-gold-800', 'guardians' => 'bg-sky-100 text-sky-700'];
 @endphp
 
 <div class="space-y-4 max-w-4xl">

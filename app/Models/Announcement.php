@@ -18,6 +18,7 @@ class Announcement extends Model
         'tenant_id',
         'user_id',
         'classroom_id',
+        'study_session_id',
         'title',
         'body',
         'audience',
@@ -78,5 +79,11 @@ class Announcement extends Model
     public function classroom(): BelongsTo
     {
         return $this->belongsTo(Classroom::class);
+    }
+
+    /** الدوام المستهدف (null = جميع الدوامات). */
+    public function studySession(): BelongsTo
+    {
+        return $this->belongsTo(StudySession::class);
     }
 }

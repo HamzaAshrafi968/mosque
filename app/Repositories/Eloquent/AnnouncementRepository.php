@@ -17,7 +17,7 @@ class AnnouncementRepository extends BaseRepository implements AnnouncementRepos
     public function paginateWithAuthor(int $perPage = 15): LengthAwarePaginator
     {
         return $this->model
-            ->with(['author:id,name', 'classroom:id,name'])
+            ->with(['author:id,name', 'classroom:id,name', 'studySession:id,name,gender'])
             ->latest('published_at')
             ->paginate($perPage);
     }

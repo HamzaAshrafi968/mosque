@@ -26,6 +26,11 @@ class AnnouncementResource extends JsonResource
                 'id' => $this->classroom->id,
                 'name' => $this->classroom->name,
             ]),
+            'study_session_id' => $this->study_session_id,
+            'study_session' => $this->whenLoaded('studySession', fn () => [
+                'id' => $this->studySession->id,
+                'name' => $this->studySession->name,
+            ]),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];

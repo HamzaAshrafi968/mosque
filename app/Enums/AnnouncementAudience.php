@@ -8,4 +8,5 @@ enum AnnouncementAudience: string
     case Teachers = 'teachers';
     case Guardians = 'guardians';
     case Classroom = 'classroom';
+    case Classrooms = 'classrooms';
 }

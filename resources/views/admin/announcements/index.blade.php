@@ -82,29 +82,84 @@
                 حذف الإعلان تلقائيًا بعد أسبوع
             </label>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">الدوام المستهدف</label>
+                <select name="study_session_id" data-announcement-session class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <option value="">كل الدوامات</option>
+                    @foreach($studySessions as $session)
+                        <option value="{{ $session->id }}" @selected(old('study_session_id') == $session->id)>{{ $session->display_name }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-400 mt-1">اختر دوامًا ليصل الإعلان لمن فيه فقط، أو اتركه لجميع الدوامات.</p>
+            </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">الجمهور المستهدف <span class="text-red-500">*</span></label>
-                <select name="audience" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <select name="audience" required data-announcement-audience class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     <option value="all" @selected(old('audience') === 'all')>الجميع</option>
                     <option value="teachers" @selected(old('audience') === 'teachers')>المعلمون</option>
                     <option value="guardians" @selected(old('audience') === 'guardians')>أولياء الأمور</option>
                     <option value="classroom" @selected(old('audience') === 'classroom')>صف معين</option>
+                    <option value="classrooms" @selected(old('audience') === 'classrooms')>كل الصفوف</option>
                 </select>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">اختر الصف عند تحديد صف معين</label>
-                <select name="classroom_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <div data-announcement-classroom @class(['hidden' => old('audience') !== 'classroom'])>
+                <label class="block text-sm font-medium text-gray-700 mb-1">اختر الصف</label>
+                <select name="classroom_id" data-announcement-classroom-select class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     <option value="">—</option>
                     @foreach($classrooms as $classroom)
-                        <option value="{{ $classroom->id }}" @selected(old('classroom_id') == $classroom->id)>{{ $classroom->name }}</option>
+                        <option value="{{ $classroom->id }}" data-study-session="{{ $classroom->study_session_id }}" @selected(old('classroom_id') == $classroom->id)>{{ $classroom->name }}</option>
                     @endforeach
                 </select>
+                @error('classroom_id')
+                    <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                @enderror
             </div>
         </div>
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">نشر</button>
     </form>
 </div>
+
+<script>
+    (function () {
+        const audience = document.querySelector('[data-announcement-audience]');
+        const classroom = document.querySelector('[data-announcement-classroom]');
+        const session = document.querySelector('[data-announcement-session]');
+        const classroomSelect = document.querySelector('[data-announcement-classroom-select]');
+        if (!audience || !classroom) return;
+
+        const classroomOptions = classroomSelect
+            ? Array.from(classroomSelect.querySelectorAll('option')).map((option) => option.cloneNode(true))
+            : [];
+
+        const syncAudience = () => classroom.classList.toggle('hidden', audience.value !== 'classroom');
+
+        // صفوف الدوام الأول تختلف عن صفوف الدوام الثاني: نعرض صفوف الدوام
+        // المستهدف فقط (مع الصفوف المشتركة بلا دوام).
+        const syncClassrooms = () => {
+            if (!session || !classroomSelect) return;
+            const sessionId = session.value;
+            const current = classroomSelect.value;
+
+            classroomSelect.innerHTML = '';
+            classroomOptions.forEach((option) => {
+                const bound = option.dataset.studySession || '';
+                if (!option.value || sessionId === '' || bound === '' || bound === sessionId) {
+                    classroomSelect.appendChild(option.cloneNode(true));
+                }
+            });
+
+            if (current && classroomSelect.querySelector('option[value="' + current + '"]')) {
+                classroomSelect.value = current;
+            }
+        };
+
+        audience.addEventListener('change', syncAudience);
+        if (session) session.addEventListener('change', syncClassrooms);
+        syncAudience();
+        syncClassrooms();
+    })();
+</script>
 
 @php
     $audienceLabels = [
@@ -112,6 +167,7 @@
         'teachers' => 'المعلمون',
         'guardians' => 'أولياء الأمور',
         'classroom' => 'صف معين',
+        'classrooms' => 'كل الصفوف',
     ];
 @endphp
 
@@ -126,6 +182,13 @@
                     </span>
                 @endif
                 <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ $audienceLabels[$announcement->audience] ?? $announcement->audience }}</span>
+                @if($announcement->studySession)
+                    <span class="text-xs px-2 py-1 rounded-full bg-sky-100 text-sky-700 inline-flex items-center gap-1">
+                        <x-icon name="clock" class="w-3.5 h-3.5" /> {{ $announcement->studySession->display_name }}
+                    </span>
+                @else
+                    <span class="text-xs px-2 py-1 rounded-full border border-gray-200 text-gray-500">كل الدوامات</span>
+                @endif
                 @if($announcement->classroom)
                     <span class="text-xs text-gray-500">{{ $announcement->classroom->name }}</span>
                 @endif

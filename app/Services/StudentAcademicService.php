@@ -144,16 +144,25 @@ class StudentAcademicService
 
     /**
      * Announcements relevant to a student: general announcements plus those
-     * targeting their classroom (guardians additionally receive the
-     * `guardians` audience).
+     * targeting their classroom or every classroom (guardians additionally
+     * receive the `guardians` audience). Announcements targeted to another
+     * دوام are hidden; shift-less announcements stay visible to everyone.
      */
     public function announcements(Student $student, bool $guardianMode = false): Collection
     {
         return Announcement::query()
             ->whereNotNull('published_at')
             ->notExpired()
+            ->where(function ($q) use ($student) {
+                $q->whereNull('study_session_id');
+
+                if ($student->study_session_id) {
+                    $q->orWhere('study_session_id', $student->study_session_id);
+                }
+            })
             ->where(function ($q) use ($student, $guardianMode) {
-                $q->where('audience', AnnouncementAudience::All);
+                $q->where('audience', AnnouncementAudience::All)
+                    ->orWhere('audience', AnnouncementAudience::Classrooms);
 
                 if ($guardianMode) {
                     $q->orWhere('audience', AnnouncementAudience::Guardians);
