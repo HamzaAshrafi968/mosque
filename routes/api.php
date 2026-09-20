@@ -4,9 +4,9 @@ use App\Http\Controllers\Api\V1;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-    Route::post('login', [V1\AuthController::class, 'login']);
+    Route::post('login', [V1\AuthController::class, 'login'])->middleware('throttle:login');
 
-    Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
+    Route::middleware(['throttle:api', 'auth:sanctum', 'tenant'])->group(function () {
         Route::post('logout', [V1\AuthController::class, 'logout']);
         Route::get('me', [V1\AuthController::class, 'me']);
 

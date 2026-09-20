@@ -22,7 +22,7 @@ Route::get('/', fn () => auth()->check()
 
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('login', [AuthController::class, 'login'])->name('login.store');
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login')->name('login.store');
 });
 
 Route::post('logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');

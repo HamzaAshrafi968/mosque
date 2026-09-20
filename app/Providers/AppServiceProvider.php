@@ -43,6 +43,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('exam-actions', fn (Request $request) => Limit::perMinute(30)
             ->by($request->user()?->id ?: $request->ip()));
 
+        // منع تخمين كلمات المرور: 5 محاولات دخول في الدقيقة لكل IP + مستخدم.
+        RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)
+            ->by(mb_strtolower((string) ($request->input('email') ?? $request->input('username') ?? '')).'|'.$request->ip()));
+
+        // السقف العام لواجهة الـ API: 60 طلباً في الدقيقة لكل مستخدم/IP.
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)
+            ->by($request->user()?->id ?: $request->ip()));
+
         if ($this->app->isProduction()) {
             URL::forceScheme('https');
         }
