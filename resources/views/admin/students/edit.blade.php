@@ -95,34 +95,6 @@
                     </div>
                     <p class="text-xs text-gray-400 mt-2">عند تغيير مقدار الحفظ تُحدَّد الأجزاء تلقائياً — يمكنك تعديل التحديد يدوياً.</p>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">من سورة</label>
-                    <select name="memorized_from_surah_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                        <option value="">اختر السورة</option>
-                        @foreach($surahs as $surah)
-                            <option value="{{ $surah->id }}" @selected(old('memorized_from_surah_id', $student->memorized_from_surah_id) == $surah->id)>{{ $surah->name_arabic }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">من آية</label>
-                    <input type="number" name="memorized_from_ayah" value="{{ old('memorized_from_ayah', $student->memorized_from_ayah) }}" min="1"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">إلى سورة (ما وصل إليه)</label>
-                    <select name="memorized_to_surah_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                        <option value="">اختر السورة</option>
-                        @foreach($surahs as $surah)
-                            <option value="{{ $surah->id }}" @selected(old('memorized_to_surah_id', $student->memorized_to_surah_id) == $surah->id)>{{ $surah->name_arabic }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">إلى آية</label>
-                    <input type="number" name="memorized_to_ayah" value="{{ old('memorized_to_ayah', $student->memorized_to_ayah) }}" min="1"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
             </div>
         </div>
         <x-memorized-juz-script />

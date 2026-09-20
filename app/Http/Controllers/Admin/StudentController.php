@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Classroom;
 use App\Models\Guardian;
 use App\Models\QuranReviewSession;
-use App\Models\QuranSurah;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\StudySession;
@@ -180,7 +179,6 @@ class StudentController extends Controller
             'classrooms' => $this->classroomsTree(),
             'customFields' => $this->customFields->definitions(Student::CUSTOM_FIELD_ENTITY),
             'customValues' => $values,
-            'surahs' => $this->surahs(),
             'sessions' => StudySession::orderForDisplay()->get(),
             'memorizedJuz' => $this->khamsa->memorizedJuzNumbers($student),
             'selectedGuardians' => $this->guardiansForSelection($request, $student),
@@ -288,11 +286,6 @@ class StudentController extends Controller
     private function classroomsTree()
     {
         return Classroom::with('sections:id,classroom_id,name,status')->orderBy('name')->get();
-    }
-
-    private function surahs()
-    {
-        return QuranSurah::orderBy('sort_order')->get(['id', 'name_arabic', 'num_ayahs']);
     }
 
     /**
