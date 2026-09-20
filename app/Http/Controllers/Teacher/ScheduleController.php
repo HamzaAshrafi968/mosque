@@ -22,6 +22,7 @@ class ScheduleController extends BaseTeacherController
         $teacher = $this->currentTeacher($request);
 
         $schedules = Schedule::query()
+            ->activeOn(now())
             ->with(['classroom:id,name', 'section:id,name', 'subject:id,name', 'program:id,name,color', 'programPeriod:id,name'])
             ->where('teacher_id', $teacher->id)
             ->orderByStudySession()

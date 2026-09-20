@@ -16,6 +16,8 @@ class ProgramResource extends JsonResource
             'type' => $this->type->value,
             'type_label' => $this->type->label(),
             'description' => $this->description,
+            'starts_on' => $this->starts_on?->toDateString(),
+            'ends_on' => $this->ends_on?->toDateString(),
             'color' => $this->color,
             'is_active' => (bool) $this->is_active,
             'sort_order' => (int) $this->sort_order,

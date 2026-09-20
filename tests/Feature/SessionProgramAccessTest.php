@@ -201,7 +201,7 @@ class SessionProgramAccessTest extends TestCase
         $this->assertDatabaseCount('schedules', 1);
     }
 
-    public function test_weekly_generation_respects_the_shift_programs(): void
+    public function test_schedule_addition_respects_the_shift_programs(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         [$first] = $this->sessions($mosque);
@@ -211,7 +211,7 @@ class SessionProgramAccessTest extends TestCase
         $first->programs()->attach($tahfeez->id);
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), [
+            ->post(route('admin.schedules.store'), [
                 'classroom_id' => $this->classroom($mosque)->id,
                 'teacher_id' => $this->teacher($mosque, $first->id)->id,
                 'program_id' => $ijazah->id,

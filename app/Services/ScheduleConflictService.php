@@ -20,12 +20,14 @@ use RuntimeException;
 /**
  * المصدر الوحيد للحقيقة لكل فحوصات تعارض الجدول الدراسي.
  *
- * كل نقاط كتابة الحصص (إضافة حصة، التوليد الأسبوعي، النقل بين الشعب،
- * نقل الصف بين الدوامات، التأجيل) يجب أن تمر من هنا داخل معاملة + قفل
+ * كل نقاط كتابة الحصص (إضافة حصة/حصص، النقل بين الشعب، نقل الصف بين
+ * الدوامات، التأجيل) يجب أن تمر من هنا داخل معاملة + قفل
  * (`withScheduleLock`) حتى لا يسبق حفظان متزامنان الفحص.
  *
  * قاعدة التداخل: يتداخل الوقتان إذا كان aStart < bEnd و bStart < aEnd،
  * لذا الحصتان المتجاورتان (16:00–18:00 و18:00–20:00) لا تتعارضان.
+ * وتُقارن مدة الصلاحية أيضاً: حصتان بنفس الوقت لكن بفترات تواريخ غير
+ * متقاطعة (مثال: أسبوع مقابل الشهر القادم) لا تتعارضان.
  *
  * تعارض المعلم يُفحص عبر كل الدوامات (المعلم قد يدرّس في أكثر من دوام)،
  * بينما تعارض الشعبة/الصف يخص نفس الشعبة فقط. النطاق الزمني للجامع الحالي
@@ -71,6 +73,39 @@ class ScheduleConflictService
         return $aStart < $bEnd && $bStart < $aEnd;
     }
 
+    /**
+     * هل تتقاطع مدتا صلاحية الحصتين؟ القيمة الفارغة = مفتوحة بلا حد
+     * (من البداية للنهاية)، فالحصة المفتوحة تتقاطع مع كل شيء.
+     */
+    public static function dateRangesOverlap(
+        ?string $aStart,
+        ?string $aEnd,
+        ?string $bStart,
+        ?string $bEnd,
+    ): bool {
+        if ($aStart !== null && $bEnd !== null && $aStart > $bEnd) {
+            return false;
+        }
+
+        if ($bStart !== null && $aEnd !== null && $bStart > $aEnd) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** قصر الاستعلام على الحصص التي تتقاطع مدتها مع نطاق الحصة المقترحة. */
+    private function applyDateWindow(Builder $query, ?string $startsOn, ?string $endsOn): Builder
+    {
+        return $query
+            ->when($endsOn !== null, fn (Builder $q) => $q->where(
+                fn (Builder $inner) => $inner->whereNull('starts_on')->orWhereDate('starts_on', '<=', $endsOn)
+            ))
+            ->when($startsOn !== null, fn (Builder $q) => $q->where(
+                fn (Builder $inner) => $inner->whereNull('ends_on')->orWhereDate('ends_on', '>=', $startsOn)
+            ));
+    }
+
     // =====================================================================
     // فحص حصة واحدة
     // =====================================================================
@@ -93,7 +128,7 @@ class ScheduleConflictService
 
         $conflicts = [];
 
-        // 1) تداخل مع حصص نفس الشعبة (أو حصة الصف كاملاً).
+        // 1) تداخل مع حصص نفس الشعبة (أو حصة الصف كاملاً) ضمن نفس المدة.
         $sectionConflict = $this->overlappingSchedules($slot, $day, $startsAt, $endsAt, $excludeScheduleId)
             ->with(['classroom:id,name', 'section:id,name', 'subject:id,name'])
             ->first();
@@ -107,15 +142,19 @@ class ScheduleConflictService
             ];
         }
 
-        // 2) انشغال المعلم في أي شعبة/دوام داخل الجامع.
+        // 2) انشغال المعلم في أي شعبة/دوام داخل الجامع ضمن نفس المدة.
         if (! empty($slot['teacher_id'])) {
-            $teacherConflict = Schedule::query()
-                ->withoutGlobalScope('study_session')
-                ->where('teacher_id', $slot['teacher_id'])
-                ->where('day_of_week', $day)
-                ->whereTime('starts_at', '<', $endsAt)
-                ->whereTime('ends_at', '>', $startsAt)
-                ->when($excludeScheduleId, fn (Builder $q) => $q->whereKeyNot($excludeScheduleId))
+            $teacherConflict = $this->applyDateWindow(
+                Schedule::query()
+                    ->withoutGlobalScope('study_session')
+                    ->where('teacher_id', $slot['teacher_id'])
+                    ->where('day_of_week', $day)
+                    ->whereTime('starts_at', '<', $endsAt)
+                    ->whereTime('ends_at', '>', $startsAt)
+                    ->when($excludeScheduleId, fn (Builder $q) => $q->whereKeyNot($excludeScheduleId)),
+                $slot['starts_on'] ?? null,
+                $slot['ends_on'] ?? null,
+            )
                 ->with(['classroom:id,name', 'section:id,name', 'subject:id,name', 'studySession:id,name'])
                 ->first();
 
@@ -210,6 +249,15 @@ class ScheduleConflictService
             return false;
         }
 
+        if (! self::dateRangesOverlap(
+            $a['starts_on'] ?? null,
+            $a['ends_on'] ?? null,
+            $b['starts_on'] ?? null,
+            $b['ends_on'] ?? null,
+        )) {
+            return false;
+        }
+
         if (! empty($a['teacher_id']) && ($a['teacher_id'] ?? null) === ($b['teacher_id'] ?? null)) {
             return true;
         }
@@ -224,18 +272,22 @@ class ScheduleConflictService
         return $aSection === null || $bSection === null || $aSection === $bSection;
     }
 
-    /** حصص نفس الشعبة/الصف المتداخلة مع الحصة المقترحة. */
+    /** حصص نفس الشعبة/الصف المتداخلة زمنياً وضمن نفس المدة مع الحصة المقترحة. */
     private function overlappingSchedules(array $slot, int $day, string $startsAt, string $endsAt, ?string $excludeScheduleId): Builder
     {
         $sectionId = $slot['section_id'] ?? null;
 
-        return Schedule::query()
-            ->withoutGlobalScope('study_session')
-            ->where('classroom_id', $slot['classroom_id'])
-            ->where('day_of_week', $day)
-            ->whereTime('starts_at', '<', $endsAt)
-            ->whereTime('ends_at', '>', $startsAt)
-            ->when($excludeScheduleId, fn (Builder $q) => $q->whereKeyNot($excludeScheduleId))
+        return $this->applyDateWindow(
+            Schedule::query()
+                ->withoutGlobalScope('study_session')
+                ->where('classroom_id', $slot['classroom_id'])
+                ->where('day_of_week', $day)
+                ->whereTime('starts_at', '<', $endsAt)
+                ->whereTime('ends_at', '>', $startsAt)
+                ->when($excludeScheduleId, fn (Builder $q) => $q->whereKeyNot($excludeScheduleId)),
+            $slot['starts_on'] ?? null,
+            $slot['ends_on'] ?? null,
+        )
             // حصة الشعبة تتعارض مع حصص نفس الشعبة أو حصة الصف كاملاً،
             // وحصة الصف (بلا شعبة) تتعارض مع أي حصة في نفس الصف.
             ->when($sectionId !== null, fn (Builder $q) => $q->where(
@@ -304,6 +356,15 @@ class ScheduleConflictService
                     continue;
                 }
 
+                if (! self::dateRangesOverlap(
+                    $existing->starts_on?->toDateString(),
+                    $existing->ends_on?->toDateString(),
+                    $proposed->starts_on?->toDateString(),
+                    $proposed->ends_on?->toDateString(),
+                )) {
+                    continue;
+                }
+
                 $messages[] = 'يتعارض مع حصص الطالب الحالية: '
                     .($existing->subject?->name ?? 'حصة')
                     .' في '.($existing->section?->name ?? 'شعبته')
@@ -355,6 +416,11 @@ class ScheduleConflictService
                             $dayRows[$i]->ends_at,
                             $dayRows[$j]->starts_at,
                             $dayRows[$j]->ends_at
+                        ) && self::dateRangesOverlap(
+                            $dayRows[$i]->starts_on?->toDateString(),
+                            $dayRows[$i]->ends_on?->toDateString(),
+                            $dayRows[$j]->starts_on?->toDateString(),
+                            $dayRows[$j]->ends_on?->toDateString(),
                         )) {
                             $conflicts->push([
                                 'teacher_id' => $teacherId,
@@ -398,15 +464,19 @@ class ScheduleConflictService
         $day = $parsed->dayOfWeek;
         $conflicts = [];
 
-        // 1) حصص المعلم الأسبوعية الأخرى.
+        // 1) حصص المعلم الأسبوعية الأخرى السارية في الموعد الجديد.
         if ($schedule->teacher_id) {
-            $teacherClash = Schedule::query()
-                ->withoutGlobalScope('study_session')
-                ->where('teacher_id', $schedule->teacher_id)
-                ->whereKeyNot($schedule->id)
-                ->where('day_of_week', $day)
-                ->whereTime('starts_at', '<', $endsAt)
-                ->whereTime('ends_at', '>', $startsAt)
+            $teacherClash = $this->applyDateWindow(
+                Schedule::query()
+                    ->withoutGlobalScope('study_session')
+                    ->where('teacher_id', $schedule->teacher_id)
+                    ->whereKeyNot($schedule->id)
+                    ->where('day_of_week', $day)
+                    ->whereTime('starts_at', '<', $endsAt)
+                    ->whereTime('ends_at', '>', $startsAt),
+                $parsed->toDateString(),
+                $parsed->toDateString(),
+            )
                 ->with(['section:id,name', 'classroom:id,name'])
                 ->first();
 
@@ -439,17 +509,21 @@ class ScheduleConflictService
             }
         }
 
-        // 3) حصص نفس الشعبة/الصف في الموعد الجديد.
-        $sectionClash = Schedule::query()
-            ->withoutGlobalScope('study_session')
-            ->where('classroom_id', $schedule->classroom_id)
-            ->whereKeyNot($schedule->id)
-            ->where('day_of_week', $day)
-            ->whereTime('starts_at', '<', $endsAt)
-            ->whereTime('ends_at', '>', $startsAt)
-            ->when($schedule->section_id !== null, fn (Builder $q) => $q->where(
-                fn (Builder $inner) => $inner->where('section_id', $schedule->section_id)->orWhereNull('section_id')
-            ))
+        // 3) حصص نفس الشعبة/الصف السارية في الموعد الجديد.
+        $sectionClash = $this->applyDateWindow(
+            Schedule::query()
+                ->withoutGlobalScope('study_session')
+                ->where('classroom_id', $schedule->classroom_id)
+                ->whereKeyNot($schedule->id)
+                ->where('day_of_week', $day)
+                ->whereTime('starts_at', '<', $endsAt)
+                ->whereTime('ends_at', '>', $startsAt)
+                ->when($schedule->section_id !== null, fn (Builder $q) => $q->where(
+                    fn (Builder $inner) => $inner->where('section_id', $schedule->section_id)->orWhereNull('section_id')
+                )),
+            $parsed->toDateString(),
+            $parsed->toDateString(),
+        )
             ->with(['subject:id,name'])
             ->first();
 
@@ -514,13 +588,17 @@ class ScheduleConflictService
         $conflicts = [];
 
         foreach ($moving as $schedule) {
-            $clash = Schedule::query()
-                ->withoutGlobalScope('study_session')
-                ->where('teacher_id', $schedule->teacher_id)
-                ->whereNotIn('id', $movingIds)
-                ->where('day_of_week', $schedule->day_of_week)
-                ->whereTime('starts_at', '<', $schedule->ends_at)
-                ->whereTime('ends_at', '>', $schedule->starts_at)
+            $clash = $this->applyDateWindow(
+                Schedule::query()
+                    ->withoutGlobalScope('study_session')
+                    ->where('teacher_id', $schedule->teacher_id)
+                    ->whereNotIn('id', $movingIds)
+                    ->where('day_of_week', $schedule->day_of_week)
+                    ->whereTime('starts_at', '<', $schedule->ends_at)
+                    ->whereTime('ends_at', '>', $schedule->starts_at),
+                $schedule->starts_on?->toDateString(),
+                $schedule->ends_on?->toDateString(),
+            )
                 ->with(['section:id,name', 'classroom:id,name'])
                 ->first();
 

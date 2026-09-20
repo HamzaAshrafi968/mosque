@@ -2,22 +2,18 @@
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
-use App\Actions\Admin\Schedule\GenerateWeeklySchedulesAction;
-use App\Actions\Admin\Schedule\ResolveScheduleProgramAction;
+use App\Actions\Admin\Schedule\SaveScheduleSlotsAction;
 use App\Contracts\Repositories\ClassroomRepositoryInterface;
 use App\Contracts\Repositories\ScheduleRepositoryInterface;
 use App\Contracts\Repositories\SubjectRepositoryInterface;
 use App\Contracts\Repositories\TeacherRepositoryInterface;
 use App\Http\Controllers\Api\BaseApiController;
-use App\Http\Requests\Api\V1\Admin\GenerateScheduleRequest;
 use App\Http\Requests\Api\V1\Admin\ScheduleRequest;
 use App\Http\Resources\Api\V1\ProgramResource;
 use App\Http\Resources\Api\V1\ScheduleResource;
 use App\Services\ProgramService;
-use App\Services\ScheduleConflictService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ScheduleController extends BaseApiController
 {
@@ -53,37 +49,32 @@ class ScheduleController extends BaseApiController
         ]);
     }
 
-    public function store(ScheduleRequest $request, ResolveScheduleProgramAction $resolveProgram, ScheduleConflictService $conflicts): JsonResponse
+    /**
+     * النموذج الموحّد: `days[]` + `duration` (يوم/أسبوع/شهر/حتى انتهاء الدورة/
+     * مفتوحة). يبقى `day_of_week` مدعوماً للتوافق الخلفي ويعيد حصة واحدة.
+     */
+    public function store(ScheduleRequest $request, SaveScheduleSlotsAction $save): JsonResponse
     {
-        $slot = $resolveProgram->execute($request->validated());
+        $data = $request->validated();
+        $batch = array_key_exists('days', $data);
 
-        $schedule = null;
+        $result = $save->execute($data, skipDuplicates: $batch);
 
-        $conflicts->withScheduleLock(array_filter([
-            ! empty($slot['teacher_id']) ? 'teacher:'.$slot['teacher_id'] : null,
-            ! empty($slot['section_id']) ? 'section:'.$slot['section_id'] : null,
-            ! empty($slot['classroom_id']) ? 'classroom:'.$slot['classroom_id'] : null,
-        ]), function () use ($slot, $conflicts, &$schedule) {
-            DB::transaction(function () use ($slot, $conflicts, &$schedule) {
-                $conflicts->assertSlot($slot);
-                $schedule = $this->scheduleRepository->create($slot);
-            });
-        });
+        if ($batch) {
+            return $this->created([
+                'created' => $result['created'],
+                'skipped' => $result['skipped'],
+                'schedules' => ScheduleResource::collection(
+                    $result['schedules']->load(['program', 'programPeriod', 'studySession'])
+                ),
+            ], "تمت إضافة {$result['created']} حصة");
+        }
+
+        $schedule = $result['schedules']->firstOrFail();
 
         return $this->created(
             ScheduleResource::make($schedule->load(['program', 'programPeriod', 'studySession'])),
             'تمت إضافة الحصة'
-        );
-    }
-
-    /** توليد جدول أسبوعي لبرنامج/فترة عبر عدة أيام (تخطي الموجود، رفض التعارض). */
-    public function generate(GenerateScheduleRequest $request, GenerateWeeklySchedulesAction $generate): JsonResponse
-    {
-        $result = $generate->execute($request->validated());
-
-        return $this->created(
-            $result,
-            "تم توليد {$result['created']} حصة أسبوعية"
         );
     }
 

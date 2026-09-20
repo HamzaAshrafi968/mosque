@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 // Audio announcements auto-delete one week after publishing: the scheduler
 // removes expired rows (and their audio files) every hour.
 Schedule::command('announcements:purge-expired')->hourly()->withoutOverlapping();
+
+// الحصص محدودة المدة (يوم/أسبوع/شهر/حتى انتهاء الدورة) تُحذف تلقائياً بعد
+// انتهاء صلاحيتها فتختفي من الجداول.
+Schedule::command('schedules:purge-expired')->daily()->withoutOverlapping();

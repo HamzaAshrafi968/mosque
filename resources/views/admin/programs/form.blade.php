@@ -73,6 +73,22 @@
                            class="w-full border border-gray-300 rounded-lg px-3 py-2">
                 </div>
 
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">تاريخ بداية الدورة</label>
+                    <input type="date" name="starts_on" value="{{ old('starts_on', $program?->starts_on?->format('Y-m-d')) }}"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">تاريخ نهاية الدورة</label>
+                    <input type="date" name="ends_on" value="{{ old('ends_on', $program?->ends_on?->format('Y-m-d')) }}"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                </div>
+
+                <div class="md:col-span-3 -mt-2">
+                    <p class="text-xs text-gray-500">عند اختيار مدة «حتى انتهاء الدورة» في نموذج إضافة الحصة تُربط الحصص بتاريخ النهاية هذا، وتُشال تلقائياً من الجدول عند حلوله.</p>
+                </div>
+
                 <div class="md:col-span-3">
                     <label class="block text-sm font-bold text-gray-700 mb-1">الوصف</label>
                     <textarea name="description" rows="2" maxlength="5000" class="w-full border border-gray-300 rounded-lg px-3 py-2">{{ old('description', $program?->description) }}</textarea>

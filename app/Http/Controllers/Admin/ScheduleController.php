@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Actions\Admin\Schedule\GenerateWeeklySchedulesAction;
-use App\Actions\Admin\Schedule\ResolveScheduleProgramAction;
+use App\Actions\Admin\Schedule\SaveScheduleSlotsAction;
+use App\Enums\ScheduleDuration;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
 use App\Models\ClassSession;
@@ -13,25 +13,23 @@ use App\Models\StudySession;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Services\ProgramService;
-use App\Services\ScheduleConflictService;
 use App\Services\SessionService;
 use App\Support\ScheduleRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ScheduleController extends Controller
 {
     public function __construct(
-        private readonly ScheduleConflictService $conflicts,
         private readonly SessionService $sessions,
     ) {}
 
     public function index(Request $request, ProgramService $programService): View
     {
         $schedules = Schedule::query()
+            ->notExpired()
             ->with([
                 'classroom:id,name',
                 'section:id,name',
@@ -77,43 +75,21 @@ class ScheduleController extends Controller
             'sessionProgramMap' => $programService->sessionProgramMap(),
             'studySessions' => StudySession::orderForDisplay()->get(['id', 'name', 'gender']),
             'currentSessionId' => config('app.current_study_session_id'),
+            'durations' => ScheduleDuration::cases(),
         ]);
     }
 
-    public function store(Request $request, ResolveScheduleProgramAction $resolveProgram): RedirectResponse
+    /**
+     * النموذج الموحّد: أيام الأسبوع + مدة الصلاحية (يوم/أسبوع/شهر/حتى انتهاء
+     * الدورة/مفتوحة) — تُنشأ حصة لكل يوم بنفس النطاق الزمني.
+     */
+    public function store(Request $request, SaveScheduleSlotsAction $save): RedirectResponse
     {
         $data = $request->validate(ScheduleRules::rules());
 
-        $slot = $resolveProgram->execute($data);
+        $result = $save->execute($data);
 
-        $this->conflicts->withScheduleLock($this->lockKeys($slot), function () use ($slot) {
-            DB::transaction(function () use ($slot) {
-                $this->conflicts->assertSlot($slot);
-                Schedule::create($slot);
-            });
-        });
-
-        return back()->with('success', 'تمت إضافة الحصة');
-    }
-
-    /**
-     * يولّد جدولاً أسبوعياً لبرنامج/فترة (تخصص) عبر عدة أيام — مثال:
-     * برنامج التحفيظ الفترة الأولى فقط، أو برنامج الإجازة، اختبارات الحفظ،
-     * الدورات الشرعية، البرامج القرآنية.
-     */
-    public function generate(Request $request, GenerateWeeklySchedulesAction $generate): RedirectResponse
-    {
-        $data = $request->validate(ScheduleRules::rules(weekly: true));
-
-        $result = $generate->execute($data);
-
-        $message = "تم توليد {$result['created']} حصة أسبوعية";
-
-        if ($result['skipped'] > 0) {
-            $message .= "، وتخطي {$result['skipped']} حصة موجودة مسبقاً";
-        }
-
-        return back()->with('success', $message);
+        return back()->with('success', $this->addedMessage($result['created'], $result['skipped']));
     }
 
     public function destroy(Schedule $schedule): RedirectResponse
@@ -168,16 +144,19 @@ class ScheduleController extends Controller
         return back()->with('success', 'تمت إعادة الحصة إلى موعدها');
     }
 
-    /**
-     * @param  array<string, mixed>  $slot
-     * @return array<int, string>
-     */
-    private function lockKeys(array $slot): array
+    /** رسالة نتيجة الإضافة مع تخطي الصفوف المطابقة الموجودة مسبقاً. */
+    private function addedMessage(int $created, int $skipped): string
     {
-        return array_filter([
-            ! empty($slot['teacher_id']) ? 'teacher:'.$slot['teacher_id'] : null,
-            ! empty($slot['section_id']) ? 'section:'.$slot['section_id'] : null,
-            ! empty($slot['classroom_id']) ? 'classroom:'.$slot['classroom_id'] : null,
-        ]);
+        if ($created === 0 && $skipped > 0) {
+            return 'الحصة موجودة مسبقاً — لم تُضف حصة جديدة';
+        }
+
+        $message = 'تمت إضافة '.$created.' '.($created === 1 ? 'حصة' : 'حصص');
+
+        if ($skipped > 0) {
+            $message .= "، وتخطي {$skipped} موجودة مسبقاً";
+        }
+
+        return $message;
     }
 }

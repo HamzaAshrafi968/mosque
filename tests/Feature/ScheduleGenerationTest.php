@@ -17,7 +17,7 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * مولّد الجدول الأسبوعي للفترات (shift schedules): توليد عدة أيام لبرنامج/فترة
+ * النموذج الموحّد لإضافة الحصص (shift schedules): اختيار عدة أيام لبرنامج/فترة
  * واحد — مثال: برنامج التحفيظ الفترة الأولى فقط — مع تخطي المكرر ورفض التعارض.
  */
 class ScheduleGenerationTest extends TestCase
@@ -63,9 +63,9 @@ class ScheduleGenerationTest extends TestCase
         return Teacher::factory()->create(['tenant_id' => $mosque->id, 'name' => $name]);
     }
 
-    // ------------------------------------------------------- generation
+    // ------------------------------------------------------- creation
 
-    public function test_schedules_page_shows_the_weekly_generator_form(): void
+    public function test_schedules_page_shows_the_merged_add_form(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
@@ -74,12 +74,14 @@ class ScheduleGenerationTest extends TestCase
         $this->actingAs($manager)
             ->get(route('admin.schedules.index'))
             ->assertOk()
-            ->assertSee('توليد جدول أسبوعي')
+            ->assertSee('إضافة حصة جديدة')
             ->assertSee('أيام الأسبوع')
-            ->assertSee('برنامج التحفيظ');
+            ->assertSee('مدة الصلاحية')
+            ->assertSee('برنامج التحفيظ')
+            ->assertDontSee('توليد جدول أسبوعي');
     }
 
-    public function test_manager_can_generate_a_weekly_schedule_for_one_period_only(): void
+    public function test_manager_can_add_a_weekly_schedule_for_one_period_only(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
@@ -87,7 +89,7 @@ class ScheduleGenerationTest extends TestCase
         $second = $this->period($mosque, $program, 'الفترة الثانية', '07:00', '08:00');
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), [
+            ->post(route('admin.schedules.store'), [
                 'classroom_id' => $this->classroom($mosque)->id,
                 'teacher_id' => $this->teacher($mosque)->id,
                 'program_id' => $program->id,
@@ -108,9 +110,10 @@ class ScheduleGenerationTest extends TestCase
         $this->assertNull($schedule->subject_id);
         $this->assertSame('06:00', substr($schedule->starts_at, 0, 5));
         $this->assertSame('07:00', substr($schedule->ends_at, 0, 5));
+        $this->assertNull($schedule->ends_on);
     }
 
-    public function test_generation_works_for_each_default_program(): void
+    public function test_addition_works_for_each_default_program(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
 
@@ -127,7 +130,7 @@ class ScheduleGenerationTest extends TestCase
             $period = $this->period($mosque, $program, 'الفترة الأولى', $start, $end);
 
             $this->actingAs($manager)
-                ->post(route('admin.schedules.generate'), [
+                ->post(route('admin.schedules.store'), [
                     'classroom_id' => $this->classroom($mosque, 'الصف '.($index + 1))->id,
                     'teacher_id' => $this->teacher($mosque, 'معلم '.($index + 1))->id,
                     'program_id' => $program->id,
@@ -141,7 +144,7 @@ class ScheduleGenerationTest extends TestCase
         $this->assertSame(5, Schedule::whereNotNull('program_id')->count());
     }
 
-    public function test_regenerating_the_same_week_skips_the_existing_rows(): void
+    public function test_re_adding_the_same_slots_skips_the_existing_rows(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
@@ -155,18 +158,17 @@ class ScheduleGenerationTest extends TestCase
             'days' => [0, 1],
         ];
 
-        $this->actingAs($manager)->post(route('admin.schedules.generate'), $payload)->assertRedirect();
+        $this->actingAs($manager)->post(route('admin.schedules.store'), $payload)->assertRedirect();
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), $payload)
+            ->post(route('admin.schedules.store'), $payload)
             ->assertRedirect()
-            ->assertSessionHas('success', fn (string $message) => str_contains($message, 'تم توليد 0')
-                && str_contains($message, 'تخطي 2'));
+            ->assertSessionHas('success', fn (string $message) => str_contains($message, 'موجودة مسبقاً'));
 
         $this->assertSame(2, Schedule::where('program_period_id', $period->id)->count());
     }
 
-    public function test_generation_rejects_a_teacher_double_booking_and_creates_nothing(): void
+    public function test_addition_rejects_a_teacher_double_booking_and_creates_nothing(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
@@ -184,7 +186,7 @@ class ScheduleGenerationTest extends TestCase
         ]);
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), [
+            ->post(route('admin.schedules.store'), [
                 'classroom_id' => $classroom->id,
                 'teacher_id' => $teacher->id,
                 'program_id' => $program->id,
@@ -197,7 +199,7 @@ class ScheduleGenerationTest extends TestCase
         $this->assertSame(0, Schedule::where('classroom_id', $classroom->id)->count());
     }
 
-    public function test_generation_rejects_a_classroom_section_double_booking(): void
+    public function test_addition_rejects_a_classroom_section_double_booking(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
@@ -214,7 +216,7 @@ class ScheduleGenerationTest extends TestCase
         ]);
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), [
+            ->post(route('admin.schedules.store'), [
                 'classroom_id' => $classroom->id,
                 'teacher_id' => $this->teacher($mosque, 'المعلم الجديد')->id,
                 'program_id' => $program->id,
@@ -226,13 +228,13 @@ class ScheduleGenerationTest extends TestCase
         $this->assertSame(1, Schedule::count());
     }
 
-    public function test_generation_without_a_period_uses_the_manual_times(): void
+    public function test_addition_without_a_period_uses_the_manual_times(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), [
+            ->post(route('admin.schedules.store'), [
                 'classroom_id' => $this->classroom($mosque)->id,
                 'teacher_id' => $this->teacher($mosque)->id,
                 'program_id' => $program->id,
@@ -248,14 +250,14 @@ class ScheduleGenerationTest extends TestCase
 
     // ------------------------------------------------------- validation
 
-    public function test_generation_requires_at_least_one_day(): void
+    public function test_addition_requires_at_least_one_day(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
         $period = $this->period($mosque, $program, 'الفترة الأولى', '06:00', '07:00');
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), [
+            ->post(route('admin.schedules.store'), [
                 'classroom_id' => $this->classroom($mosque)->id,
                 'teacher_id' => $this->teacher($mosque)->id,
                 'program_id' => $program->id,
@@ -267,13 +269,13 @@ class ScheduleGenerationTest extends TestCase
         $this->assertSame(0, Schedule::count());
     }
 
-    public function test_generation_without_a_period_requires_times(): void
+    public function test_addition_without_a_period_requires_times(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), [
+            ->post(route('admin.schedules.store'), [
                 'classroom_id' => $this->classroom($mosque)->id,
                 'teacher_id' => $this->teacher($mosque)->id,
                 'program_id' => $program->id,
@@ -282,7 +284,7 @@ class ScheduleGenerationTest extends TestCase
             ->assertSessionHasErrors(['starts_at', 'ends_at']);
     }
 
-    public function test_generation_rejects_a_period_from_another_program(): void
+    public function test_addition_rejects_a_period_from_another_program(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
 
@@ -291,7 +293,7 @@ class ScheduleGenerationTest extends TestCase
         $ijazahPeriod = $this->period($mosque, $ijazah, 'فترة الإجازة', '09:00', '10:00');
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), [
+            ->post(route('admin.schedules.store'), [
                 'classroom_id' => $this->classroom($mosque)->id,
                 'teacher_id' => $this->teacher($mosque)->id,
                 'program_id' => $tahfeez->id,
@@ -303,7 +305,7 @@ class ScheduleGenerationTest extends TestCase
         $this->assertSame(0, Schedule::count());
     }
 
-    public function test_generation_rejects_records_from_another_mosque(): void
+    public function test_addition_rejects_records_from_another_mosque(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
 
@@ -317,7 +319,7 @@ class ScheduleGenerationTest extends TestCase
         config(['app.current_tenant_id' => $mosque->id]);
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), [
+            ->post(route('admin.schedules.store'), [
                 'classroom_id' => $this->classroom($mosque)->id,
                 'teacher_id' => $this->teacher($mosque)->id,
                 'program_id' => $otherProgram->id,
@@ -331,7 +333,7 @@ class ScheduleGenerationTest extends TestCase
 
     // ------------------------------------------------------- authorization
 
-    public function test_revoking_schedule_create_blocks_the_generator(): void
+    public function test_revoking_schedule_create_blocks_addition(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
 
@@ -339,24 +341,24 @@ class ScheduleGenerationTest extends TestCase
         app(RoleService::class)->syncRolePermissions($role, ['students.view' => 'mosque']);
 
         $this->actingAs($manager)
-            ->post(route('admin.schedules.generate'), ['days' => [0]])
+            ->post(route('admin.schedules.store'), ['days' => [0]])
             ->assertForbidden();
     }
 
-    public function test_teacher_cannot_use_the_generator(): void
+    public function test_teacher_cannot_add_schedules(): void
     {
         [$mosque] = $this->mosqueWithPrograms();
 
         $teacherUser = User::factory()->for($mosque)->create();
 
         $this->actingAs($teacherUser)
-            ->post(route('admin.schedules.generate'), ['days' => [0]])
+            ->post(route('admin.schedules.store'), ['days' => [0]])
             ->assertForbidden();
     }
 
     // ------------------------------------------------------- API
 
-    public function test_admin_api_can_generate_a_weekly_schedule(): void
+    public function test_admin_api_can_add_schedules_for_multiple_days(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
@@ -374,20 +376,21 @@ class ScheduleGenerationTest extends TestCase
             'days' => [0, 4],
         ];
 
-        $this->postJson('/api/v1/admin/schedules/generate', $payload)
+        $this->postJson('/api/v1/admin/schedules', $payload)
             ->assertCreated()
             ->assertJsonPath('data.created', 2)
-            ->assertJsonPath('data.skipped', 0);
+            ->assertJsonPath('data.skipped', 0)
+            ->assertJsonCount(2, 'data.schedules');
 
         $this->assertSame(2, Schedule::where('program_period_id', $period->id)->count());
 
-        $this->postJson('/api/v1/admin/schedules/generate', $payload)
+        $this->postJson('/api/v1/admin/schedules', $payload)
             ->assertCreated()
             ->assertJsonPath('data.created', 0)
             ->assertJsonPath('data.skipped', 2);
     }
 
-    public function test_api_generation_rejects_a_teacher_double_booking(): void
+    public function test_api_addition_rejects_a_teacher_double_booking(): void
     {
         [$mosque, $manager] = $this->mosqueWithPrograms();
         $program = $this->program($mosque);
@@ -405,7 +408,7 @@ class ScheduleGenerationTest extends TestCase
 
         Sanctum::actingAs($manager);
 
-        $this->postJson('/api/v1/admin/schedules/generate', [
+        $this->postJson('/api/v1/admin/schedules', [
             'classroom_id' => $this->classroom($mosque)->id,
             'teacher_id' => $teacher->id,
             'program_id' => $program->id,

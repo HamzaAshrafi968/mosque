@@ -30,6 +30,8 @@ final class ProgramRules
             ],
             'type' => ['required', Rule::in(collect(ScheduleProgramType::cases())->pluck('value')->all())],
             'description' => ['nullable', 'string', 'max:5000'],
+            'starts_on' => ['nullable', 'date'],
+            'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'color' => ['nullable', 'string', 'max:20', 'regex:/^#?[0-9a-fA-F]{3,8}$/'],
             'is_active' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],

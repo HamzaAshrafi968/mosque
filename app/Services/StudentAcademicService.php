@@ -61,6 +61,7 @@ class StudentAcademicService
         }
 
         Schedule::query()
+            ->activeOn(now())
             ->where('section_id', $student->section_id)
             ->with(['subject:id,name', 'teacher:id,name,photo'])
             ->orderBy('day_of_week')
@@ -76,6 +77,7 @@ class StudentAcademicService
     public function subjects(Student $student): Collection
     {
         return Schedule::query()
+            ->activeOn(now())
             ->where('section_id', $student->section_id)
             ->with(['subject:id,name', 'teacher:id,name,photo', 'section:id,name'])
             ->orderBy('day_of_week')

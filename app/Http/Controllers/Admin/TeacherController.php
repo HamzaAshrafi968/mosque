@@ -72,7 +72,7 @@ class TeacherController extends Controller
             'lessons_count' => Lesson::where('teacher_id', $teacher->id)->count(),
             'exams_count' => Exam::where('teacher_id', $teacher->id)->count(),
             'homeworks_count' => Homework::where('teacher_id', $teacher->id)->count(),
-            'schedules_count' => Schedule::where('teacher_id', $teacher->id)->count(),
+            'schedules_count' => Schedule::where('teacher_id', $teacher->id)->notExpired()->count(),
             'attendance_days' => Attendance::where('teacher_id', $teacher->id)->distinct('date')->count('date'),
             'graded_students' => Grade::query()
                 ->whereIn('status', ['submitted', 'approved'])

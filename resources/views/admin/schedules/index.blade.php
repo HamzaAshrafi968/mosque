@@ -4,19 +4,22 @@
 
 @php
     $days = [0 => 'الأحد', 1 => 'الاثنين', 2 => 'الثلاثاء', 3 => 'الأربعاء', 4 => 'الخميس', 5 => 'الجمعة', 6 => 'السبت'];
-    $bulkDays = array_map('intval', (array) old('days', [0, 1, 2, 3, 4]));
+    $selectedDays = array_map('intval', (array) old('days', []));
     $nextDateFor = function (int $day): string {
         $today = now();
 
         return $today->dayOfWeek === $day ? $today->toDateString() : $today->copy()->next($day)->toDateString();
     };
     $programData = $programs->mapWithKeys(fn ($program) => [
-        $program->id => $program->periods->map(fn ($period) => [
-            'id' => $period->id,
-            'name' => $period->name,
-            'starts_at' => $period->starts_at ? substr($period->starts_at, 0, 5) : null,
-            'ends_at' => $period->ends_at ? substr($period->ends_at, 0, 5) : null,
-        ])->values(),
+        $program->id => [
+            'periods' => $program->periods->map(fn ($period) => [
+                'id' => $period->id,
+                'name' => $period->name,
+                'starts_at' => $period->starts_at ? substr($period->starts_at, 0, 5) : null,
+                'ends_at' => $period->ends_at ? substr($period->ends_at, 0, 5) : null,
+            ])->values(),
+            'ends_on' => $program->ends_on?->format('Y/m/d'),
+        ],
     ]);
 @endphp
 
@@ -64,7 +67,7 @@
         </div>
     </form>
 
-    <details class="mb-2" id="schedule-add-form" @if($errors->any() && old('days') === null) open @endif>
+    <details class="mb-2" id="schedule-add-form" @if($errors->any()) open @endif>
         <summary class="cursor-pointer text-emerald-700 font-bold mb-2">إضافة حصة جديدة</summary>
         <form method="POST" action="{{ route('admin.schedules.store') }}" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             @csrf
@@ -73,7 +76,7 @@
                 <select name="program_id" id="schedule-program" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     <option value="">— بدون برنامج —</option>
                     @foreach($programs as $program)
-                        <option value="{{ $program->id }}" @selected(old('program_id') == $program->id)>{{ $program->name }}</option>
+                        <option value="{{ $program->id }}" data-ends-on="{{ $program->ends_on?->format('Y/m/d') }}" @selected(old('program_id') == $program->id)>{{ $program->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -131,14 +134,6 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">اليوم</label>
-                <select name="day_of_week" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    @foreach($days as $key => $day)
-                        <option value="{{ $key }}" @selected(old('day_of_week') == (string) $key)>{{ $day }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">وقت البداية <span class="text-gray-400 text-xs">(تلقائي مع الفترة)</span></label>
                 <input type="time" name="starts_at" id="schedule-starts" value="{{ old('starts_at') }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
@@ -149,104 +144,37 @@
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
             </div>
             <div>
-                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg w-full">إضافة</button>
-            </div>
-        </form>
-    </details>
-
-    <details class="mb-2" @if($errors->any() && old('days') !== null) open @endif>
-        <summary class="cursor-pointer text-emerald-700 font-bold mb-2">توليد جدول أسبوعي لبرنامج/فترة (عدة أيام)</summary>
-        <form method="POST" action="{{ route('admin.schedules.generate') }}" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-            @csrf
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">البرنامج/التخصص</label>
-                <select name="program_id" id="bulk-program" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">— بدون برنامج —</option>
-                    @foreach($programs as $program)
-                        <option value="{{ $program->id }}" @selected(old('program_id') == $program->id)>{{ $program->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">الفترة <span class="text-gray-400 text-xs">(اختر الفترة المطلوبة فقط — مثال: الأولى دون الثانية)</span></label>
-                <select name="program_period_id" id="bulk-period" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">— بدون فترة —</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">الدوام</label>
-                <select name="study_session_id" id="bulk-session" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">بدون دوام</option>
-                    @foreach($studySessions as $session)
-                        <option value="{{ $session->id }}" @selected(old('study_session_id', $currentSessionId) == $session->id)>{{ $session->display_name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">الصف</label>
-                <select name="classroom_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">اختر الصف</option>
-                    @foreach($classrooms as $classroom)
-                        <option value="{{ $classroom->id }}" @selected(old('classroom_id') == $classroom->id)>{{ $classroom->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">الشعبة</label>
-                <select name="section_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">كل الشعب</option>
-                    @foreach($classrooms as $classroom)
-                        @foreach($classroom->sections as $section)
-                            <option value="{{ $section->id }}" @selected(old('section_id') == $section->id)>{{ $classroom->name }} - {{ $section->name }}</option>
-                        @endforeach
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">المادة <span class="text-gray-400 text-xs">(اختياري عند اختيار برنامج)</span></label>
-                <select name="subject_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">اختر المادة</option>
-                    @foreach($subjects as $subject)
-                        <option value="{{ $subject->id }}" @selected(old('subject_id') == $subject->id)>{{ $subject->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">المعلم</label>
-                <select name="teacher_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">اختر المعلم</option>
-                    @foreach($teachers as $teacher)
-                        <option value="{{ $teacher->id }}" @selected(old('teacher_id') == $teacher->id)>{{ $teacher->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">وقت البداية <span class="text-gray-400 text-xs">(تلقائي مع الفترة)</span></label>
-                <input type="time" name="starts_at" id="bulk-starts" value="{{ old('starts_at') }}"
+                <label class="block text-sm font-medium text-gray-700 mb-1">تاريخ البداية <span class="text-gray-400 text-xs">(افتراضياً اليوم)</span></label>
+                <input type="date" name="starts_on" id="schedule-starts-on" value="{{ old('starts_on', now()->toDateString()) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">وقت النهاية <span class="text-gray-400 text-xs">(تلقائي مع الفترة)</span></label>
-                <input type="time" name="ends_at" id="bulk-ends" value="{{ old('ends_at') }}"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                <label class="block text-sm font-medium text-gray-700 mb-1">مدة الصلاحية</label>
+                <select name="duration" id="schedule-duration" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    @foreach($durations as $duration)
+                        <option value="{{ $duration->value }}" @selected(old('duration', 'open') === $duration->value)>{{ $duration->label() }}</option>
+                    @endforeach
+                </select>
+                <p id="schedule-course-hint" class="hidden text-xs mt-1"></p>
             </div>
             <div class="md:col-span-3">
-                <label class="block text-sm font-medium text-gray-700 mb-1">أيام الأسبوع</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">أيام الأسبوع <span class="text-gray-400 text-xs">(اختر يوماً واحداً أو أكثر — تُضاف حصة لكل يوم بنفس المدة)</span></label>
                 <div class="flex flex-wrap gap-x-6 gap-y-2 border border-gray-200 rounded-lg px-3 py-2">
                     @foreach($days as $key => $day)
                         <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-                            <input type="checkbox" name="days[]" value="{{ $key }}" @checked(in_array($key, $bulkDays, true))
+                            <input type="checkbox" name="days[]" value="{{ $key }}" @checked(in_array($key, $selectedDays, true))
                                    class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-500">
                             {{ $day }}
                         </label>
                     @endforeach
                 </div>
             </div>
-            <div>
-                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg w-full">توليد الجدول</button>
+            <div class="md:col-span-3">
+                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg w-full md:w-auto md:px-8">إضافة الحصة</button>
             </div>
         </form>
     </details>
+
 </div>
 
 <div class="mb-4">
@@ -288,6 +216,13 @@
                                     <div class="text-xs text-gray-500">{{ $schedule->teacher?->name }}</div>
                                     @if($schedule->studySession)
                                         <div class="text-[10px] text-gray-400 mt-0.5">دوام {{ $schedule->studySession->display_name }}</div>
+                                    @endif
+                                    @if($schedule->validityLabel())
+                                        <div class="mt-1">
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600" title="مدة صلاحية الحصة">
+                                                {{ $schedule->validityLabel() }}
+                                            </span>
+                                        </div>
                                     @endif
 
                                     @foreach($slotExceptions as $exception)
@@ -339,6 +274,7 @@
                             <button type="button"
                                     class="add-slot-btn w-full text-emerald-700 border border-dashed border-emerald-300 rounded-lg py-1 text-xs hover:bg-emerald-50"
                                     data-day="{{ $dayNum }}"
+                                    data-next-date="{{ $nextDateFor((int) $dayNum) }}"
                                     data-classroom="{{ request('classroom_id') }}"
                                     data-section="{{ request('section_id') }}">
                                 + حصة
@@ -358,6 +294,7 @@
                 <tr class="bg-gray-50 text-gray-600 text-sm">
                     <th class="px-4 py-3 text-right whitespace-nowrap">اليوم</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الوقت</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الصلاحية</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">البرنامج</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الفترة</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الدوام</th>
@@ -373,6 +310,13 @@
                     <tr>
                         <td class="px-4 py-3 border-t font-bold whitespace-nowrap">{{ $days[$schedule->day_of_week] }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ substr($schedule->starts_at, 0, 5) }}–{{ substr($schedule->ends_at, 0, 5) }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">
+                            @if($schedule->validityLabel())
+                                <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600">{{ $schedule->validityLabel() }}</span>
+                            @else
+                                <span class="text-gray-400 text-xs">مفتوحة</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
                             @if($schedule->program)
                                 <span class="inline-flex items-center gap-1.5">
@@ -399,7 +343,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="px-4 py-6 text-center text-gray-500">لا توجد جداول</td>
+                        <td colspan="11" class="px-4 py-6 text-center text-gray-500">لا توجد جداول</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -420,7 +364,7 @@
         if (!programSelect || !periodSelect) { return null; }
 
         function fillPeriods() {
-            const periods = schedulePrograms[programSelect.value] || [];
+            const periods = (schedulePrograms[programSelect.value] || {}).periods || [];
             periodSelect.innerHTML = '<option value="">— بدون فترة —</option>';
             periods.forEach(function (period) {
                 const option = document.createElement('option');
@@ -446,11 +390,9 @@
     }
 
     const singlePeriodSelect = wireProgramPeriodForm('schedule-program', 'schedule-period', 'schedule-starts', 'schedule-ends');
-    const bulkPeriodSelect = wireProgramPeriodForm('bulk-program', 'bulk-period', 'bulk-starts', 'bulk-ends');
 
     const oldPeriod = @json(old('program_period_id'));
     if (oldPeriod && singlePeriodSelect) { singlePeriodSelect.value = oldPeriod; }
-    if (oldPeriod && bulkPeriodSelect) { bulkPeriodSelect.value = oldPeriod; }
 
     // تخصيص البرامج حسب الدوام: خريطة [دوام => برامجه]؛ الدوام غير المذكور
     // تعرض له كل البرامج. تُطبَّق على فلاتر البحث والنموذجين.
@@ -497,9 +439,43 @@
 
     wireProgramSessionFilter('filter-session', 'filter-program');
     wireProgramSessionFilter('schedule-session', 'schedule-program');
-    wireProgramSessionFilter('bulk-session', 'bulk-program');
 
-    // شبكة الجدول: زر «+ حصة» يفتح نموذج الإضافة ويعبّئ اليوم/الصف/الشعبة.
+    // «حتى انتهاء الدورة»: عرض تاريخ نهاية البرنامج المختار أو تنبيه بغيابه.
+    const courseHint = document.getElementById('schedule-course-hint');
+    const durationSelect = document.getElementById('schedule-duration');
+    const programSelect = document.getElementById('schedule-program');
+
+    function updateCourseHint() {
+        if (!courseHint || !durationSelect || !programSelect) { return; }
+
+        if (durationSelect.value !== 'course') {
+            courseHint.classList.add('hidden');
+            courseHint.textContent = '';
+
+            return;
+        }
+
+        courseHint.classList.remove('hidden');
+
+        const endsOn = programSelect.selectedOptions[0]?.dataset.endsOn || '';
+
+        if (!programSelect.value) {
+            courseHint.className = 'text-xs mt-1 text-amber-600';
+            courseHint.textContent = 'اختر البرنامج أولاً لتحديد تاريخ نهاية الدورة';
+        } else if (!endsOn) {
+            courseHint.className = 'text-xs mt-1 text-amber-600';
+            courseHint.textContent = '⚠ هذا البرنامج بلا تاريخ نهاية — حدده من صفحة البرنامج';
+        } else {
+            courseHint.className = 'text-xs mt-1 text-emerald-700';
+            courseHint.textContent = 'ستُشال الحصص تلقائياً بعد ' + endsOn;
+        }
+    }
+
+    if (durationSelect) { durationSelect.addEventListener('change', updateCourseHint); }
+    if (programSelect) { programSelect.addEventListener('change', updateCourseHint); }
+    updateCourseHint();
+
+    // شبكة الجدول: زر «+ حصة» يفتح النموذج ويعبّئ اليوم/التاريخ/الصف/الشعبة.
     document.querySelectorAll('.add-slot-btn').forEach(function (button) {
         button.addEventListener('click', function () {
             const form = document.getElementById('schedule-add-form');
@@ -508,11 +484,13 @@
             form.open = true;
             form.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-            const daySelect = form.querySelector('select[name="day_of_week"]');
+            const dayCheckbox = form.querySelector('input[name="days[]"][value="' + button.dataset.day + '"]');
+            const startsOnInput = form.querySelector('input[name="starts_on"]');
             const classroomSelect = form.querySelector('select[name="classroom_id"]');
             const sectionSelect = form.querySelector('select[name="section_id"]');
 
-            if (daySelect) { daySelect.value = button.dataset.day; }
+            if (dayCheckbox) { dayCheckbox.checked = true; }
+            if (startsOnInput && button.dataset.nextDate) { startsOnInput.value = button.dataset.nextDate; }
             if (classroomSelect && button.dataset.classroom) { classroomSelect.value = button.dataset.classroom; }
             if (sectionSelect && button.dataset.section) { sectionSelect.value = button.dataset.section; }
         });

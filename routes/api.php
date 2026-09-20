@@ -52,7 +52,6 @@ Route::prefix('v1')->group(function () {
 
             Route::get('schedules', [V1\Admin\ScheduleController::class, 'index'])->middleware('permission:schedule.view');
             Route::post('schedules', [V1\Admin\ScheduleController::class, 'store'])->middleware('permission:schedule.create');
-            Route::post('schedules/generate', [V1\Admin\ScheduleController::class, 'generate'])->middleware('permission:schedule.create');
             Route::delete('schedules/{id}', [V1\Admin\ScheduleController::class, 'destroy'])->middleware('permission:schedule.delete');
 
             Route::get('programs', [V1\Admin\ProgramController::class, 'index'])->middleware('permission:programs.view');

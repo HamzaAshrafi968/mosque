@@ -16,6 +16,7 @@ class DashboardController extends BaseTeacherController
         $teacher = $this->currentTeacher($request);
 
         $todaySchedule = Schedule::query()
+            ->activeOn(now())
             ->with(['classroom:id,name', 'section:id,name', 'subject:id,name'])
             ->where('teacher_id', $teacher->id)
             ->where('day_of_week', now()->dayOfWeek)

@@ -121,7 +121,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::get('schedules', [Admin\ScheduleController::class, 'index'])->name('schedules.index')->middleware('permission:schedule.view');
     Route::post('schedules', [Admin\ScheduleController::class, 'store'])->name('schedules.store')->middleware('permission:schedule.create');
-    Route::post('schedules/generate', [Admin\ScheduleController::class, 'generate'])->name('schedules.generate')->middleware('permission:schedule.create');
     Route::delete('schedules/{schedule}', [Admin\ScheduleController::class, 'destroy'])->name('schedules.destroy')->middleware('permission:schedule.delete');
     Route::post('schedules/{schedule}/cancel', [Admin\ScheduleController::class, 'cancel'])->name('schedules.cancel')->middleware('permission:schedule.update');
     Route::post('schedules/{schedule}/postpone', [Admin\ScheduleController::class, 'postpone'])->name('schedules.postpone')->middleware('permission:schedule.update');

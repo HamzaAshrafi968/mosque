@@ -17,6 +17,11 @@
                         'bg-emerald-100 text-emerald-800' => $program->is_active,
                         'bg-gray-100 text-gray-500' => ! $program->is_active,
                     ])>{{ $program->is_active ? 'مفعّل' : 'معطّل' }}</span>
+                    @if($program->starts_on || $program->ends_on)
+                        <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold">
+                            الدورة: {{ $program->starts_on?->format('Y/m/d') ?? '—' }} ← {{ $program->ends_on?->format('Y/m/d') ?? '—' }}
+                        </span>
+                    @endif
                 </div>
             </div>
         </div>

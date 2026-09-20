@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ScheduleDuration;
 use App\Traits\MultiTenantTrait;
 use App\Traits\StudySessionScopedTrait;
 use App\Traits\UuidTrait;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 class Schedule extends Model
 {
@@ -24,6 +26,9 @@ class Schedule extends Model
         'program_period_id',
         'study_session_id',
         'day_of_week',
+        'starts_on',
+        'ends_on',
+        'duration',
         'starts_at',
         'ends_at',
     ];
@@ -32,6 +37,9 @@ class Schedule extends Model
     {
         return [
             'day_of_week' => 'integer',
+            'starts_on' => 'date',
+            'ends_on' => 'date',
+            'duration' => ScheduleDuration::class,
         ];
     }
 
@@ -69,6 +77,58 @@ class Schedule extends Model
     public function exceptions(): HasMany
     {
         return $this->hasMany(ClassSession::class, 'schedule_id');
+    }
+
+    /** الحصص التي لم تنتهِ مدتها بعد (المفتوحة بلا نهاية تبقى). */
+    public function scopeNotExpired(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNull('ends_on')
+            ->orWhereDate('ends_on', '>=', now()->toDateString()));
+    }
+
+    /** الحصص التي انتهت مدتها (لتنظيفها تلقائياً). */
+    public function scopeExpired(Builder $query): Builder
+    {
+        return $query->whereNotNull('ends_on')
+            ->whereDate('ends_on', '<', now()->toDateString());
+    }
+
+    /** الحصص السارية في تاريخ معين (ضمن مدتها). */
+    public function scopeActiveOn(Builder $query, mixed $date): Builder
+    {
+        $date = $date instanceof \DateTimeInterface
+            ? Carbon::parse($date)->toDateString()
+            : (string) $date;
+
+        return $query
+            ->where(fn (Builder $q) => $q
+                ->whereNull('starts_on')
+                ->orWhereDate('starts_on', '<=', $date))
+            ->where(fn (Builder $q) => $q
+                ->whereNull('ends_on')
+                ->orWhereDate('ends_on', '>=', $date));
+    }
+
+    /** وصف مدة الصلاحية للعرض، أو null للحصص المفتوحة بلا تواريخ. */
+    public function validityLabel(): ?string
+    {
+        $start = $this->starts_on?->format('Y/m/d');
+        $end = $this->ends_on?->format('Y/m/d');
+
+        if ($start === null && $end === null) {
+            return null;
+        }
+
+        if ($end === null) {
+            return "من {$start}";
+        }
+
+        if ($start === null) {
+            return "حتى {$end}";
+        }
+
+        return "{$start} ← {$end}";
     }
 
     /**

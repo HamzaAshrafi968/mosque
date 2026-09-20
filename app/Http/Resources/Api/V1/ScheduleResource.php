@@ -13,6 +13,10 @@ class ScheduleResource extends JsonResource
             'day_of_week' => $this->day_of_week,
             'starts_at' => $this->starts_at,
             'ends_at' => $this->ends_at,
+            'starts_on' => $this->starts_on?->toDateString(),
+            'ends_on' => $this->ends_on?->toDateString(),
+            'duration' => $this->duration?->value,
+            'validity_label' => $this->validityLabel(),
             'classroom' => $this->whenLoaded('classroom', fn () => [
                 'id' => $this->classroom->id,
                 'name' => $this->classroom->name,

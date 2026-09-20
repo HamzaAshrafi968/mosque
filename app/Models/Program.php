@@ -25,6 +25,8 @@ class Program extends Model
         'code',
         'type',
         'description',
+        'starts_on',
+        'ends_on',
         'color',
         'is_active',
         'sort_order',
@@ -34,6 +36,8 @@ class Program extends Model
     {
         return [
             'type' => ScheduleProgramType::class,
+            'starts_on' => 'date',
+            'ends_on' => 'date',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];

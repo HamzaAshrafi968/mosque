@@ -16,6 +16,7 @@ class ScheduleRepository extends BaseRepository implements ScheduleRepositoryInt
     public function getWithFilters(array $filters): Collection
     {
         return $this->model
+            ->notExpired()
             ->with([
                 'classroom:id,name',
                 'section:id,name',
@@ -36,6 +37,7 @@ class ScheduleRepository extends BaseRepository implements ScheduleRepositoryInt
     public function getForTeacher(string $teacherId): Collection
     {
         return $this->model
+            ->activeOn(now())
             ->with([
                 'classroom:id,name',
                 'section:id,name',

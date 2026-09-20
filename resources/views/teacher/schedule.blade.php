@@ -86,6 +86,7 @@
                     <thead>
                         <tr class="bg-gray-50 text-gray-600 text-sm">
                             <th class="px-4 py-3 text-right whitespace-nowrap">الوقت</th>
+                            <th class="px-4 py-3 text-right whitespace-nowrap">الصلاحية</th>
                             <th class="px-4 py-3 text-right whitespace-nowrap">البرنامج</th>
                             <th class="px-4 py-3 text-right whitespace-nowrap">الفترة</th>
                             <th class="px-4 py-3 text-right whitespace-nowrap">المادة</th>
@@ -98,6 +99,13 @@
                         @foreach($schedules[$num] as $schedule)
                             <tr>
                                 <td class="px-4 py-3 border-t whitespace-nowrap">{{ substr($schedule->starts_at, 0, 5) }} - {{ substr($schedule->ends_at, 0, 5) }}</td>
+                                <td class="px-4 py-3 border-t whitespace-nowrap">
+                                    @if($schedule->validityLabel())
+                                        <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600">{{ $schedule->validityLabel() }}</span>
+                                    @else
+                                        <span class="text-gray-400 text-xs">مفتوحة</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 border-t whitespace-nowrap">
                                     @if($schedule->program)
                                         <span class="inline-flex items-center gap-1.5">

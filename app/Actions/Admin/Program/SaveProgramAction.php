@@ -2,8 +2,10 @@
 
 namespace App\Actions\Admin\Program;
 
+use App\Enums\ScheduleDuration;
 use App\Enums\ScheduleProgramType;
 use App\Models\Program;
+use App\Models\Schedule;
 use App\Services\ProgramService;
 use Illuminate\Support\Facades\DB;
 
@@ -28,6 +30,8 @@ class SaveProgramAction
                     : $this->service->uniqueCode($tenantId, $data['name']),
                 'type' => $type,
                 'description' => $data['description'] ?? null,
+                'starts_on' => $data['starts_on'] ?? null,
+                'ends_on' => $data['ends_on'] ?? null,
                 'color' => ! empty($data['color']) ? $data['color'] : $type->color(),
                 'is_active' => $data['is_active'] ?? true,
                 'sort_order' => $data['sort_order'] ?? 0,
@@ -49,12 +53,23 @@ class SaveProgramAction
                 'code' => ! empty($data['code']) ? $data['code'] : $program->code,
                 'type' => $type,
                 'description' => $data['description'] ?? null,
+                'starts_on' => array_key_exists('starts_on', $data) ? $data['starts_on'] : $program->starts_on,
+                'ends_on' => array_key_exists('ends_on', $data) ? $data['ends_on'] : $program->ends_on,
                 'color' => ! empty($data['color']) ? $data['color'] : $type->color(),
                 'is_active' => array_key_exists('is_active', $data) ? (bool) $data['is_active'] : $program->is_active,
                 'sort_order' => $data['sort_order'] ?? 0,
             ]);
 
             $this->syncRelations($program, $data);
+
+            // تمديد/تقصير الدورة يحدّث حصص «حتى انتهاء الدورة» المرتبطة بها.
+            if ($program->wasChanged('ends_on')) {
+                Schedule::query()
+                    ->withoutGlobalScope('study_session')
+                    ->where('program_id', $program->id)
+                    ->where('duration', ScheduleDuration::Course->value)
+                    ->update(['ends_on' => $program->ends_on?->toDateString()]);
+            }
 
             return $program;
         });
