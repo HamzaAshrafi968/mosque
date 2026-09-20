@@ -51,7 +51,7 @@ class StudentController extends Controller
             ->when($request->filled('classroom_id'), fn ($q) => $q->where('classroom_id', $request->input('classroom_id')))
             ->when($request->filled('gender'), fn ($q) => $q->where('gender', $request->input('gender')))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')), fn ($q) => $q->active())
-            ->latest()
+            ->orderByStudySession()
             ->paginate(20)
             ->withQueryString();
 

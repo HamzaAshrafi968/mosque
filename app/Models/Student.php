@@ -290,6 +290,35 @@ class Student extends Model
     }
 
     /**
+     * ترتيب الطلاب حسب الدوام: طلاب الدوام الأول ثم الثاني ثم غير المرتبطين،
+     * وداخل كل دوام حسب الاسم.
+     */
+    public function scopeOrderByStudySession(Builder $query): Builder
+    {
+        $sessionIds = StudySession::query()->orderBy('name')->pluck('id')->all();
+
+        if ($sessionIds === []) {
+            return $query->orderBy('name');
+        }
+
+        $cases = [];
+        $bindings = [];
+
+        foreach ($sessionIds as $index => $id) {
+            $cases[] = 'WHEN ? THEN ?';
+            $bindings[] = $id;
+            $bindings[] = $index;
+        }
+
+        return $query
+            ->orderByRaw(
+                'CASE '.$this->getTable().'.study_session_id '.implode(' ', $cases).' ELSE '.count($sessionIds).' END',
+                $bindings
+            )
+            ->orderBy('name');
+    }
+
+    /**
      * فلترة الطلاب بالدوام النشط: لا يظهر في دوام مخصص لجنس (ذكور/إناث)
      * إلا طلاب ذلك الجنس، فلا تختلط الطلاب بين الدوامات.
      */

@@ -31,7 +31,6 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">الحالة</label>
             <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                 <option value="">نشط</option>
-                <option value="active" @selected(request('status') === 'active')>نشط</option>
                 <option value="archived" @selected(request('status') === 'archived')>مؤرشف</option>
             </select>
         </div>
