@@ -4,6 +4,15 @@
 
 @section('content')
 <div class="space-y-6 max-w-6xl mx-auto animate-fade-in-up">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <p class="text-gray-500 text-sm">🏆 سجل نقاط المكافآت للطلاب</p>
+        </div>
+        <a href="{{ route('admin.reward-points.create') }}" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-amber-600 hover:to-orange-600 transition shadow-lg shadow-amber-500/20 font-bold text-sm inline-flex items-center gap-2">
+            <span class="text-lg">✚</span> إضافة نقاط (ربح / خسارة)
+        </a>
+    </div>
+
     <div class="grid grid-cols-2 gap-4">
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <div class="text-sm text-gray-500 mb-1">✅ إجمالي النقاط المربوحة</div>
@@ -47,7 +56,10 @@
                     <span class="text-5xl">🏆</span>
                 </div>
                 <p class="text-xl font-bold text-gray-600 mb-2">لا توجد نقاط بعد</p>
-                <p class="text-gray-400">سيتم عرض سجل النقاط هنا عندما يقوم المعلمون بإضافتها</p>
+                <p class="text-gray-400 mb-6">ابدأ بإضافة نقاط (ربح) أو خصم نقاط (خسارة) للطلاب</p>
+                <a href="{{ route('admin.reward-points.create') }}" class="inline-flex items-center gap-2 bg-amber-500 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition font-medium">
+                    ✨ إضافة نقاط
+                </a>
             </div>
         @else
             <div class="overflow-x-auto">
@@ -61,6 +73,7 @@
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">📋 النوع</th>
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">📝 السبب</th>
                             <th class="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">📅 التاريخ</th>
+                            <th class="px-5 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">⚙️ إجراءات</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -106,6 +119,19 @@
                                     @endif
                                 </td>
                                 <td class="px-5 py-4 text-gray-500 text-xs">{{ $point->created_at->format('Y-m-d') }}</td>
+                                <td class="px-5 py-4 text-center">
+                                    @if(! $point->isAutomatic())
+                                        <form method="POST" action="{{ route('admin.reward-points.destroy', $point->id) }}" onsubmit="return confirm('هل أنت متأكد من حذف هذه النقاط؟')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-medium transition">
+                                                🗑️ حذف
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-[11px] text-gray-400">تلقائي</span>
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

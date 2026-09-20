@@ -364,6 +364,83 @@ class RewardPointRulesTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_add_earned_and_deducted_points_for_a_student(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+
+        $this->actingAs($admin)
+            ->get(route('admin.reward-points.create'))
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->post(route('admin.reward-points.store'), [
+                'student_id' => $student->id,
+                'points' => 10,
+                'type' => 'earned',
+                'reason' => 'حفظ ممتاز',
+            ])
+            ->assertRedirect(route('admin.reward-points.index'));
+
+        $this->actingAs($admin)
+            ->post(route('admin.reward-points.store'), [
+                'student_id' => $student->id,
+                'points' => 4,
+                'type' => 'deducted',
+                'reason' => 'إهمال الواجب',
+            ])
+            ->assertRedirect(route('admin.reward-points.index'));
+
+        $this->assertDatabaseHas('reward_points', [
+            'student_id' => $student->id,
+            'study_session_id' => $session->id,
+            'awarded_by' => $admin->id,
+            'points' => 10,
+            'type' => 'earned',
+        ]);
+        $this->assertDatabaseHas('reward_points', [
+            'student_id' => $student->id,
+            'study_session_id' => $session->id,
+            'awarded_by' => $admin->id,
+            'points' => 4,
+            'type' => 'deducted',
+        ]);
+
+        $this->assertSame(6, $student->fresh()->totalPoints());
+    }
+
+    public function test_admin_can_delete_manual_points_but_not_automatic_ones(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        [, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $manual = RewardPoint::create([
+            'student_id' => $student->id,
+            'awarded_by' => $admin->id,
+            'points' => 5,
+            'type' => 'earned',
+            'reason' => 'مكافأة يدوية',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.reward-points.destroy', $manual->id))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('reward_points', ['id' => $manual->id]);
+
+        $this->rule($session, RewardPointRule::TYPE_TASMEE_PAGES, 10, 5);
+        $this->tasmee($student, $teacher, 1, 5);
+
+        $automatic = RewardPoint::where('student_id', $student->id)->firstOrFail();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.reward-points.destroy', $automatic->id))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('reward_points', ['id' => $automatic->id]);
+    }
+
     public function test_student_portal_points_page_is_disabled(): void
     {
         [$mosque, $admin, $session] = $this->mosque();

@@ -265,6 +265,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('settings/hourly-rates/{hourlyRate}', [Admin\HourlyRateController::class, 'destroy'])->name('settings.hourly-rates.destroy')->middleware('permission:hourly_rates.manage');
 
     Route::get('reward-points', [Admin\RewardPointController::class, 'index'])->name('reward-points.index')->middleware('permission:reward_points.view');
+    Route::get('reward-points/create', [Admin\RewardPointController::class, 'create'])->name('reward-points.create')->middleware('permission:reward_points.create');
+    Route::post('reward-points', [Admin\RewardPointController::class, 'store'])->name('reward-points.store')->middleware('permission:reward_points.create');
+    Route::delete('reward-points/{id}', [Admin\RewardPointController::class, 'destroy'])->name('reward-points.destroy')->middleware('permission:reward_points.delete');
 
     Route::resource('users', Admin\UserController::class)->only(['index', 'store', 'update', 'destroy'])
         ->middlewareFor('index', 'permission:users.view')
