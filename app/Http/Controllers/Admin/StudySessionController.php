@@ -37,7 +37,7 @@ class StudySessionController extends Controller
                 'sections' => fn ($q) => $q->withoutGlobalScope('study_session'),
                 'classrooms' => fn ($q) => $q->withoutGlobalScope('study_session'),
             ])
-            ->orderBy('name')
+            ->orderForDisplay()
             ->get();
 
         return view('admin.sessions.index', [
@@ -175,6 +175,11 @@ class StudySessionController extends Controller
             $ids = $model::query()
                 ->withoutGlobalScope('study_session')
                 ->whereNull('study_session_id')
+                // الدوام المخصص لجنس يستقبل الطلاب الموافقين لجنسه فقط.
+                ->when(
+                    $data['type'] === 'students' && $session->gender !== null,
+                    fn ($q) => $q->where('gender', $session->gender)
+                )
                 ->pluck('id');
 
             if ($ids->isEmpty()) {
@@ -241,8 +246,12 @@ class StudySessionController extends Controller
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('study_sessions', 'name')->where('tenant_id', $tenantId)->ignore($session),
+                Rule::unique('study_sessions', 'name')
+                    ->where('tenant_id', $tenantId)
+                    ->where('gender', $request->input('gender'))
+                    ->ignore($session),
             ],
+            'gender' => ['nullable', Rule::in(array_keys(StudySession::GENDERS))],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
         ]);

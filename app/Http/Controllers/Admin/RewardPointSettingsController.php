@@ -31,7 +31,7 @@ class RewardPointSettingsController extends Controller
 
     public function edit(): View
     {
-        $sessions = StudySession::query()->orderBy('name')->get();
+        $sessions = StudySession::query()->orderForDisplay()->get();
 
         $rulesBySession = [];
 

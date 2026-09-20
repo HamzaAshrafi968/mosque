@@ -73,6 +73,10 @@ class DatabaseSeeder extends Seeder
 
         [$firstSession, $secondSession] = StudySession::where('tenant_id', $mosque1->id)->orderBy('name')->get();
 
+        // الدوام الأول للذكور والثاني للإناث — فلا يختلط الطلاب بين الدوامات.
+        $firstSession->update(['gender' => 'male']);
+        $secondSession->update(['gender' => 'female']);
+
         $manager = User::factory()->admin()->create([
             'tenant_id' => $mosque1->id,
             'name' => 'مدير الجامع - جامع النور',
@@ -96,8 +100,8 @@ class DatabaseSeeder extends Seeder
             'study_session_id' => $firstSession->id,
         ]);
 
-        Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $firstSession->id]);
-        Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $secondSession->id]);
+        Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $firstSession->id, 'gender' => 'male']);
+        Teacher::factory(2)->create(['tenant_id' => $mosque1->id, 'study_session_id' => $secondSession->id, 'gender' => 'female']);
 
         // لكل دوام صفوفه الخاصة (الصفوف غير المرتبطة بدوام مشتركة بين الدوامات).
         $classrooms = collect([
@@ -124,11 +128,12 @@ class DatabaseSeeder extends Seeder
 
         $sections = Section::where('tenant_id', $mosque1->id)->with('classroom')->get();
 
-        Student::factory(60)->make(['tenant_id' => $mosque1->id])->each(function (Student $student) use ($sections) {
+        Student::factory(60)->make(['tenant_id' => $mosque1->id])->each(function (Student $student) use ($sections, $firstSession) {
             $section = $sections->random();
             $student->classroom_id = $section->classroom_id;
             $student->section_id = $section->id;
             $student->study_session_id = $section->study_session_id;
+            $student->gender = $section->study_session_id === $firstSession->id ? 'male' : 'female';
             $student->save();
         });
 
@@ -502,6 +507,9 @@ class DatabaseSeeder extends Seeder
 
         [$firstSession2, $secondSession2] = StudySession::where('tenant_id', $mosque2->id)->orderBy('name')->get();
 
+        $firstSession2->update(['gender' => 'male']);
+        $secondSession2->update(['gender' => 'female']);
+
         User::factory()->admin()->create([
             'tenant_id' => $mosque2->id,
             'name' => 'مدير الجامع - جامع الفرقان',
@@ -543,11 +551,12 @@ class DatabaseSeeder extends Seeder
             ])
         ));
 
-        Student::factory(25)->make(['tenant_id' => $mosque2->id])->each(function (Student $student) use ($sections2) {
+        Student::factory(25)->make(['tenant_id' => $mosque2->id])->each(function (Student $student) use ($sections2, $firstSession2) {
             $section = $sections2->random();
             $student->classroom_id = $section->classroom_id;
             $student->section_id = $section->id;
             $student->study_session_id = $section->study_session_id;
+            $student->gender = $section->study_session_id === $firstSession2->id ? 'male' : 'female';
             $student->save();
         });
 

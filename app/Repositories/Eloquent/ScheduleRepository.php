@@ -23,7 +23,7 @@ class ScheduleRepository extends BaseRepository implements ScheduleRepositoryInt
                 'teacher:id,name',
                 'program:id,name,color',
                 'programPeriod:id,name,starts_at,ends_at',
-                'studySession:id,name',
+                'studySession:id,name,gender',
             ])
             ->when(! empty($filters['classroom_id']), fn ($q) => $q->where('classroom_id', $filters['classroom_id']))
             ->when(! empty($filters['teacher_id']), fn ($q) => $q->where('teacher_id', $filters['teacher_id']))
@@ -42,7 +42,7 @@ class ScheduleRepository extends BaseRepository implements ScheduleRepositoryInt
                 'subject:id,name',
                 'program:id,name,color',
                 'programPeriod:id,name,starts_at,ends_at',
-                'studySession:id,name',
+                'studySession:id,name,gender',
             ])
             ->where('teacher_id', $teacherId)
             ->orderByStudySession()

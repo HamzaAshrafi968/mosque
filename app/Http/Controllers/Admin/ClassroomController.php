@@ -45,7 +45,7 @@ class ClassroomController extends Controller
     {
         return view('admin.classrooms.form', [
             'classroom' => null,
-            'sessions' => StudySession::orderBy('name')->get(),
+            'sessions' => StudySession::orderForDisplay()->get(),
         ]);
     }
 
@@ -75,7 +75,7 @@ class ClassroomController extends Controller
             'sections' => $sections,
             'studentsCount' => $sections->sum('students_count'),
             'assignmentsCount' => $sections->sum('teacher_assignments_count'),
-            'sessions' => StudySession::orderBy('name')->get(),
+            'sessions' => StudySession::orderForDisplay()->get(),
         ]);
     }
 
@@ -83,7 +83,7 @@ class ClassroomController extends Controller
     {
         return view('admin.classrooms.form', [
             'classroom' => $classroom,
-            'sessions' => StudySession::orderBy('name')->get(),
+            'sessions' => StudySession::orderForDisplay()->get(),
         ]);
     }
 
@@ -189,7 +189,7 @@ class ClassroomController extends Controller
             'availableStudents' => $availableStudents,
             'availableTeachers' => $availableTeachers,
             'sections' => $sections,
-            'sessions' => StudySession::orderBy('name')->get(),
+            'sessions' => StudySession::orderForDisplay()->get(),
             'enrollments' => $section->sectionStudents()
                 ->with(['student:id,name', 'section:id,name'])
                 ->orderByDesc('updated_at')

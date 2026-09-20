@@ -30,7 +30,7 @@
             <select name="study_session_id" class="rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500">
                 <option value="">كل الدوامات</option>
                 @foreach($sessions as $session)
-                    <option value="{{ $session->id }}" @selected(request('study_session_id') === $session->id)>{{ $session->name }}</option>
+                    <option value="{{ $session->id }}" @selected(request('study_session_id') === $session->id)>{{ $session->display_name }}</option>
                 @endforeach
             </select>
             <select name="type" class="rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500">
@@ -78,7 +78,7 @@
                                 </td>
                                 <td class="px-5 py-4 text-gray-600">
                                     @if($point->studySession)
-                                        <span class="text-xs font-semibold">{{ $point->studySession->name }}</span>
+                                        <span class="text-xs font-semibold">{{ $point->studySession->display_name }}</span>
                                     @else
                                         <span class="text-gray-400">—</span>
                                     @endif

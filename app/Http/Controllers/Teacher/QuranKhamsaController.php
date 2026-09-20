@@ -61,8 +61,8 @@ class QuranKhamsaController extends BaseTeacherController
             'teachers' => collect([$teacher]),
             'sessions' => StudySession::query()
                 ->whereIn('id', $sessionIds->unique())
-                ->orderBy('name')
-                ->get(['id', 'name']),
+                ->orderForDisplay()
+                ->get(['id', 'name', 'gender']),
             'selectedStudent' => $student,
             'khamsat' => $student ? $this->khamsa->availableKhamsat($student) : [],
             'memorizedJuz' => $student ? $this->khamsa->memorizedJuzNumbers($student) : [],

@@ -17,7 +17,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">الجنس <span class="text-red-500">*</span></label>
-            <select name="gender" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <select name="gender" required data-session-gender-source class="w-full border border-gray-300 rounded-lg px-3 py-2">
                 <option value="male" @selected(old('gender', $student->gender) === 'male')>ذكر</option>
                 <option value="female" @selected(old('gender', $student->gender) === 'female')>أنثى</option>
             </select>
@@ -29,10 +29,10 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">الدوام</label>
-            <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <select name="study_session_id" data-session-gender-target class="w-full border border-gray-300 rounded-lg px-3 py-2">
                 <option value="">غير محدد (كل الدوامات)</option>
                 @foreach($sessions as $session)
-                    <option value="{{ $session->id }}" @selected(old('study_session_id', $student->study_session_id) == $session->id)>{{ $session->name }}</option>
+                    <option value="{{ $session->id }}" data-gender="{{ $session->gender }}" @selected(old('study_session_id', $student->study_session_id) == $session->id)>{{ $session->display_name }}</option>
                 @endforeach
             </select>
             <p class="text-xs text-gray-400 mt-1">إذا كان الطالب في شعبة مرتبطة بدوام فتُحسب من الشعبة تلقائياً</p>

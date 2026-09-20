@@ -35,9 +35,9 @@ class StudySessionService
     }
 
     /**
-     * The session currently selected by the logged-in manager (null = all).
+     * الدوام المحدد حالياً من مدير الجامع (null = كل الدوامات).
      */
-    public function currentSessionId(?string $tenantId): ?string
+    public function currentSession(?string $tenantId): ?StudySession
     {
         $sessionId = session('study_session_id');
 
@@ -45,9 +45,17 @@ class StudySessionService
             return null;
         }
 
-        return DB::table('study_sessions')
+        return StudySession::query()
             ->where('tenant_id', $tenantId)
-            ->where('id', $sessionId)
-            ->exists() ? $sessionId : null;
+            ->whereKey($sessionId)
+            ->first();
+    }
+
+    /**
+     * The session currently selected by the logged-in manager (null = all).
+     */
+    public function currentSessionId(?string $tenantId): ?string
+    {
+        return $this->currentSession($tenantId)?->id;
     }
 }

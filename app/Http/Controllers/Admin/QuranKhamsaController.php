@@ -45,7 +45,7 @@ class QuranKhamsaController extends Controller
         return view('admin.quran.khamsa.create', [
             'students' => Student::query()->active()->orderBy('name')->get(['id', 'name', 'study_session_id']),
             'teachers' => Teacher::query()->orderBy('name')->get(['id', 'name', 'study_session_id']),
-            'sessions' => StudySession::orderBy('name')->get(['id', 'name']),
+            'sessions' => StudySession::orderForDisplay()->get(['id', 'name', 'gender']),
             'selectedStudent' => $student,
             'khamsat' => $student ? $this->khamsa->availableKhamsat($student) : [],
             'memorizedJuz' => $student ? $this->khamsa->memorizedJuzNumbers($student) : [],

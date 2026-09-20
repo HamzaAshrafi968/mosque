@@ -53,7 +53,7 @@ class QuranListeningController extends Controller
         return view('admin.quran.listening.create', [
             'students' => Student::query()->active()->orderBy('name')->get(['id', 'name', 'study_session_id']),
             'teachers' => Teacher::query()->orderBy('name')->get(['id', 'name', 'study_session_id']),
-            'sessions' => StudySession::orderBy('name')->get(['id', 'name']),
+            'sessions' => StudySession::orderForDisplay()->get(['id', 'name', 'gender']),
             'selectedStudent' => $student,
             'juzOptions' => $builder['juzOptions'],
             'khamsat' => $builder['khamsat'],

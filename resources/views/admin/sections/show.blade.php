@@ -42,7 +42,7 @@
                 <select name="study_session_id" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     <option value="">بدون دوام</option>
                     @foreach($sessions as $session)
-                        <option value="{{ $session->id }}" @selected((string) $section->study_session_id === (string) $session->id)>{{ $session->name }}</option>
+                        <option value="{{ $session->id }}" @selected((string) $section->study_session_id === (string) $session->id)>{{ $session->display_name }}</option>
                     @endforeach
                 </select>
             @endif

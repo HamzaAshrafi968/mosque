@@ -45,7 +45,7 @@ class TimesheetController extends BaseApiController
         $weekEnd = $weekStart->endOfWeek(Carbon::SATURDAY);
 
         $teachers = Teacher::query()
-            ->with(['studySession:id,name', 'studySessions:id,name'])
+            ->with(['studySession:id,name,gender', 'studySessions:id,name,gender'])
             ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
             ->when($sessionId, fn ($query) => $query->where(fn ($inner) => $inner
                 ->where('study_session_id', $sessionId)
@@ -101,7 +101,7 @@ class TimesheetController extends BaseApiController
                     'starts_before_month' => $week['starts_before_month'],
                     'ends_after_month' => $week['ends_after_month'],
                 ])->values(),
-            'sessions' => StudySession::query()->orderBy('name')->get(['id', 'name']),
+            'sessions' => StudySession::query()->orderForDisplay()->get(['id', 'name', 'gender']),
             'teachers' => $rows->values(),
             'pagination' => [
                 'current_page' => $teachers->currentPage(),
@@ -115,7 +115,7 @@ class TimesheetController extends BaseApiController
     public function teacher(Teacher $teacher, Request $request): JsonResponse
     {
         $month = $this->resolveMonth($request);
-        $teacher->load(['studySession:id,name', 'studySessions:id,name']);
+        $teacher->load(['studySession:id,name,gender', 'studySessions:id,name,gender']);
 
         $slots = $this->payroll->slotsFor($teacher, $month);
         $summary = $this->payroll->summary($teacher, $month, null, $slots);

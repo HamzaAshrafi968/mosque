@@ -61,7 +61,7 @@
                         <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" name="study_session_ids[]" value="{{ $session->id }}" @checked(in_array($session->id, $selectedSessions))
                                    class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-500">
-                            <span class="text-sm text-gray-700">{{ $session->name }}</span>
+                            <span class="text-sm text-gray-700">{{ $session->display_name }}</span>
                         </label>
                     @endforeach
                 </div>

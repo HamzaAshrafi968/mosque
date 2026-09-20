@@ -15,7 +15,7 @@
         </div>
         <div class="flex items-center gap-2 text-sm bg-white/10 rounded-lg px-3 py-2">
             <span>تعرض حالياً:</span>
-            <span class="font-bold">{{ $currentSession?->name ?: 'كل الدوامات' }}</span>
+            <span class="font-bold">{{ $currentSession?->display_name ?: 'كل الدوامات' }}</span>
         </div>
     </div>
     @if($unassigned['students'] > 0 || $unassigned['teachers'] > 0 || $unassigned['sections'] > 0 || $unassigned['classrooms'] > 0)
@@ -37,7 +37,7 @@
                     </select>
                     <select name="study_session_id" class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm" required>
                         @foreach($sessions as $session)
-                            <option value="{{ $session->id }}">{{ $session->name }}</option>
+                            <option value="{{ $session->id }}">{{ $session->display_name }}</option>
                         @endforeach
                     </select>
                     <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold px-3 py-1.5 rounded-lg">توزيع الكل</button>
@@ -49,14 +49,21 @@
 
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
     <h2 class="font-bold text-gray-800 mb-3">إضافة دوام جديد</h2>
-    <form method="POST" action="{{ route('admin.sessions.store') }}" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <form method="POST" action="{{ route('admin.sessions.store') }}" class="grid grid-cols-1 md:grid-cols-4 gap-3">
         @csrf
-        <input type="text" name="name" required placeholder="اسم الدوام (مثال: الدوام الثالث)"
+        <input type="text" name="name" required value="{{ old('name') }}" placeholder="اسم الدوام (مثال: الدوام الأول)"
                class="w-full border border-gray-300 rounded-lg px-3 py-2">
-        <input type="text" name="description" placeholder="وصف اختياري"
+        <select name="gender" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <option value="">غير محدد (مختلط)</option>
+            @foreach(\App\Models\StudySession::GENDERS as $value => $label)
+                <option value="{{ $value }}" @selected(old('gender') === $value)>{{ $label }}</option>
+            @endforeach
+        </select>
+        <input type="text" name="description" value="{{ old('description') }}" placeholder="وصف اختياري"
                class="w-full border border-gray-300 rounded-lg px-3 py-2">
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إضافة الدوام</button>
     </form>
+    <p class="text-xs text-gray-400 mt-2">يمكن تكرار الاسم نفسه بجنس مختلف (مثال: «الدوام الأول (ذكور)» و«الدوام الأول (إناث)») — لكن لا يمكن تكرار نفس الاسم بنفس الجنس.</p>
 </div>
 
 @if($sessions->isNotEmpty())
@@ -66,8 +73,13 @@
             <div class="bg-white rounded-xl shadow overflow-hidden @if((string) $session->id === (string) $currentSessionId) ring-2 ring-emerald-500 @endif">
                 <div class="px-4 py-3 flex items-center justify-between border-b">
                     <div>
-                        <div class="font-bold text-gray-800 flex items-center gap-2">
+                        <div class="font-bold text-gray-800 flex items-center gap-2 flex-wrap">
                             {{ $session->name }}
+                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ match($session->gender) {
+                                'male' => 'bg-sky-100 text-sky-800',
+                                'female' => 'bg-pink-100 text-pink-800',
+                                default => 'bg-gray-100 text-gray-600',
+                            } }}">{{ $session->genderLabel() }}</span>
                             @if((string) $session->id === (string) $currentSessionId)
                                 <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">المعروض حالياً</span>
                             @endif
@@ -125,6 +137,12 @@
                             @method('PATCH')
                             <input type="text" name="name" value="{{ old('name', $session->name) }}" required
                                    class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+                            <select name="gender" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+                                <option value="">غير محدد (مختلط)</option>
+                                @foreach(\App\Models\StudySession::GENDERS as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('gender', $session->gender) === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
                             <input type="text" name="description" value="{{ old('description', $session->description) }}"
                                    class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm" placeholder="وصف اختياري">
                             <label class="flex items-center gap-2 text-sm text-gray-700">

@@ -8,6 +8,7 @@ use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\SectionTeacher;
 use App\Models\Student;
+use App\Models\StudySession;
 use App\Models\Teacher;
 use Illuminate\Validation\ValidationException;
 
@@ -49,6 +50,8 @@ class EnrollmentService
         if ($section->tenant_id !== $student->tenant_id) {
             throw ValidationException::withMessages(['section_id' => ['الشعبة لا تنتمي لنفس الجامع']]);
         }
+
+        $this->assertGenderMatchesSession($student, $section);
 
         $current = $this->currentMembership($student);
 
@@ -107,6 +110,8 @@ class EnrollmentService
         if ($toSection->tenant_id !== $student->tenant_id) {
             throw ValidationException::withMessages(['section_id' => ['الشعبة لا تنتمي لنفس الجامع']]);
         }
+
+        $this->assertGenderMatchesSession($student, $toSection);
 
         $current = $this->currentMembership($student);
 
@@ -251,10 +256,73 @@ class EnrollmentService
      */
     public function syncSectionShift(Section $section): void
     {
+        $this->assertStudentsMatchSessionGender(
+            $section->study_session_id,
+            Student::query()
+                ->withoutGlobalScope('study_session')
+                ->where('section_id', $section->id)
+                ->pluck('gender')
+        );
+
         Student::query()
             ->withoutGlobalScope('study_session')
             ->where('section_id', $section->id)
             ->update(['study_session_id' => $section->study_session_id]);
+    }
+
+    /**
+     * يمنع تسجيل/نقل طالب إلى شعبة دوامها مخصص لجنس مختلف.
+     *
+     * @throws ValidationException
+     */
+    private function assertGenderMatchesSession(Student $student, Section $section): void
+    {
+        if ($section->study_session_id === null) {
+            return;
+        }
+
+        $gender = StudySession::query()->whereKey($section->study_session_id)->value('gender');
+
+        if ($gender === null || $gender === $student->gender) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'section_id' => ['هذه الشعبة في دوام '.self::genderLabel($gender).' — لا يمكن تسجيل طالب من جنس آخر'],
+        ]);
+    }
+
+    /**
+     * يمنع نقل شعبة/صف فيه طلاب إلى دوام مخصص لجنس مختلف.
+     *
+     * @param  iterable<int, string|null>  $studentGenders
+     *
+     * @throws ValidationException
+     */
+    public function assertStudentsMatchSessionGender(?string $studySessionId, iterable $studentGenders, string $field = 'study_session_id'): void
+    {
+        if ($studySessionId === null) {
+            return;
+        }
+
+        $gender = StudySession::query()->whereKey($studySessionId)->value('gender');
+
+        if ($gender === null) {
+            return;
+        }
+
+        foreach ($studentGenders as $studentGender) {
+            if ($studentGender !== $gender) {
+                throw ValidationException::withMessages([
+                    $field => ['لا يمكن النقل إلى دوام '.self::genderLabel($gender).' — فيه طلاب من جنس آخر'],
+                ]);
+            }
+        }
+    }
+
+    private static function genderLabel(string $gender): string
+    {
+        return StudySession::GENDERS[$gender] ?? 'غير محدد';
     }
 
     /** Assign a teacher to a section (idempotent reactivation). */

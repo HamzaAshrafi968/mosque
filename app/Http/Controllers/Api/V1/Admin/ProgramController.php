@@ -27,7 +27,7 @@ class ProgramController extends BaseApiController
         $sessionId = $request->input('study_session_id');
 
         $programs = Program::query()
-            ->with(['periods', 'attributes', 'studySessions:id,name'])
+            ->with(['periods', 'attributes', 'studySessions:id,name,gender'])
             ->withCount('schedules')
             ->when($request->filled('search'), fn ($query) => $query->where('name', 'like', '%'.$request->input('search').'%'))
             ->when($type, fn ($query) => $query->where('type', $type->value))
@@ -45,7 +45,7 @@ class ProgramController extends BaseApiController
 
     public function show(Program $program): JsonResponse
     {
-        $program->load(['periods', 'attributes', 'studySessions:id,name'])->loadCount('schedules');
+        $program->load(['periods', 'attributes', 'studySessions:id,name,gender'])->loadCount('schedules');
 
         return $this->success(['program' => ProgramResource::make($program)]);
     }

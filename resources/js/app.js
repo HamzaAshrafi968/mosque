@@ -1500,6 +1500,37 @@ function initQuickSlotForms() {
     });
 }
 
+function initSessionGenderFilters() {
+    document.querySelectorAll('[data-session-gender-target]').forEach((sessionSelect) => {
+        const scope = sessionSelect.closest('form') || document;
+        const genderSelect = scope.querySelector('[data-session-gender-source]');
+        if (!genderSelect) return;
+
+        const apply = () => {
+            const gender = genderSelect.value;
+            let selectedHidden = false;
+
+            sessionSelect.querySelectorAll('option[data-gender]').forEach((option) => {
+                const optionGender = option.dataset.gender || null;
+                const matches = !gender || optionGender === null || optionGender === gender;
+                option.hidden = !matches;
+                option.disabled = !matches;
+
+                if (option.selected && !matches) {
+                    selectedHidden = true;
+                }
+            });
+
+            if (selectedHidden) {
+                sessionSelect.value = '';
+            }
+        };
+
+        genderSelect.addEventListener('change', apply);
+        apply();
+    });
+}
+
 function initApp() {
     initSidebarCollapse();
     initSidebarGroups();
@@ -1515,6 +1546,7 @@ function initApp() {
     initQuickSlotForms();
     initExamTimers();
     initExamQuestionBuilders();
+    initSessionGenderFilters();
 }
 
 if (document.readyState === 'loading') {

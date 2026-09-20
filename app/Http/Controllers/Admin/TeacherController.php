@@ -37,7 +37,7 @@ class TeacherController extends Controller
     public function index(Request $request): View
     {
         $teachers = Teacher::query()
-            ->with(['studySession:id,name', 'studySessions:id,name'])
+            ->with(['studySession:id,name,gender', 'studySessions:id,name,gender'])
             ->withCount('subjects')
             ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.$request->input('q').'%'))
             ->when($request->filled('gender'), fn ($q) => $q->where('gender', $request->input('gender')))
@@ -52,7 +52,7 @@ class TeacherController extends Controller
     {
         return view('admin.teachers.create', [
             'customFields' => $this->customFields->definitions(Teacher::CUSTOM_FIELD_ENTITY),
-            'sessions' => StudySession::orderBy('name')->get(),
+            'sessions' => StudySession::orderForDisplay()->get(),
         ]);
     }
 
@@ -60,7 +60,7 @@ class TeacherController extends Controller
     {
         $teacher->load([
             'subjects:id,name',
-            'studySessions:id,name',
+            'studySessions:id,name,gender',
             'ratings' => fn ($q) => $q->with('user:id,name')->latest(),
             'certificates' => fn ($q) => $q->latest(),
             'assignedSections.classroom:id,name',
@@ -183,13 +183,13 @@ class TeacherController extends Controller
 
     public function edit(Teacher $teacher): View
     {
-        $teacher->load('studySessions:id,name');
+        $teacher->load('studySessions:id,name,gender');
 
         return view('admin.teachers.edit', [
             'teacher' => $teacher,
             'customFields' => $this->customFields->definitions(Teacher::CUSTOM_FIELD_ENTITY),
             'customValues' => $this->customFields->valuesFor(Teacher::CUSTOM_FIELD_ENTITY, $teacher->id),
-            'sessions' => StudySession::orderBy('name')->get(),
+            'sessions' => StudySession::orderForDisplay()->get(),
         ]);
     }
 

@@ -55,7 +55,7 @@
             <select name="study_session_id" id="filter-session" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                 <option value="">كل الدوامات</option>
                 @foreach($studySessions as $session)
-                    <option value="{{ $session->id }}" @selected(request('study_session_id') == $session->id)>{{ $session->name }}</option>
+                    <option value="{{ $session->id }}" @selected(request('study_session_id') == $session->id)>{{ $session->display_name }}</option>
                 @endforeach
             </select>
         </div>
@@ -88,7 +88,7 @@
                 <select name="study_session_id" id="schedule-session" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     <option value="">بدون دوام</option>
                     @foreach($studySessions as $session)
-                        <option value="{{ $session->id }}" @selected(old('study_session_id', $currentSessionId) == $session->id)>{{ $session->name }}</option>
+                        <option value="{{ $session->id }}" @selected(old('study_session_id', $currentSessionId) == $session->id)>{{ $session->display_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -178,7 +178,7 @@
                 <select name="study_session_id" id="bulk-session" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     <option value="">بدون دوام</option>
                     @foreach($studySessions as $session)
-                        <option value="{{ $session->id }}" @selected(old('study_session_id', $currentSessionId) == $session->id)>{{ $session->name }}</option>
+                        <option value="{{ $session->id }}" @selected(old('study_session_id', $currentSessionId) == $session->id)>{{ $session->display_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -287,7 +287,7 @@
                                     </div>
                                     <div class="text-xs text-gray-500">{{ $schedule->teacher?->name }}</div>
                                     @if($schedule->studySession)
-                                        <div class="text-[10px] text-gray-400 mt-0.5">دوام {{ $schedule->studySession->name }}</div>
+                                        <div class="text-[10px] text-gray-400 mt-0.5">دوام {{ $schedule->studySession->display_name }}</div>
                                     @endif
 
                                     @foreach($slotExceptions as $exception)

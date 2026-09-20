@@ -55,7 +55,7 @@
                     <select name="study_session_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
                         <option value="">— اختر الدوام —</option>
                         @foreach($sessions as $session)
-                            <option value="{{ $session->id }}" @selected($studentShift === $session->id)>{{ $session->name }}</option>
+                            <option value="{{ $session->id }}" @selected($studentShift === $session->id)>{{ $session->display_name }}</option>
                         @endforeach
                     </select>
                     @error('study_session_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror

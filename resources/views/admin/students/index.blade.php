@@ -77,7 +77,7 @@
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $student->section?->name }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
                             @if($student->studySession)
-                                <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800">{{ $student->studySession->name }}</span>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800">{{ $student->studySession->display_name }}</span>
                             @else
                                 <span class="text-xs text-gray-400">—</span>
                             @endif

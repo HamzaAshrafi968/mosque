@@ -71,7 +71,7 @@
                         <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">كل الدوامات</span>
                     @else
                         @foreach($program->studySessions as $session)
-                            <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{{ $session->name }}</span>
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{{ $session->display_name }}</span>
                         @endforeach
                     @endif
                 </div>

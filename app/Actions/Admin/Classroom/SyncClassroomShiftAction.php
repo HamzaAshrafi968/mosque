@@ -6,6 +6,7 @@ use App\Models\Classroom;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Student;
+use App\Services\EnrollmentService;
 use App\Services\ScheduleConflictService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,13 +17,22 @@ use Illuminate\Validation\ValidationException;
  *
  * قبل النقل يُفحص تعارض المعلمين: حصص الصف المنقولة تُقارن بحصص المعلم
  * الثابتة، لأن نقل الحصص إلى دوام آخر قد يجعل المعلم في مكانين معاً.
+ * كما يُرفض نقل صف فيه طلاب إلى دوام مخصص لجنس مختلف.
  */
 class SyncClassroomShiftAction
 {
-    public function __construct(private readonly ScheduleConflictService $conflicts) {}
+    public function __construct(
+        private readonly ScheduleConflictService $conflicts,
+        private readonly EnrollmentService $enrollment,
+    ) {}
 
     public function execute(Classroom $classroom, ?string $studySessionId): void
     {
+        $sectionIds = Section::query()
+            ->withoutGlobalScope('study_session')
+            ->where('classroom_id', $classroom->id)
+            ->pluck('id');
+
         if ($studySessionId !== null) {
             $messages = [];
 
@@ -33,15 +43,20 @@ class SyncClassroomShiftAction
             if ($messages !== []) {
                 throw ValidationException::withMessages($messages);
             }
+
+            if ($sectionIds->isNotEmpty()) {
+                $this->enrollment->assertStudentsMatchSessionGender(
+                    $studySessionId,
+                    Student::query()
+                        ->withoutGlobalScope('study_session')
+                        ->whereIn('section_id', $sectionIds)
+                        ->pluck('gender')
+                );
+            }
         }
 
-        DB::transaction(function () use ($classroom, $studySessionId) {
+        DB::transaction(function () use ($classroom, $studySessionId, $sectionIds) {
             $classroom->update(['study_session_id' => $studySessionId]);
-
-            $sectionIds = Section::query()
-                ->withoutGlobalScope('study_session')
-                ->where('classroom_id', $classroom->id)
-                ->pluck('id');
 
             Section::query()
                 ->withoutGlobalScope('study_session')

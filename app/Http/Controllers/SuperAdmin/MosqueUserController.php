@@ -40,8 +40,8 @@ class MosqueUserController extends Controller
             'roles' => $roles,
             'studySessions' => StudySession::withoutGlobalScope('tenant')
                 ->where('tenant_id', $mosque->id)
-                ->orderBy('name')
-                ->get(['id', 'name']),
+                ->orderForDisplay()
+                ->get(['id', 'name', 'gender']),
         ]);
     }
 
@@ -101,8 +101,8 @@ class MosqueUserController extends Controller
             'teacher' => Teacher::withoutGlobalScope('tenant')->where('user_id', $user->id)->first(),
             'studySessions' => StudySession::withoutGlobalScope('tenant')
                 ->where('tenant_id', $mosque->id)
-                ->orderBy('name')
-                ->get(['id', 'name']),
+                ->orderForDisplay()
+                ->get(['id', 'name', 'gender']),
         ], $this->matrixData($user)));
     }
 

@@ -39,10 +39,14 @@ class InitializeTenant
         // always see everything regardless of a leftover browser choice.
         $managesMosque = $user->isAdmin() || $user->isSuperAdmin();
 
+        $session = $managesMosque && $tenantId !== null
+            ? $this->sessions->currentSession($tenantId)
+            : null;
+
         config([
-            'app.current_study_session_id' => $managesMosque && $tenantId !== null
-                ? $this->sessions->currentSessionId($tenantId)
-                : null,
+            'app.current_study_session_id' => $session?->id,
+            // جنس الدوام المحدد: تُفلتر به قوائم الطلاب (فارغ = مختلط/غير محدد).
+            'app.current_study_session_gender' => $session?->gender,
         ]);
 
         return $next($request);

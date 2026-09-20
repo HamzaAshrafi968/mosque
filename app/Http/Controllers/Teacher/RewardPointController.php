@@ -16,7 +16,7 @@ class RewardPointController extends BaseTeacherController
         $teacher = $this->currentTeacher($request);
 
         $points = RewardPoint::query()
-            ->with(['student:id,name', 'awardedBy:id,name', 'studySession:id,name', 'quranReviewSession:id,surah_id,from_ayah,to_ayah', 'quranReviewSession.surah:id,name_arabic'])
+            ->with(['student:id,name', 'awardedBy:id,name', 'studySession:id,name,gender', 'quranReviewSession:id,surah_id,from_ayah,to_ayah', 'quranReviewSession.surah:id,name_arabic'])
             ->where('awarded_by', $request->user()->id)
             ->when($request->student_id, fn ($q) => $q->where('student_id', $request->student_id))
             ->orderByDesc('created_at')

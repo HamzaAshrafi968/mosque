@@ -288,4 +288,22 @@ class Student extends Model
                 ->orWhere('guardian_phone', 'like', "%{$term}%");
         }));
     }
+
+    /**
+     * فلترة الطلاب بالدوام النشط: لا يظهر في دوام مخصص لجنس (ذكور/إناث)
+     * إلا طلاب ذلك الجنس، فلا تختلط الطلاب بين الدوامات.
+     */
+    public function applyStudySessionScope(Builder $builder, string $sessionId): void
+    {
+        $builder->where($this->getTable().'.study_session_id', $sessionId);
+
+        $gender = config('app.current_study_session_id') === $sessionId
+            && config()->has('app.current_study_session_gender')
+                ? config('app.current_study_session_gender')
+                : StudySession::query()->whereKey($sessionId)->value('gender');
+
+        if ($gender !== null) {
+            $builder->where($this->getTable().'.gender', $gender);
+        }
+    }
 }

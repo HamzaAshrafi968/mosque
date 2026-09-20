@@ -50,9 +50,9 @@
                             <div class="flex items-center gap-3">
                                 <x-avatar :src="$teacher->avatarUrl()" :name="$teacher->name" size="sm" fallback-class="bg-gradient-to-br from-pine-500 to-pine-800" />
                                 @php
-                                    $shiftNames = $teacher->studySessions->pluck('name');
+                                    $shiftNames = $teacher->studySessions->pluck('display_name');
                                     if ($shiftNames->isEmpty() && $teacher->studySession) {
-                                        $shiftNames = collect([$teacher->studySession->name]);
+                                        $shiftNames = collect([$teacher->studySession->display_name]);
                                     }
                                 @endphp
                                 <div class="font-bold">

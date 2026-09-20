@@ -52,7 +52,7 @@
                                 </td>
                                 <td class="px-5 py-4 text-gray-600">
                                     @if($point->studySession)
-                                        <span class="text-xs font-semibold">{{ $point->studySession->name }}</span>
+                                        <span class="text-xs font-semibold">{{ $point->studySession->display_name }}</span>
                                     @else
                                         <span class="text-gray-400">—</span>
                                     @endif

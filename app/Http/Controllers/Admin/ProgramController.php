@@ -36,7 +36,7 @@ class ProgramController extends Controller
         $search = $request->input('search');
 
         $programs = Program::query()
-            ->with('studySessions:id,name')
+            ->with('studySessions:id,name,gender')
             ->withCount(['periods', 'attributes', 'schedules'])
             ->when($search, fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
             ->when($type, fn ($query) => $query->where('type', $type->value))
@@ -76,7 +76,7 @@ class ProgramController extends Controller
 
     public function show(Request $request, Program $program): View
     {
-        $program->load(['periods', 'attributes', 'studySessions:id,name'])
+        $program->load(['periods', 'attributes', 'studySessions:id,name,gender'])
             ->loadCount(['periods', 'attributes', 'schedules']);
 
         $attributeRows = $program->attributes->map(function (ProgramAttribute $attribute) {

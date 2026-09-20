@@ -38,7 +38,7 @@ class ScheduleController extends Controller
                 'teacher:id,name',
                 'program:id,name,color',
                 'programPeriod:id,name,starts_at,ends_at',
-                'studySession:id,name',
+                'studySession:id,name,gender',
             ])
             ->when($request->filled('classroom_id'), fn ($q) => $q->where('classroom_id', $request->input('classroom_id')))
             ->when($request->filled('teacher_id'), fn ($q) => $q->where('teacher_id', $request->input('teacher_id')))
@@ -60,7 +60,7 @@ class ScheduleController extends Controller
                 ->orderBy('name')
                 ->get(),
             'sessionProgramMap' => $programService->sessionProgramMap(),
-            'studySessions' => StudySession::orderBy('name')->get(['id', 'name']),
+            'studySessions' => StudySession::orderForDisplay()->get(['id', 'name', 'gender']),
             'currentSessionId' => config('app.current_study_session_id'),
         ]);
     }

@@ -46,7 +46,7 @@ class StudentController extends Controller
     public function index(Request $request): View
     {
         $students = Student::query()
-            ->with(['classroom:id,name', 'section:id,name', 'studySession:id,name', 'guardians:id,name,phone'])
+            ->with(['classroom:id,name', 'section:id,name', 'studySession:id,name,gender', 'guardians:id,name,phone'])
             ->search($request->string('q')->toString())
             ->when($request->filled('classroom_id'), fn ($q) => $q->where('classroom_id', $request->input('classroom_id')))
             ->when($request->filled('gender'), fn ($q) => $q->where('gender', $request->input('gender')))
@@ -66,7 +66,7 @@ class StudentController extends Controller
         return view('admin.students.create', [
             'classrooms' => $this->classroomsTree(),
             'customFields' => $this->customFields->definitions(Student::CUSTOM_FIELD_ENTITY),
-            'sessions' => StudySession::orderBy('name')->get(),
+            'sessions' => StudySession::orderForDisplay()->get(),
             'selectedGuardians' => $this->guardiansForSelection($request, null),
             'canCreateGuardian' => $this->authorization->can($request->user(), 'parents.create'),
         ]);
@@ -139,7 +139,7 @@ class StudentController extends Controller
         $student->load([
             'classroom:id,name',
             'section:id,name',
-            'studySession:id,name',
+            'studySession:id,name,gender',
             'guardians:id,name,phone',
             'memorizedFromSurah:id,name_arabic',
             'memorizedToSurah:id,name_arabic',
@@ -180,8 +180,8 @@ class StudentController extends Controller
             'classrooms' => $this->classroomsTree(),
             'customFields' => $this->customFields->definitions(Student::CUSTOM_FIELD_ENTITY),
             'customValues' => $values,
-            'sessions' => StudySession::orderBy('name')->get(),
             'surahs' => $this->surahs(),
+            'sessions' => StudySession::orderForDisplay()->get(),
             'memorizedJuz' => $this->khamsa->memorizedJuzNumbers($student),
             'selectedGuardians' => $this->guardiansForSelection($request, $student),
             'canCreateGuardian' => $this->authorization->can($request->user(), 'parents.create'),
@@ -345,7 +345,7 @@ class StudentController extends Controller
     {
         $tenantId = config('app.current_tenant_id');
 
-        return $request->validate(array_merge([
+        $data = $request->validate(array_merge([
             'name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
             'birth_date' => ['nullable', 'date'],
@@ -365,6 +365,40 @@ class StudentController extends Controller
             'memorized_juz_numbers.*' => ['integer', 'min:1', 'max:30'],
             'memorized_juz_numbers_present' => ['nullable', 'boolean'],
         ], QuranMemorizationRules::rules($request), $this->profilePhotoRules()));
+
+        // الدوام المخصص لجنس لا يقبل طالباً من جنس آخر — نفس شرط الشعبة.
+        $sessionGender = $this->genderOfSession($data['study_session_id'] ?? null);
+
+        if ($sessionGender !== null && $sessionGender !== $data['gender']) {
+            throw ValidationException::withMessages([
+                'study_session_id' => ['الدوام المختار مخصص لجنس آخر — اختر دواماً يوافق جنس الطالب'],
+            ]);
+        }
+
+        if (! empty($data['section_id'])) {
+            $section = Section::query()->with('classroom:id,study_session_id')->find($data['section_id']);
+            $sectionGender = $this->genderOfSession(
+                $section?->study_session_id ?? $section?->classroom?->study_session_id
+            );
+
+            if ($sectionGender !== null && $sectionGender !== $data['gender']) {
+                throw ValidationException::withMessages([
+                    'section_id' => ['الشعبة المختارة في دوام '.StudySession::GENDERS[$sectionGender].' — اختر شعبة توافق جنس الطالب'],
+                ]);
+            }
+        }
+
+        return $data;
+    }
+
+    /** جنس الدوام (null = غير مخصص/غير موجود). */
+    private function genderOfSession(?string $sessionId): ?string
+    {
+        if ($sessionId === null) {
+            return null;
+        }
+
+        return StudySession::query()->whereKey($sessionId)->value('gender');
     }
 
     /**

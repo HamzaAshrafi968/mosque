@@ -1,6 +1,6 @@
 @php
     /** @var \Illuminate\Support\Collection<int, \App\Models\StudySession> $studySessions */
-    $studySessions = $studySessions ?? \App\Models\StudySession::orderBy('name')->get();
+    $studySessions = $studySessions ?? \App\Models\StudySession::orderForDisplay()->get();
     $currentStudySessionId = config('app.current_study_session_id');
     $currentStudySession = $studySessions->firstWhere('id', $currentStudySessionId);
 @endphp
@@ -15,7 +15,7 @@
             class="w-full flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs sm:text-sm font-semibold px-3 py-2 cursor-pointer transition focus:outline-none focus:ring-2 focus:ring-gold-300/60"
         >
             <span class="shrink-0 text-gold-300"><x-icon name="clock" class="w-4 h-4" /></span>
-            <span class="flex-1 truncate text-right sm:text-left">{{ $currentStudySession?->name ?: 'كل الدوامات' }}</span>
+            <span class="flex-1 truncate text-right sm:text-left">{{ $currentStudySession?->display_name ?: 'كل الدوامات' }}</span>
             <span class="shrink-0 text-gold-200/80 transition-transform duration-200" id="study-session-switcher-caret"><x-icon name="chevron" class="w-4 h-4" /></span>
         </button>
 
@@ -57,7 +57,7 @@
                     >
                         <span class="shrink-0 text-gray-400"><x-icon name="clock" class="w-4 h-4" /></span>
                         <span class="flex-1 text-right {{ $currentStudySessionId && (string) $studySession->id === (string) $currentStudySessionId ? 'text-pine-800 font-bold' : 'text-gray-700' }}">
-                            {{ $studySession->name }}
+                            {{ $studySession->display_name }}
                         </span>
                         @if($currentStudySessionId && (string) $studySession->id === (string) $currentStudySessionId)
                             <span class="text-emerald-600 text-[11px] font-bold">✓ الحالي</span>

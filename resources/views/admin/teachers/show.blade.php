@@ -26,7 +26,7 @@
                 <div>الجنس: {{ $teacher->gender === 'male' ? 'ذكر' : 'أنثى' }}</div>
                 <div>الهاتف: {{ $teacher->phone ?? '—' }} &bull; البريد: {{ $teacher->email ?? '—' }}</div>
                 <div>تاريخ التعيين: {{ $teacher->hired_at?->format('Y-m-d') ?? '—' }}</div>
-                <div>الدوامات: {{ $teacher->studySessions->pluck('name')->join('، ') ?: 'كل الدوامات' }}</div>
+                <div>الدوامات: {{ $teacher->studySessions->pluck('display_name')->join('، ') ?: 'كل الدوامات' }}</div>
                 <div>المواد: {{ $teacher->subjects->pluck('name')->join('، ') ?: '—' }}</div>
             </div>
         </div>

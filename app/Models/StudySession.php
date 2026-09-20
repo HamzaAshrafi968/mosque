@@ -21,9 +21,16 @@ class StudySession extends Model
 {
     use HasFactory, MultiTenantTrait, UuidTrait;
 
+    /** الجنس المخصص له الدوام — القيمة الفارغة تعني «غير محدد/مختلط». */
+    public const GENDERS = [
+        'male' => 'ذكور',
+        'female' => 'إناث',
+    ];
+
     protected $fillable = [
         'tenant_id',
         'name',
+        'gender',
         'description',
         'is_active',
     ];
@@ -72,5 +79,27 @@ class StudySession extends Model
     public function scopeSearch(Builder $query, ?string $term): Builder
     {
         return $query->when($term, fn (Builder $q) => $q->where('name', 'like', "%{$term}%"));
+    }
+
+    /** ترتيب موحّد للعرض: الاسم ثم ذكور/إناث/غير محدد. */
+    public function scopeOrderForDisplay(Builder $query): Builder
+    {
+        return $query
+            ->orderBy('name')
+            ->orderByRaw("case gender when 'male' then 1 when 'female' then 2 else 3 end");
+    }
+
+    /** التسمية العربية لجنس الدوام («غير محدد» عند غياب الجنس). */
+    public function genderLabel(): string
+    {
+        return self::GENDERS[$this->gender] ?? 'غير محدد';
+    }
+
+    /** اسم العرض في القوائم: «الدوام الأول (ذكور)» — بلا لاحقة عند غياب الجنس. */
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->gender
+            ? "{$this->name} ({$this->genderLabel()})"
+            : $this->name;
     }
 }

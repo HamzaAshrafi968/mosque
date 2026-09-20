@@ -49,7 +49,7 @@
                     <div class="flex flex-wrap items-center gap-3 mb-5">
                         <span class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl">🏆</span>
                         <div class="flex-1 min-w-40">
-                            <h2 class="font-bold text-gray-800">دوام {{ $session->name }}</h2>
+                            <h2 class="font-bold text-gray-800">دوام {{ $session->display_name }}</h2>
                             <p class="text-xs text-gray-400">
                                 @if ($total)
                                     مُنح تلقائياً حتى الآن: <span class="font-bold text-amber-700">{{ $total['points'] }}</span> نقطة
