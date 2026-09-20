@@ -26,7 +26,7 @@
                         <td class="px-4 py-3">{{ $row['section'] ?? '—' }}</td>
                         <td class="px-4 py-3">
                             @php
-                                $labels = ['present' => 'حاضر', 'absent' => 'غائب', 'late' => 'متأخر', 'excused' => 'معذور'];
+                                $labels = ['present' => 'حاضر', 'absent' => 'غائب', 'late' => 'متأخر', 'excused' => 'إذن'];
                                 $colors = ['present' => 'bg-emerald-100 text-emerald-700', 'absent' => 'bg-red-100 text-red-700', 'late' => 'bg-amber-100 text-amber-700', 'excused' => 'bg-blue-100 text-blue-700'];
                             @endphp
                             <span class="px-2.5 py-1 rounded-lg text-xs font-bold {{ $colors[$row['status']->value] ?? 'bg-gray-100 text-gray-600' }}">

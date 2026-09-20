@@ -92,7 +92,7 @@
                         <th class="px-4 py-3 text-center whitespace-nowrap">حاضر</th>
                         <th class="px-4 py-3 text-center whitespace-nowrap">غائب</th>
                         <th class="px-4 py-3 text-center whitespace-nowrap">متأخر</th>
-                        <th class="px-4 py-3 text-center whitespace-nowrap">معذور</th>
+                        <th class="px-4 py-3 text-center whitespace-nowrap">إذن</th>
                         <th class="px-4 py-3 text-center whitespace-nowrap">المجموع</th>
                         <th class="px-4 py-3 text-right whitespace-nowrap">سجله</th>
                         <th class="px-4 py-3 text-center whitespace-nowrap">إجراء</th>

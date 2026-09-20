@@ -56,7 +56,7 @@
                     </td>
                     <td class="px-4 py-3 min-w-48">
                         <input type="text" name="marks[{{ $student->id }}][notes]" value="{{ old('marks.'.$student->id.'.notes', $note) }}"
-                               maxlength="500" placeholder="ملاحظة (إلزامية للمعذور)"
+                               maxlength="500" placeholder="ملاحظة (إلزامية للإذن)"
                                class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-1 focus:ring-emerald-500 focus:outline-none">
                     </td>
                 </tr>
@@ -70,7 +70,7 @@
     @if($students->isNotEmpty())
         <div class="p-4 border-t border-gray-100">
             <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">{{ $submitLabel }}</button>
-            <span class="text-xs text-gray-400 ms-3">قاعدة النسبة: معذور مستبعد من المقام والبسط</span>
+            <span class="text-xs text-gray-400 ms-3">قاعدة النسبة: إذن مستبعد من المقام والبسط</span>
         </div>
     @endif
 </form>

@@ -13,7 +13,7 @@ enum FaithMeetingAttendanceStatus: string
         return match ($this) {
             self::Attended => 'حاضر',
             self::Absent => 'غائب',
-            self::Excused => 'معذور',
+            self::Excused => 'إذن',
         };
     }
 }

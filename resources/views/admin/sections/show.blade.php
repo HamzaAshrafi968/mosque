@@ -144,7 +144,7 @@
                         <th class="px-4 py-3 text-center whitespace-nowrap">حاضر</th>
                         <th class="px-4 py-3 text-center whitespace-nowrap">غائب</th>
                         <th class="px-4 py-3 text-center whitespace-nowrap">متأخر</th>
-                        <th class="px-4 py-3 text-center whitespace-nowrap">معذور</th>
+                        <th class="px-4 py-3 text-center whitespace-nowrap">إذن</th>
                         <th class="px-4 py-3 text-center whitespace-nowrap">نسبة الحضور</th>
                         <th class="px-4 py-3 text-center whitespace-nowrap">نقل</th>
                         <th class="px-4 py-3 text-center whitespace-nowrap">إجراء</th>

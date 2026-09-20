@@ -53,7 +53,7 @@ class ShariaCourseService
 
                 if ($status === ShariaAttendanceStatus::Excused->value && blank($notes)) {
                     throw ValidationException::withMessages([
-                        'attendance' => ['حالة «معذور» تتطلب إدخال ملاحظة'],
+                        'attendance' => ['حالة «إذن» تتطلب إدخال ملاحظة'],
                     ]);
                 }
 

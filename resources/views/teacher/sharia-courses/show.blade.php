@@ -216,7 +216,7 @@
                             <th class="px-4 py-3 text-right">حاضر</th>
                             <th class="px-4 py-3 text-right">غائب</th>
                             <th class="px-4 py-3 text-right">متأخر</th>
-                            <th class="px-4 py-3 text-right">معذور</th>
+                            <th class="px-4 py-3 text-right">إذن</th>
                             <th class="px-4 py-3 text-right">النسبة</th>
                         </tr>
                     </thead>

@@ -3,7 +3,7 @@
         'present' => ['label' => 'حاضر', 'icon' => 'check', 'text' => 'text-emerald-600', 'bg' => 'bg-emerald-100 text-emerald-600'],
         'absent' => ['label' => 'غائب', 'icon' => 'x', 'text' => 'text-red-500', 'bg' => 'bg-red-100 text-red-500'],
         'late' => ['label' => 'متأخر', 'icon' => 'clock', 'text' => 'text-amber-500', 'bg' => 'bg-amber-100 text-amber-500'],
-        'excused' => ['label' => 'معذور', 'icon' => 'user-check', 'text' => 'text-sky-600', 'bg' => 'bg-sky-100 text-sky-600'],
+        'excused' => ['label' => 'إذن', 'icon' => 'user-check', 'text' => 'text-sky-600', 'bg' => 'bg-sky-100 text-sky-600'],
     ];
     $pct = $summary['percentage'] ?? null;
     $low = $pct !== null && $pct < 75;

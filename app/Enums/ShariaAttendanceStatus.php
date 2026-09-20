@@ -15,7 +15,7 @@ enum ShariaAttendanceStatus: string
             self::Present => 'حاضر',
             self::Absent => 'غائب',
             self::Late => 'متأخر',
-            self::Excused => 'معذور',
+            self::Excused => 'إذن',
         };
     }
 

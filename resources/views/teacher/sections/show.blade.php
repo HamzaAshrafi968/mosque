@@ -23,7 +23,7 @@
                     <th class="px-4 py-3 font-medium">حاضر</th>
                     <th class="px-4 py-3 font-medium">غائب</th>
                     <th class="px-4 py-3 font-medium">متأخر</th>
-                    <th class="px-4 py-3 font-medium">معذور</th>
+                    <th class="px-4 py-3 font-medium">إذن</th>
                     <th class="px-4 py-3 font-medium">نسبة الحضور</th>
                     <th class="px-4 py-3 font-medium">إجراءات</th>
                 </tr>

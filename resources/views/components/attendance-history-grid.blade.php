@@ -50,7 +50,7 @@
             </table>
         </div>
         <div class="px-4 py-3 border-t bg-gray-50 text-xs text-gray-500 space-y-1">
-            <div>قاعدة احتساب النسبة: حاضر ومتأخر = حضر، غائب = لا يحتسب حضوراً، معذور = مستبعد من المقام والبسط.</div>
+            <div>قاعدة احتساب النسبة: حاضر ومتأخر = حضر، غائب = لا يحتسب حضوراً، إذن = مستبعد من المقام والبسط.</div>
             <div>
                 @foreach(\App\Enums\AttendanceStatus::cases() as $status)
                     <span class="ml-3"><x-attendance-status-badge :status="$status" /> <span class="mr-1">{{ $status->label() }}</span></span>

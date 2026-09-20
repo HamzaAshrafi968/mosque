@@ -153,13 +153,13 @@
             </div>
             <div class="bg-sky-50 rounded-lg p-3">
                 <div class="text-2xl font-bold text-sky-600">{{ $stats['excused'] ?? 0 }}</div>
-                <div class="text-xs text-gray-600">معذور</div>
+                <div class="text-xs text-gray-600">إذن</div>
             </div>
         </div>
         <div class="px-4 pb-4 text-center">
             <div class="text-3xl font-bold text-emerald-700">{{ $stats['percentage'] !== null ? $stats['percentage'].'%' : '—' }}</div>
             <div class="text-xs text-gray-500 mt-1">
-                نسبة الحضور (حاضر+متأخر من الجلسات المؤهلة، المعذور مستبعد)
+                نسبة الحضور (حاضر+متأخر من الجلسات المؤهلة، الإذن مستبعد)
                 @if($stats['total'] > 0)
                     — {{ $stats['attended'] }}/{{ $stats['total'] }}
                 @endif
