@@ -4,14 +4,17 @@ namespace App\Actions\Teacher\Grade;
 
 use App\Contracts\Repositories\GradeRepositoryInterface;
 use App\Models\Exam;
-use App\Models\Student;
 use App\Services\DashboardService;
+use App\Services\ExamService;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class SaveGradesAction
 {
-    public function __construct(private readonly GradeRepositoryInterface $repository) {}
+    public function __construct(
+        private readonly GradeRepositoryInterface $repository,
+        private readonly ExamService $exams,
+    ) {}
 
     public function execute(array $data, Exam $exam): string
     {
@@ -23,11 +26,7 @@ class SaveGradesAction
 
         $scores = collect($data['scores']);
 
-        $allowedIds = Student::query()
-            ->active()
-            ->where('classroom_id', $exam->classroom_id)
-            ->when($exam->section_id, fn ($q) => $q->where('section_id', $exam->section_id))
-            ->pluck('id');
+        $allowedIds = $this->exams->roster($exam)->pluck('id');
 
         $invalid = $scores->keys()
             ->filter(fn ($id) => ! $allowedIds->contains($id))

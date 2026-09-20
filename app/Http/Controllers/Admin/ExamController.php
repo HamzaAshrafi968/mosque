@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\ManagesExamEngine;
 use App\Http\Controllers\Controller;
 use App\Models\Classroom;
 use App\Models\Exam;
+use App\Models\StudySession;
 use App\Models\Subject;
 use App\Services\ExamService;
 use Illuminate\Http\RedirectResponse;
@@ -33,7 +34,7 @@ class ExamController extends Controller
     public function index(): View
     {
         $exams = Exam::query()
-            ->with(['subject:id,name', 'classroom:id,name', 'section:id,name'])
+            ->with(['subject:id,name', 'classroom:id,name', 'section:id,name', 'classrooms:id,name', 'studySession:id,name,gender'])
             ->withCount(['grades', 'questions', 'attempts'])
             ->latest('exam_date')
             ->paginate(20);
@@ -45,7 +46,11 @@ class ExamController extends Controller
     {
         return view('admin.exams.create', [
             'subjects' => Subject::orderBy('name')->get(['id', 'name']),
-            'classrooms' => Classroom::with('sections:id,classroom_id,name')->orderBy('name')->get(),
+            'studySessions' => StudySession::orderForDisplay()->get(['id', 'name', 'gender']),
+            'classrooms' => Classroom::withoutGlobalScope('study_session')
+                ->with(['sections:id,classroom_id,name,status', 'studySession:id,name,gender'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'study_session_id']),
             'questionTypes' => QuestionType::cases(),
         ]);
     }

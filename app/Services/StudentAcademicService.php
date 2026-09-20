@@ -95,8 +95,7 @@ class StudentAcademicService
     {
         return Exam::query()
             ->with(['subject:id,name', 'section:id,name'])
-            ->where('classroom_id', $student->classroom_id)
-            ->where(fn ($q) => $q->whereNull('section_id')->orWhere('section_id', $student->section_id))
+            ->targetsStudent($student)
             ->whereIn('status', [ExamStatus::Published, ExamStatus::Closed])
             ->whereDate('exam_date', '>=', today())
             ->orderBy('exam_date')

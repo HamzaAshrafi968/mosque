@@ -11,6 +11,7 @@ use App\Models\ExamAttempt;
 use App\Models\ExamQuestion;
 use App\Services\ExamService;
 use App\Support\ExamQuestionNormalizer;
+use App\Support\ExamTargeting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -48,7 +49,7 @@ trait ManagesExamEngine
     {
         $this->assertExamAccess($request, $exam);
 
-        $exam->load(['subject:id,name', 'classroom:id,name', 'section:id,name', 'teacher:id,name']);
+        $exam->load(['subject:id,name', 'classroom:id,name', 'section:id,name', 'teacher:id,name', 'classrooms:id,name', 'studySession:id,name,gender']);
 
         $attempts = $exam->attempts()
             ->with([
@@ -268,16 +269,25 @@ trait ManagesExamEngine
     // أدوات مساعدة
     // =====================================================================
 
-    /** @param array<string, mixed> $row */
+    /**
+     * بيانات الامتحان مع نطاق الاستهداف: دوام كامل (بلا صفوف) أو صف/عدة صفوف.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
     protected function validatedExamData(Request $request): array
     {
         $tenantId = config('app.current_tenant_id') ?? $request->user()?->tenant_id;
 
-        return $request->validate([
+        $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'kind' => ['nullable', Rule::enum(ExamKind::class)],
             'subject_id' => ['required', Rule::exists('subjects', 'id')->where('tenant_id', $tenantId)],
-            'classroom_id' => ['required', Rule::exists('classrooms', 'id')->where('tenant_id', $tenantId)],
+            'study_session_id' => ['nullable', Rule::exists('study_sessions', 'id')->where('tenant_id', $tenantId)],
+            'classroom_id' => ['nullable', Rule::exists('classrooms', 'id')->where('tenant_id', $tenantId)],
+            'classroom_ids' => ['nullable', 'array'],
+            'classroom_ids.*' => ['uuid', Rule::exists('classrooms', 'id')->where('tenant_id', $tenantId)],
             'section_id' => ['nullable', Rule::exists('sections', 'id')->where('tenant_id', $tenantId)],
             'exam_date' => ['required', 'date'],
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
@@ -285,6 +295,8 @@ trait ManagesExamEngine
             'total_marks' => ['required', 'integer', 'min:1', 'max:1000'],
             'pass_marks' => ['nullable', 'integer', 'min:0', 'lte:total_marks'],
         ]);
+
+        return [...$data, ...ExamTargeting::resolve($data)];
     }
 
     /**

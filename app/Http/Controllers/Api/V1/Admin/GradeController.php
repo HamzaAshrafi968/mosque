@@ -29,7 +29,7 @@ class GradeController extends BaseApiController
     public function show(string $examId): JsonResponse
     {
         $exam = $this->examRepository->findOrFail($examId);
-        $exam->load(['subject:id,name', 'classroom:id,name']);
+        $exam->load(['subject:id,name', 'classroom:id,name', 'section:id,name', 'classrooms:id,name', 'studySession:id,name,gender']);
 
         $grades = $this->gradeRepository->getByExam($examId);
 

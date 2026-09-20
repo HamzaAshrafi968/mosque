@@ -25,27 +25,14 @@
                     </select>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">الصف</label>
-                    <select name="classroom_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                        <option value="">اختر الصف</option>
-                        @foreach($classrooms as $classroom)
-                            <option value="{{ $classroom->id }}" @selected(old('classroom_id') == $classroom->id)>{{ $classroom->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">الشعبة</label>
-                    <select name="section_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                        <option value="">كل الشعب</option>
-                        @foreach($classrooms as $classroom)
-                            @foreach($classroom->sections as $section)
-                                <option value="{{ $section->id }}" @selected(old('section_id') == $section->id)>{{ $classroom->name }} - {{ $section->name }}</option>
-                            @endforeach
-                        @endforeach
-                    </select>
-                </div>
+                <x-exam-target-picker
+                    :study-sessions="$studySessions"
+                    :classrooms="$classrooms"
+                    :old-mode="old('target_mode')"
+                    :old-study-session-id="old('study_session_id')"
+                    :old-classrooms="old('classroom_ids', [])"
+                    :old-section-id="old('section_id')"
+                    :old-classroom-id="old('classroom_id')" />
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">النوع</label>

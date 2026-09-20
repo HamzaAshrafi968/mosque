@@ -11,6 +11,7 @@ use App\Models\ExamQuestion;
 use App\Models\Grade;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\ExamTargeting;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -40,10 +41,22 @@ class ExamService
     /** @param array<string, mixed> $data */
     public function create(array $data): Exam
     {
+        $target = ExamTargeting::resolve($data);
+        unset($data['classroom_ids']);
+
         // الامتحان يولد مسودة دائماً مهما أُرسل في المدخلات.
         $data['status'] = ExamStatus::Draft;
+        $data['study_session_id'] = $target['study_session_id'];
+        $data['section_id'] = $target['section_id'];
+        $data['classroom_id'] = $target['classroom_ids'][0] ?? null;
 
-        return Exam::create($data);
+        $exam = Exam::create($data);
+
+        if ($target['classroom_ids'] !== []) {
+            $exam->classrooms()->sync($target['classroom_ids']);
+        }
+
+        return $exam;
     }
 
     /** @throws ValidationException */
@@ -384,15 +397,34 @@ class ExamService
         return now()->greaterThan($deadline);
     }
 
-    /** تلاميذ الامتحان (صف/شعبة) مع حسابات البوابة. */
+    /**
+     * تلاميذ الامتحان (صفوف محددة أو دوام كامل) مع حسابات البوابة.
+     * بلا فلتر الدوام النشط: نطاق الاختبار نفسه يحدد الطلاب.
+     */
     public function roster(Exam $exam): Collection
     {
-        return Student::query()
-            ->active()
-            ->where('classroom_id', $exam->classroom_id)
-            ->when($exam->section_id, fn ($q) => $q->where('section_id', $exam->section_id))
-            ->orderBy('name')
-            ->get(['id', 'name', 'tenant_id', 'user_id']);
+        $classroomIds = $exam->targetClassroomIds();
+
+        $students = Student::query()
+            ->withoutGlobalScope('study_session')
+            ->active();
+
+        if ($classroomIds->isNotEmpty()) {
+            return $students
+                ->whereIn('classroom_id', $classroomIds)
+                ->when($exam->section_id, fn ($q) => $q->where('section_id', $exam->section_id))
+                ->orderBy('name')
+                ->get(['id', 'name', 'tenant_id', 'user_id']);
+        }
+
+        if ($exam->study_session_id) {
+            return $students
+                ->where('study_session_id', $exam->study_session_id)
+                ->orderBy('name')
+                ->get(['id', 'name', 'tenant_id', 'user_id']);
+        }
+
+        return $students->whereRaw('1 = 0')->get(['id', 'name', 'tenant_id', 'user_id']);
     }
 
     private function notifyStudents(Exam $exam): void

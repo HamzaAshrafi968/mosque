@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Concerns\ManagesExamApi;
 use App\Http\Requests\Api\V1\Admin\StoreExamRequest;
 use App\Http\Resources\Api\V1\ExamResource;
 use App\Models\Exam;
+use App\Services\ExamService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,12 +34,12 @@ class ExamController extends BaseApiController
         ]);
     }
 
-    public function store(StoreExamRequest $request): JsonResponse
+    public function store(StoreExamRequest $request, ExamService $service): JsonResponse
     {
-        $exam = $this->examRepository->create($request->validated());
+        $exam = $service->create($request->validated());
 
         return $this->created(
-            ExamResource::make($exam),
+            ExamResource::make($exam->load(['subject', 'classroom', 'section', 'classrooms', 'studySession'])),
             'تم إنشاء الاختبار'
         );
     }

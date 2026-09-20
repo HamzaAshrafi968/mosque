@@ -16,7 +16,7 @@ class ExamRepository extends BaseRepository implements ExamRepositoryInterface
     public function paginateWithRelations(int $perPage = 20): LengthAwarePaginator
     {
         return $this->model
-            ->with(['subject:id,name', 'classroom:id,name', 'section:id,name'])
+            ->with(['subject:id,name', 'classroom:id,name', 'section:id,name', 'classrooms:id,name', 'studySession:id,name,gender'])
             ->withCount('grades')
             ->latest('exam_date')
             ->paginate($perPage);
@@ -25,7 +25,7 @@ class ExamRepository extends BaseRepository implements ExamRepositoryInterface
     public function paginateWithGradeCounts(int $perPage = 20): LengthAwarePaginator
     {
         return $this->model
-            ->with(['subject:id,name', 'classroom:id,name'])
+            ->with(['subject:id,name', 'classroom:id,name', 'section:id,name', 'classrooms:id,name', 'studySession:id,name,gender'])
             ->withCount([
                 'grades',
                 'grades as submitted_grades_count' => fn ($q) => $q->where('status', 'submitted'),
@@ -38,7 +38,7 @@ class ExamRepository extends BaseRepository implements ExamRepositoryInterface
     public function paginateByTeacher(string $teacherId, int $perPage = 15): LengthAwarePaginator
     {
         return $this->model
-            ->with(['subject:id,name', 'classroom:id,name', 'section:id,name'])
+            ->with(['subject:id,name', 'classroom:id,name', 'section:id,name', 'classrooms:id,name', 'studySession:id,name,gender'])
             ->withCount('grades')
             ->where('teacher_id', $teacherId)
             ->latest('exam_date')

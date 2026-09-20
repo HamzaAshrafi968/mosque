@@ -17,7 +17,7 @@ class GradeController extends Controller
     public function index(Request $request): View
     {
         $exams = Exam::query()
-            ->with(['subject:id,name', 'classroom:id,name'])
+            ->with(['subject:id,name', 'classroom:id,name', 'section:id,name', 'classrooms:id,name', 'studySession:id,name,gender'])
             ->withCount([
                 'grades',
                 'grades as submitted_grades_count' => fn ($q) => $q->where('status', 'submitted'),
@@ -31,7 +31,7 @@ class GradeController extends Controller
 
     public function show(Exam $exam): View
     {
-        $exam->load(['subject:id,name', 'classroom:id,name']);
+        $exam->load(['subject:id,name', 'classroom:id,name', 'section:id,name', 'classrooms:id,name', 'studySession:id,name,gender']);
 
         $grades = $exam->grades()
             ->with('student:id,name')

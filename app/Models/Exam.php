@@ -11,7 +11,9 @@ use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class Exam extends Model
 {
@@ -20,6 +22,7 @@ class Exam extends Model
     protected $fillable = [
         'tenant_id',
         'subject_id',
+        'study_session_id',
         'classroom_id',
         'section_id',
         'teacher_id',
@@ -60,9 +63,22 @@ class Exam extends Model
         return $this->belongsTo(Classroom::class);
     }
 
+    /** الصفوف المستهدفة (عدة صفوف في اختبار واحد) — بدون فلتر الدوام النشط. */
+    public function classrooms(): BelongsToMany
+    {
+        return $this->belongsToMany(Classroom::class, 'exam_classroom')
+            ->withoutGlobalScope('study_session');
+    }
+
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
+    }
+
+    /** الدوام المستهدف (فارغ = صفوف محددة أو اختبار قديم). */
+    public function studySession(): BelongsTo
+    {
+        return $this->belongsTo(StudySession::class);
     }
 
     public function teacher(): BelongsTo
@@ -91,16 +107,93 @@ class Exam extends Model
     }
 
     /**
-     * الامتحانات الظاهرة لطالب: منشورة وتخص صفه/شعبته.
+     * الامتحانات التي تستهدف الطالب:
+     * - صفوف محددة (exam_classroom أو classroom_id القديم) مع احترام الشعبة، أو
+     * - دوام كامل (بلا صفوف + study_session_id).
      * (الامتحان المشترك بين الجوامع غير مدعوم — العزل بالجامع مفروض مسبقاً.)
+     */
+    public function scopeTargetsStudent(Builder $query, Student $student): Builder
+    {
+        return $query->where(function (Builder $target) use ($student) {
+            $target
+                ->where(function (Builder $classrooms) use ($student) {
+                    $classrooms
+                        ->where(function (Builder $scope) use ($student) {
+                            $scope->where('exams.classroom_id', $student->classroom_id)
+                                ->orWhereHas('classrooms', fn (Builder $q) => $q->whereKey($student->classroom_id));
+                        })
+                        ->where(function (Builder $section) use ($student) {
+                            $section->whereNull('exams.section_id')
+                                ->orWhere('exams.section_id', $student->section_id);
+                        });
+                })
+                ->orWhere(function (Builder $shift) use ($student) {
+                    $shift->whereNull('exams.classroom_id')
+                        ->whereDoesntHave('classrooms')
+                        ->whereNotNull('exams.study_session_id')
+                        ->where('exams.study_session_id', $student->study_session_id);
+                });
+        });
+    }
+
+    /**
+     * الامتحانات الظاهرة لطالب: منشورة وتستهدفه (صف/شعبة أو دوام).
      */
     public function scopeVisibleForStudent(Builder $query, Student $student): Builder
     {
-        return $query->published()
-            ->where('classroom_id', $student->classroom_id)
-            ->where(fn (Builder $inner) => $inner
-                ->whereNull('section_id')
-                ->orWhere('section_id', $student->section_id));
+        return $query->published()->targetsStudent($student);
+    }
+
+    /** الصفوف المستهدفة: exam_classroom وإن لم يوجد فالصف القديم classroom_id. */
+    public function targetClassroomIds(): Collection
+    {
+        $ids = $this->classrooms()->pluck('classrooms.id');
+
+        if ($ids->isEmpty() && $this->classroom_id) {
+            return collect([$this->classroom_id]);
+        }
+
+        return $ids;
+    }
+
+    /** اختبار دوام كامل: بلا صفوف محددة ومرتبط بدوام. */
+    public function isShiftWide(): bool
+    {
+        return $this->classroom_id === null
+            && $this->study_session_id !== null
+            && ! $this->classrooms()->exists();
+    }
+
+    /** وصف الفئة المستهدفة للعرض: «الصف الأول، الصف الثاني» أو «دوام الأول». */
+    public function targetLabel(): string
+    {
+        $classrooms = $this->relationLoaded('classrooms')
+            ? $this->classrooms
+            : $this->classrooms()->orderBy('name')->get(['classrooms.id', 'classrooms.name']);
+
+        if ($classrooms->isNotEmpty()) {
+            $names = $classrooms->sortBy('name')->pluck('name')->implode('، ');
+
+            if (! $this->section_id) {
+                return $names;
+            }
+
+            $sectionName = $this->relationLoaded('section')
+                ? $this->section?->name
+                : Section::query()->whereKey($this->section_id)->value('name');
+
+            return $sectionName ? $names.' — '.$sectionName : $names;
+        }
+
+        if ($this->study_session_id) {
+            $sessionName = $this->relationLoaded('studySession')
+                ? $this->studySession?->display_name
+                : StudySession::query()->whereKey($this->study_session_id)->value('name');
+
+            return $sessionName ? 'دوام '.$sessionName : 'دوام كامل';
+        }
+
+        return '—';
     }
 
     /** امتحان إلكتروني بأسئلة داخل النظام. */

@@ -1566,6 +1566,64 @@ function initSessionGenderFilters() {
     });
 }
 
+function initExamTargetPickers() {
+    document.querySelectorAll('[data-exam-target-picker]').forEach((picker) => {
+        const modeInputs = Array.from(picker.querySelectorAll('[data-exam-target-mode]'));
+        const sessionSelect = picker.querySelector('[data-exam-target-session]');
+        const classroomBlock = picker.querySelector('[data-exam-target-classrooms]');
+        const classroomRows = Array.from(picker.querySelectorAll('[data-exam-target-classroom]'));
+        const classroomInputs = Array.from(picker.querySelectorAll('[data-exam-target-classroom-input]'));
+        const sectionBlock = picker.querySelector('[data-exam-target-section]');
+        const sectionSelect = picker.querySelector('[data-exam-target-section-select]');
+        if (modeInputs.length === 0 || !sessionSelect) return;
+
+        const currentMode = () => modeInputs.find((input) => input.checked)?.value ?? 'classrooms';
+
+        const apply = () => {
+            const mode = currentMode();
+            const shift = sessionSelect.value;
+            const shiftWide = mode === 'shift';
+            const selected = classroomInputs.filter((input) => input.checked);
+
+            classroomRows.forEach((row) => {
+                const rowSession = row.dataset.session || '';
+                const matchesShift = !shift || rowSession === '' || rowSession === shift;
+                const visible = !shiftWide && matchesShift;
+
+                row.classList.toggle('hidden', !visible);
+
+                const input = row.querySelector('[data-exam-target-classroom-input]');
+                if (input) {
+                    input.disabled = !visible;
+                }
+            });
+
+            if (sectionSelect) {
+                const activeClassroom = selected.length === 1 ? selected[0].value : null;
+
+                Array.from(sectionSelect.options).forEach((option) => {
+                    const classroomId = option.dataset.classroom || '';
+                    const matches = classroomId === '' || classroomId === activeClassroom;
+                    option.hidden = !matches;
+                    option.disabled = !matches;
+                });
+
+                if (selected.length !== 1) {
+                    sectionSelect.value = '';
+                }
+            }
+
+            classroomBlock?.classList.toggle('opacity-50', shiftWide);
+            sectionBlock?.classList.toggle('opacity-50', selected.length !== 1);
+        };
+
+        modeInputs.forEach((input) => input.addEventListener('change', apply));
+        sessionSelect.addEventListener('change', apply);
+        classroomInputs.forEach((input) => input.addEventListener('change', apply));
+        apply();
+    });
+}
+
 function initApp() {
     initSidebarCollapse();
     initSidebarGroups();
@@ -1584,6 +1642,7 @@ function initApp() {
     initExamQuestionBuilders();
     initAttendanceTrees();
     initSessionGenderFilters();
+    initExamTargetPickers();
 }
 
 if (document.readyState === 'loading') {

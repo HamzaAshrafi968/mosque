@@ -9,7 +9,7 @@
         <div class="text-gray-600 text-sm mt-1">
             <span>{{ $exam->subject?->name }}</span>
             <span class="mx-2">|</span>
-            <span>{{ $exam->classroom?->name }}</span>
+            <span>{{ $exam->targetLabel() }}</span>
             <span class="mx-2">|</span>
             <span>الدرجة الكلية: {{ $exam->total_marks }}</span>
         </div>

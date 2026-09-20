@@ -33,7 +33,7 @@ trait ManagesExamApi
         $service->publish($exam);
 
         return $this->success(
-            ExamResource::make($exam->fresh()->load(['subject', 'classroom', 'section'])),
+            ExamResource::make($exam->fresh()->load(['subject', 'classroom', 'section', 'classrooms', 'studySession'])),
             'تم نشر الامتحان'
         );
     }
@@ -157,7 +157,7 @@ trait ManagesExamApi
             ->get();
 
         return $this->success([
-            'exam' => ExamResource::make($exam->load(['subject', 'classroom', 'section'])),
+            'exam' => ExamResource::make($exam->load(['subject', 'classroom', 'section', 'classrooms', 'studySession'])),
             'questions' => ExamQuestionResource::collection($exam->questions()->get()),
             'attempts' => ExamAttemptResource::collection($attempts),
         ]);

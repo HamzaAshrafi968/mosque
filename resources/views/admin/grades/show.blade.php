@@ -14,8 +14,8 @@
             <span class="font-bold mr-2">{{ $exam->subject?->name }}</span>
         </div>
         <div>
-            <span class="text-sm text-gray-500">الصف:</span>
-            <span class="font-bold mr-2">{{ $exam->classroom?->name }}</span>
+            <span class="text-sm text-gray-500">الفئة المستهدفة:</span>
+            <span class="font-bold mr-2">{{ $exam->targetLabel() }}</span>
         </div>
         <div>
             <span class="text-sm text-gray-500">الدرجة الكلية:</span>

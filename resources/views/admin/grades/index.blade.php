@@ -10,7 +10,7 @@
                 <tr class="bg-gray-50 text-gray-600 text-sm">
                     <th class="px-4 py-3 text-right whitespace-nowrap">الاختبار</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">المادة</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">الصف</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الفئة المستهدفة</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">التاريخ</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">عدد الدرجات</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">بانتظار الاعتماد</th>
@@ -23,7 +23,7 @@
                     <tr>
                         <td class="px-4 py-3 border-t font-bold whitespace-nowrap">{{ $exam->title }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->subject?->name }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->classroom?->name }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->targetLabel() }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->exam_date->format('Y-m-d') }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->grades_count }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->submitted_grades_count }}</td>

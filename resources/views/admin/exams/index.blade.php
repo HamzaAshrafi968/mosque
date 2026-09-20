@@ -16,8 +16,7 @@
                     <th class="px-4 py-3 text-right whitespace-nowrap">النوع</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الحالة</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">المادة</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">الصف</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">الشعبة</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الفئة المستهدفة</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">التاريخ</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الدرجة الكلية</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الأسئلة</th>
@@ -40,8 +39,7 @@
                             </span>
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->subject?->name }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->classroom?->name }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->section?->name ?? 'كل الشعب' }}</td>
+                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->targetLabel() }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->exam_date->format('Y-m-d') }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->total_marks }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->questions_count }}</td>
@@ -57,7 +55,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="12" class="px-4 py-6 text-center text-gray-500">لا توجد امتحانات</td>
+                        <td colspan="11" class="px-4 py-6 text-center text-gray-500">لا توجد امتحانات</td>
                     </tr>
                 @endforelse
             </tbody>

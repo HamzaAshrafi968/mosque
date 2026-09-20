@@ -14,7 +14,7 @@
         <h1 class="text-2xl font-bold text-gray-800">{{ $exam->title }}</h1>
         <p class="text-sm text-gray-500 mt-1">
             {{ $exam->kind?->label() }} — {{ $exam->subject?->name }} —
-            {{ $exam->classroom?->name }}@if($exam->section) ({{ $exam->section->name }})@endif —
+            {{ $exam->targetLabel() }} —
             {{ $exam->exam_date?->toDateString() }}
             @if($exam->duration_minutes) — المدة {{ $exam->duration_minutes }} دقيقة @endif
         </p>

@@ -31,10 +31,24 @@ class ExamResource extends JsonResource
                 'id' => $this->classroom->id,
                 'name' => $this->classroom->name,
             ]),
+            'classrooms' => $this->whenLoaded('classrooms', fn () => $this->classrooms->map(fn ($classroom) => [
+                'id' => $classroom->id,
+                'name' => $classroom->name,
+            ])->values()),
             'section' => $this->whenLoaded('section', fn () => [
                 'id' => $this->section->id,
                 'name' => $this->section->name,
             ]),
+            'study_session' => $this->whenLoaded('studySession', fn () => [
+                'id' => $this->studySession->id,
+                'name' => $this->studySession->name,
+                'display_name' => $this->studySession->display_name,
+                'gender' => $this->studySession->gender,
+            ]),
+            'target_label' => $this->when(
+                $this->relationLoaded('classrooms') || $this->relationLoaded('studySession'),
+                fn () => $this->targetLabel()
+            ),
             'grades_count' => $this->whenCounted('grades'),
             'questions_count' => $this->whenCounted('questions'),
             'attempts_count' => $this->whenCounted('attempts'),
