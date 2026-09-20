@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Jobs\SendPortalNotification;
 use App\Models\ParentStudent;
 use App\Models\Student;
 use App\Models\User;
-use App\Notifications\PortalNotification;
 use Illuminate\Support\Collection;
 
 /**
@@ -14,6 +14,11 @@ use Illuminate\Support\Collection;
  * Notification visibility is per user; events targeting a student fan out to
  * the student's own portal account (when it exists) and to every guardian
  * linked through parent_students.
+ *
+ * Delivery is asynchronous: send() dispatches SendPortalNotification jobs on
+ * the `notifications` queue (one job per 500 recipients), so large fan-outs
+ * never block the HTTP request. In tests (QUEUE_CONNECTION=sync) delivery
+ * stays synchronous.
  */
 class NotificationService
 {
@@ -24,16 +29,16 @@ class NotificationService
             ->map(fn ($user) => $user instanceof User ? $user : User::find($user))
             ->filter()
             ->map(fn (User $user) => $user->id)
-            ->unique();
+            ->unique()
+            ->values();
 
         if ($ids->isEmpty()) {
             return;
         }
 
-        User::query()
-            ->whereIn('id', $ids)
-            ->get()
-            ->each->notify(new PortalNotification($title, $body, $url));
+        foreach ($ids->chunk(500) as $chunk) {
+            SendPortalNotification::dispatch($chunk->all(), $title, $body, $url);
+        }
     }
 
     /**
