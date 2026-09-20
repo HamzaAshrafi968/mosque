@@ -44,8 +44,6 @@ class DashboardService
                 ")
                 ->first();
 
-            $total = (int) ($attendanceToday->total ?? 0);
-
             $examStats = Grade::query()
                 ->whereIn('grades.status', ['submitted', 'approved'])
                 ->join('exams', 'exams.id', '=', 'grades.exam_id')
@@ -71,21 +69,28 @@ class DashboardService
 
             $homeworkTotal = (int) ($homeworkStats->total ?? 0);
 
+            $studentsCount = Student::withoutGlobalScope('study_session')->active()->count();
+            $presentToday = (int) ($attendanceToday->present ?? 0);
+            $lateToday = (int) ($attendanceToday->late ?? 0);
+
             // Counters stay whole-mosque even when the manager filters the
-            // panel by a دوام (the cache is shared across sessions).
+            // panel by a دوام (the cache is shared across sessions). The
+            // attendance rate is measured against every active student in the
+            // mosque — not only the recorded ones — so sections whose
+            // attendance was not taken still lower it.
             return [
-                'students_count' => Student::withoutGlobalScope('study_session')->active()->count(),
+                'students_count' => $studentsCount,
                 'male_students_count' => Student::withoutGlobalScope('study_session')->active()->where('gender', 'male')->count(),
                 'female_students_count' => Student::withoutGlobalScope('study_session')->active()->where('gender', 'female')->count(),
                 'teachers_count' => Teacher::withoutGlobalScope('study_session')->where('is_active', true)->count(),
                 'classrooms_count' => Classroom::count(),
                 'sections_count' => Section::withoutGlobalScope('study_session')->count(),
-                'attendance_present_today' => (int) ($attendanceToday->present ?? 0),
+                'attendance_present_today' => $presentToday,
                 'attendance_absent_today' => (int) ($attendanceToday->absent ?? 0),
-                'attendance_late_today' => (int) ($attendanceToday->late ?? 0),
+                'attendance_late_today' => $lateToday,
                 'attendance_excused_today' => (int) ($attendanceToday->excused ?? 0),
-                'attendance_rate_today' => $total > 0
-                    ? round((((int) ($attendanceToday->present ?? 0) + (int) ($attendanceToday->late ?? 0)) / $total) * 100, 1)
+                'attendance_rate_today' => $studentsCount > 0
+                    ? round((($presentToday + $lateToday) / $studentsCount) * 100, 1)
                     : null,
                 'exam_graded_count' => $examTotal,
                 'exam_passed_count' => (int) ($examStats->passed ?? 0),

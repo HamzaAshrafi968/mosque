@@ -138,6 +138,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::get('attendance', [Admin\AttendanceController::class, 'index'])->name('attendance.index')->middleware('permission:attendance.view');
     Route::get('attendance/summary', [Admin\AttendanceController::class, 'summary'])->name('attendance.summary')->middleware('permission:attendance.view');
+    Route::get('attendance/today', [Admin\AttendanceController::class, 'today'])->name('attendance.today')->middleware('permission:attendance.view');
     Route::post('attendance', [Admin\AttendanceController::class, 'store'])->name('attendance.store')->middleware('permission:attendance.create');
     Route::get('attendance/create', [Admin\AttendanceController::class, 'create'])->name('attendance.create')->middleware('permission:attendance.create');
     Route::post('attendance/students', [Admin\AttendanceController::class, 'storeStudents'])->name('attendance.students.store')->middleware('permission:attendance.create');

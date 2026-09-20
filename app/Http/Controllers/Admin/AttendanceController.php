@@ -122,6 +122,102 @@ class AttendanceController extends Controller
         ]);
     }
 
+    /**
+     * "حضور اليوم": شجرة الصفوف ← الشعب ← الطلاب مع عدّادات كل مستوى.
+     * تُعرض كل صفوف الجامع (كل الدوامات) مثل نسبة لوحة القيادة.
+     */
+    public function today(Request $request): View
+    {
+        $date = $request->input('date', now()->toDateString());
+        $status = $request->input('status', 'attended');
+
+        // Today's session-based records keyed by student (one status per day).
+        $records = AttendanceRecord::query()
+            ->with(['session:id,section_id,date,starts_at,created_by', 'session.createdBy:id,name'])
+            ->whereHas('session', fn ($q) => $q->whereDate('date', $date))
+            ->get()
+            ->keyBy('student_id');
+
+        // Active students grouped by section, across all shifts.
+        $studentsBySection = Student::query()
+            ->withoutGlobalScope('study_session')
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name', 'classroom_id', 'section_id'])
+            ->groupBy('section_id');
+
+        $classrooms = Classroom::query()
+            ->withoutGlobalScope('study_session')
+            ->with(['sections' => fn ($q) => $q->withoutGlobalScope('study_session')->active()->orderBy('name')])
+            ->orderBy('name')
+            ->get();
+
+        $tree = $classrooms->map(function (Classroom $classroom) use ($studentsBySection, $records, $status): array {
+            $sections = $classroom->sections->map(function (Section $section) use ($studentsBySection, $records, $status): array {
+                $students = $studentsBySection->get($section->id) ?? collect();
+
+                return [
+                    'section' => $section,
+                    'counts' => $this->statusCounts($students, $records),
+                    'students' => $this->filteredRows($students, $records, $status),
+                ];
+            })->values();
+
+            return [
+                'classroom' => $classroom,
+                'counts' => $this->mergeCounts($sections->pluck('counts')->all()),
+                'sections' => $sections,
+            ];
+        })->values();
+
+        // Students without a section stay visible in a trailing group.
+        $unassigned = $studentsBySection->get('');
+
+        if ($unassigned?->isNotEmpty()) {
+            $counts = $this->statusCounts($unassigned, $records);
+
+            $tree->push([
+                'classroom' => null,
+                'counts' => $counts,
+                'sections' => collect([[
+                    'section' => null,
+                    'counts' => $counts,
+                    'students' => $this->filteredRows($unassigned, $records, $status),
+                ]]),
+            ]);
+        }
+
+        $present = $records->filter(fn (AttendanceRecord $record) => $record->status === AttendanceStatus::Present)->count();
+        $late = $records->filter(fn (AttendanceRecord $record) => $record->status === AttendanceStatus::Late)->count();
+        $absent = $records->filter(fn (AttendanceRecord $record) => $record->status === AttendanceStatus::Absent)->count();
+        $excused = $records->filter(fn (AttendanceRecord $record) => $record->status === AttendanceStatus::Excused)->count();
+        $attended = $present + $late;
+
+        // The rate is measured against every active student of the mosque,
+        // not only the recorded ones.
+        $studentsCount = $tree->sum(fn (array $node) => $node['counts']['total']);
+
+        $summary = [
+            'present' => $present,
+            'absent' => $absent,
+            'late' => $late,
+            'excused' => $excused,
+            'attended' => $attended,
+            'total' => $studentsCount,
+            'percentage' => $studentsCount > 0
+                ? round(($attended / $studentsCount) * 100, 1)
+                : null,
+        ];
+
+        return view('admin.attendance.today', [
+            'tree' => $tree,
+            'summary' => $summary,
+            'studentsCount' => $studentsCount,
+            'date' => $date,
+            'status' => $status,
+        ]);
+    }
+
     /** Quick roster form to record a section's attendance for a date. */
     public function create(Request $request): View
     {
@@ -268,6 +364,83 @@ class AttendanceController extends Controller
             ->active()
             ->orderBy('name')
             ->get(['id', 'name', 'gender']);
+    }
+
+    /**
+     * Per-status counts for one group of students against today's records.
+     *
+     * @param  Collection<int, Student>  $students
+     * @param  Collection<string, AttendanceRecord>  $records
+     * @return array{total:int, present:int, late:int, absent:int, excused:int, unrecorded:int}
+     */
+    private function statusCounts(Collection $students, Collection $records): array
+    {
+        $counts = [
+            'total' => $students->count(),
+            'present' => 0,
+            'late' => 0,
+            'absent' => 0,
+            'excused' => 0,
+            'unrecorded' => 0,
+        ];
+
+        foreach ($students as $student) {
+            $status = $records->get($student->id)?->status?->value;
+
+            if ($status !== null && array_key_exists($status, $counts)) {
+                $counts[$status]++;
+            } else {
+                $counts['unrecorded']++;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Sum the counts of several groups (sections → classroom totals).
+     *
+     * @param  array<int, array<string, int>>  $counts
+     * @return array{total:int, present:int, late:int, absent:int, excused:int, unrecorded:int}
+     */
+    private function mergeCounts(array $counts): array
+    {
+        $merged = ['total' => 0, 'present' => 0, 'late' => 0, 'absent' => 0, 'excused' => 0, 'unrecorded' => 0];
+
+        foreach ($counts as $group) {
+            foreach ($group as $key => $value) {
+                $merged[$key] += $value;
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Student rows of one group, filtered by the active status tab.
+     *
+     * @param  Collection<int, Student>  $students
+     * @param  Collection<string, AttendanceRecord>  $records
+     * @return Collection<int, array{student: Student, record: ?AttendanceRecord}>
+     */
+    private function filteredRows(Collection $students, Collection $records, string $status): Collection
+    {
+        return $students
+            ->map(fn (Student $student): array => [
+                'student' => $student,
+                'record' => $records->get($student->id),
+            ])
+            ->filter(fn (array $row): bool => $this->matchesStatusFilter($row['record']?->status, $status))
+            ->values();
+    }
+
+    private function matchesStatusFilter(?AttendanceStatus $status, string $filter): bool
+    {
+        return match ($filter) {
+            'present', 'late', 'absent', 'excused' => $status?->value === $filter,
+            'attended' => in_array($status?->value, ['present', 'late'], true),
+            default => true,
+        };
     }
 
     /** @param  Collection<int, AttendanceRecord>  $records */

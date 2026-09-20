@@ -8,6 +8,9 @@
     $examRate = isset($stats['exam_pass_rate']) ? (float) rtrim($stats['exam_pass_rate'], '%') : null;
     $hwRate = isset($stats['homework_pass_rate']) ? (float) rtrim($stats['homework_pass_rate'], '%') : null;
     $firstName = preg_split('/\s+/u', trim(auth()->user()->name), 2)[0] ?? auth()->user()->name;
+    $attendanceTodayUrl = app(\App\Services\AuthorizationService::class)->can(auth()->user(), 'attendance.view')
+        ? route('admin.attendance.today')
+        : null;
 @endphp
 
 {{-- ===== ترحيب/هيرو ===== --}}
@@ -30,8 +33,11 @@
         </div>
 
         @if($todayRate !== null)
-            <div class="shrink-0">
-                <div class="glass-card !bg-white/10 border border-white/15 rounded-2xl px-6 py-4 flex items-center gap-5 animate-floaty">
+            <div class="shrink-0 relative group/att">
+                @if($attendanceTodayUrl)
+                    <a href="{{ $attendanceTodayUrl }}" class="absolute inset-0 z-10 rounded-2xl" aria-label="عرض الطلاب الحاضرين اليوم" title="عرض من حضر اليوم"></a>
+                @endif
+                <div class="glass-card !bg-white/10 border border-white/15 rounded-2xl px-6 py-4 flex items-center gap-5 animate-floaty transition group-hover/att:ring-2 group-hover/att:ring-gold-300/50">
                     <div class="text-center">
                         <div class="text-3xl font-black gold-text tabular-nums" data-count-up data-to="{{ round($todayRate, 1) }}">…</div>
                         <div class="text-[11px] text-emerald-100/80 font-semibold mt-1">نسبة حضور اليوم</div>
@@ -42,6 +48,9 @@
                         <div class="text-[11px] text-emerald-100/80 font-semibold mt-1">طالب حاضر</div>
                     </div>
                 </div>
+                @if($attendanceTodayUrl)
+                    <div class="text-center text-[10px] font-bold text-gold-200/80 mt-2">اضغط لعرض من حضر ←</div>
+                @endif
             </div>
         @endif
     </div>
@@ -78,11 +87,14 @@
     </div>
 
     <div class="reveal rd-4 group relative overflow-hidden rounded-2xl bg-white p-5 border border-pine-950/[0.06] card-hover card-hover-ring shadow-[0_1px_3px_rgba(5,32,25,0.05)]">
+        @if($attendanceTodayUrl)
+            <a href="{{ $attendanceTodayUrl }}" class="absolute inset-0 z-10" aria-label="عرض الطلاب الحاضرين اليوم" title="عرض من حضر اليوم"></a>
+        @endif
         <span class="w-11 h-11 rounded-xl grid place-items-center text-white shadow-lg bg-gradient-to-br from-teal-400 to-pine-700 group-hover:rotate-6 group-hover:scale-110 transition-all duration-300"><x-icon name="attendance" class="w-5 h-5" /></span>
         <div class="mt-4">
             <div class="text-2xl sm:text-3xl font-black text-pine-950 tabular-nums" data-count-up data-to="{{ $stats['attendance_present_today'] ?? 0 }}">{{ $stats['attendance_present_today'] ?? 0 }}</div>
             <div class="text-[13px] text-gray-500 font-bold mt-1">حاضرون اليوم</div>
-            <div class="text-[11px] text-gray-400 font-semibold mt-1">من إجمالي الحضور المُسجّل</div>
+            <div class="text-[11px] text-gray-400 font-semibold mt-1">من إجمالي {{ $stats['students_count'] ?? 0 }} طالب{{ $attendanceTodayUrl ? ' · اضغط للتفاصيل' : '' }}</div>
         </div>
     </div>
 </div>
