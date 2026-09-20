@@ -146,6 +146,7 @@ Route::prefix('v1')->group(function () {
                 ->middlewareFor('destroy', 'permission:assignments.delete');
 
             Route::apiResource('exams', V1\Teacher\ExamController::class)->only(['index', 'store'])
+                ->names(['index' => 'api.teacher.exams.index', 'store' => 'api.teacher.exams.store'])
                 ->middlewareFor('index', 'permission:exams.view')
                 ->middlewareFor('store', 'permission:exams.create');
 
