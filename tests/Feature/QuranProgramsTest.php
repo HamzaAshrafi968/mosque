@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\ProgramType;
+use App\Enums\QuranCompletionStatus;
 use App\Models\Classroom;
 use App\Models\CustomField;
 use App\Models\FaithMeeting;
@@ -345,6 +346,103 @@ class QuranProgramsTest extends TestCase
 
         $this->assertSame(1, ProgramEnrollment::where('student_id', $student->id)->count());
         $this->assertSame(1, HafizProfile::where('student_id', $student->id)->count());
+    }
+
+    public function test_legacy_hafiz_profile_can_be_confirmed_and_joins_qualifying(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        $student = $this->makeStudent($mosque->id);
+
+        // ملف حافظ قديم بلا إتمام مؤكد (بيانات سابقة/إصلاح يدوي) لا يمنع التأكيد.
+        app(QuranProgramService::class)->ensureHafizProfile($student, $admin);
+
+        $this->actingAs($admin)->post(route('admin.quran.completions.store'), [
+            'student_id' => $student->id,
+            'completed_at' => '2026-08-30',
+        ])->assertRedirect();
+
+        $completion = QuranCompletion::where('student_id', $student->id)->firstOrFail();
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.completions.confirm', $completion))
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, HafizProfile::where('student_id', $student->id)->count());
+        $this->assertDatabaseHas('program_enrollments', [
+            'student_id' => $student->id,
+            'program_type' => 'qualifying',
+            'status' => 'active',
+        ]);
+
+        // يظهر فعلياً في صفحة البرنامج التأهيلي.
+        $this->actingAs($admin)
+            ->get(route('admin.quran.qualifying.index'))
+            ->assertOk()
+            ->assertSee($student->name);
+    }
+
+    public function test_marking_all_thirty_juz_opens_a_pending_completion_request(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        $student = $this->makeStudent($mosque->id);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.update', $student), [
+                'name' => $student->name,
+                'gender' => $student->gender,
+                'memorized_juz_numbers_present' => 1,
+                'memorized_juz_numbers' => range(1, 30),
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        // مسار سجل الأجزاء يفتح الطلب «بانتظار التأكيد» — بلا اعتماد تلقائي.
+        $completion = QuranCompletion::where('student_id', $student->id)->firstOrFail();
+        $this->assertSame(QuranCompletionStatus::Pending, $completion->status);
+        $this->assertDatabaseMissing('hafiz_profiles', ['student_id' => $student->id]);
+        $this->assertDatabaseMissing('program_enrollments', ['student_id' => $student->id]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.completions.confirm', $completion))
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('program_enrollments', [
+            'student_id' => $student->id,
+            'program_type' => 'qualifying',
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_legacy_hafiz_can_be_moved_to_qualifying_from_the_hafiz_page(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        $student = $this->makeStudent($mosque->id);
+
+        app(QuranProgramService::class)->ensureHafizProfile($student, $admin);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.completions.index', ['status' => 'confirmed']))
+            ->assertOk()
+            ->assertSee('ترحيل للتأهيلي');
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.hafiz.qualifying', $student))
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('program_enrollments', [
+            'student_id' => $student->id,
+            'program_type' => 'qualifying',
+            'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('hafiz_monthly_exams', [
+            'student_id' => $student->id,
+            'month' => QuranProgramSettings::monthOf(now()),
+            'exam_status' => 'not_tested',
+        ]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'qualifying.enrollment.manual']);
     }
 
     public function test_qualifying_completion_requires_configured_passing_weeks_then_enrolls_ijazah(): void

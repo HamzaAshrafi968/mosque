@@ -304,6 +304,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('quran/hafiz', [Admin\HafizController::class, 'index'])->name('quran.hafiz.index')->middleware('permission:hafiz_profile.view');
     Route::get('quran/hafiz/{student}/profile', [Admin\HafizController::class, 'profile'])->name('quran.hafiz.profile')->middleware('permission:hafiz_profile.view');
     Route::patch('quran/hafiz/{student}/profile', [Admin\HafizController::class, 'update'])->name('quran.hafiz.profile.update')->middleware('permission:hafiz_profile.update');
+    Route::post('quran/hafiz/{student}/qualifying', [Admin\HafizController::class, 'enrollQualifying'])->name('quran.hafiz.qualifying')->middleware('permission:qualifying.create');
 
     Route::get('quran/qualifying', [Admin\QualifyingController::class, 'index'])->name('quran.qualifying.index')->middleware('permission:qualifying.view');
     Route::get('quran/qualifying/evaluations/create', [Admin\QualifyingController::class, 'create'])->name('quran.qualifying.evaluations.create')->middleware('permission:qualifying.create');

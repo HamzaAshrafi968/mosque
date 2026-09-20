@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ProgramType;
+use App\Enums\QuranCompletionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\HafizProfile;
 use App\Models\QuranCompletion;
@@ -83,6 +85,43 @@ class HafizController extends Controller
     public function profileFor(Student $student): HafizProfile
     {
         return $this->programs->ensureHafizProfile($student);
+    }
+
+    /**
+     * ترحيل حافظ قديم (ملف حافظ بلا التحاق) إلى البرنامج التأهيلي يدوياً —
+     * إصلاح للسجلات التي أُنشئت قبل ربط الاعتماد بالالتحاق التلقائي:
+     * يُعتمد إتمامه (إتمام مؤكد + ملف حافظ + اختبارات شهرية) ثم يلتحق بالتأهيلي.
+     */
+    public function enrollQualifying(Request $request, Student $student): RedirectResponse
+    {
+        $this->programs->ensureHafizProfile($student, $request->user());
+
+        $hasConfirmed = $student->quranCompletions()
+            ->where('status', QuranCompletionStatus::Confirmed)
+            ->exists();
+
+        if ($hasConfirmed) {
+            $this->programs->enrollIfAbsent(ProgramType::Qualifying, $student->id, null, $request->user());
+        } else {
+            $completion = $student->quranCompletions()
+                ->where('status', QuranCompletionStatus::Pending)
+                ->latest()
+                ->first()
+                ?? $this->programs->recordCompletion(
+                    $student,
+                    null,
+                    'ترحيل حافظ قديم إلى البرنامج التأهيلي',
+                    $request->user()
+                );
+
+            $this->programs->confirmCompletion($completion, $request->user());
+        }
+
+        $enrollment = $this->programs->activeEnrollment($student, ProgramType::Qualifying);
+
+        $this->audit->logModel('qualifying.enrollment.manual', $enrollment ?? $student, actor: $request->user());
+
+        return back()->with('success', 'تم ترحيل الحافظ إلى البرنامج التأهيلي');
     }
 
     private function validated(Request $request): array

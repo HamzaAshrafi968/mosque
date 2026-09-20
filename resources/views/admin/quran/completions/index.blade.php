@@ -80,6 +80,7 @@
                     <tbody>
                     @forelse($profiles as $profile)
                         @php($completion = $profile->student->latestConfirmedCompletion)
+                        @php($qualifyingEnrollment = $qualifyingEnrollments->get($profile->student_id))
                         <tr class="border-t">
                             <td class="px-4 py-3 whitespace-nowrap">
                                 @if($canViewHafiz)
@@ -113,7 +114,22 @@
                                 <div class="text-xs text-gray-400">{{ $completion?->confirmed_at?->format('Y-m-d') }}</div>
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
-                                <div class="flex gap-2 justify-center">
+                                <div class="flex flex-wrap gap-2 justify-center items-center">
+                                    @if($qualifyingEnrollment)
+                                        <span @class([
+                                            'px-2 py-0.5 rounded-full text-[11px] font-bold',
+                                            'bg-emerald-100 text-emerald-800' => $qualifyingEnrollment->status === \App\Enums\ProgramEnrollmentStatus::Active,
+                                            'bg-gray-100 text-gray-600' => $qualifyingEnrollment->status !== \App\Enums\ProgramEnrollmentStatus::Active,
+                                        ])>
+                                            {{ $qualifyingEnrollment->status === \App\Enums\ProgramEnrollmentStatus::Active ? 'في التأهيلي' : 'أكمل التأهيلي' }}
+                                        </span>
+                                    @elseif($can('qualifying.create'))
+                                        <form method="POST" action="{{ route('admin.quran.hafiz.qualifying', $profile->student) }}"
+                                              onsubmit="return confirm('سيُلتحق الحافظ بالبرنامج التأهيلي. متأكد؟')">
+                                            @csrf
+                                            <button type="submit" class="text-xs text-amber-700 hover:underline">ترحيل للتأهيلي</button>
+                                        </form>
+                                    @endif
                                     @if($canViewHafiz)
                                         <a href="{{ route('admin.quran.hafiz.profile', $profile->student) }}" class="text-xs text-emerald-700 hover:underline">الملف</a>
                                     @endif

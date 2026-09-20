@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\QuranCompletionStatus;
 use App\Enums\QuranKhamsaItemStatus;
 use App\Enums\QuranKhamsaReviewStatus;
 use App\Enums\QuranKhamsaReviewType;
@@ -1288,7 +1289,11 @@ class QuranMemorizationGatingService
     /** فتح طلب إتمام الحفظ عند تثبيت جميع دفعات الحفظ (15 دفعة) فعلياً. */
     private function maybeOpenCompletion(QuranMemorizationBatch $batch, Student $student, User $actor): void
     {
-        if (QuranCompletion::query()->where('student_id', $student->id)->exists()) {
+        $existing = QuranCompletion::query()->where('student_id', $student->id)->first();
+
+        // إتمام مؤكد سابقاً لا يُعاد فتحه؛ أما الطلب «بانتظار التأكيد» (من سجل
+        // الأجزاء) فيمرّ ليعتمده مسار الدفعات/الاختبار المباشر تلقائياً.
+        if ($existing !== null && $existing->status !== QuranCompletionStatus::Pending) {
             return;
         }
 
@@ -1305,15 +1310,28 @@ class QuranMemorizationGatingService
     }
 
     /**
-     * اكتمال حفظ القرآن بعد تثبيت آخر دفعة: تسجيل الإتمام ثم اعتماد الحافظ
-     * تلقائياً عند تفعيل مفتاح الجامع (مفعّل افتراضياً) — فيظهر الطالب فوراً
-     * في «الحفاظ المؤكدين» ويلتحق بالبرنامج التأهيلي، وإلا يبقى الطلب
-     * «بانتظار التأكيد» اليدوي.
+     * اكتمال حفظ القرآن: تسجيل الإتمام ثم اعتماد الحافظ تلقائياً عند تفعيل
+     * مفتاح الجامع (مفعّل افتراضياً) — فيظهر الطالب فوراً في «الحفاظ المؤكدين»
+     * ويلتحق بالبرنامج التأهيلي، وإلا يبقى الطلب «بانتظار التأكيد» اليدوي.
+     *
+     * @param  bool  $autoConfirm  مسار سجل الأجزاء (شبكة الطالب/مراجعة 5) يمرّر
+     *                             false ليبقى الاعتماد يدوياً دائماً.
      */
-    private function openCompletion(QuranMemorizationBatch $batch, Student $student, User $actor): void
+    private function openCompletion(?QuranMemorizationBatch $batch, Student $student, ?User $actor, bool $autoConfirm = true): ?QuranCompletion
     {
-        if (QuranCompletion::query()->where('student_id', $student->id)->exists()) {
-            return;
+        $existing = QuranCompletion::query()->where('student_id', $student->id)->first();
+
+        if ($existing !== null) {
+            // طلب إتمام قائم «بانتظار التأكيد» (من سجل الأجزاء): مسار الدفعات/
+            // الاختبار المباشر يعتمده تلقائياً عند تفعيل المفتاح بدل تجاهله.
+            if ($autoConfirm
+                && $existing->status === QuranCompletionStatus::Pending
+                && $this->settings->autoConfirmCompletion()
+                && ! HafizProfile::query()->where('student_id', $student->id)->exists()) {
+                app(QuranProgramService::class)->confirmCompletion($existing, $actor);
+            }
+
+            return $existing;
         }
 
         $programs = app(QuranProgramService::class);
@@ -1321,7 +1339,9 @@ class QuranMemorizationGatingService
         $completion = $programs->recordCompletion(
             $student,
             Carbon::today()->toDateString(),
-            'اكتمل حفظ القرآن بإتمام جميع دفعات الحفظ ('.QuranMemorizationBatch::TOTAL_BATCHES.' دفعة)',
+            $batch
+                ? 'اكتمل حفظ القرآن بإتمام جميع دفعات الحفظ ('.QuranMemorizationBatch::TOTAL_BATCHES.' دفعة)'
+                : 'اكتمل حفظ القرآن بتسجيل جميع الأجزاء الثلاثين في سجل الطالب',
             $actor
         );
 
@@ -1329,13 +1349,16 @@ class QuranMemorizationGatingService
 
         // طالب لديه ملف حافظ مسبقاً (بيانات قديمة/إصلاح يدوي) لا يُكسر تسجيل
         // اختباره، ويُترك الإتمام بانتظار معالجة الإدارة.
-        if ($this->settings->autoConfirmCompletion()
+        if ($autoConfirm
+            && $this->settings->autoConfirmCompletion()
             && ! HafizProfile::query()->where('student_id', $student->id)->exists()) {
             $programs->confirmCompletion($completion, $actor);
             $autoConfirmed = $completion->refresh()->isConfirmed();
         }
 
-        $this->audit->logModel('memorization_batch.journey_completed', $batch, actor: $actor);
+        if ($batch) {
+            $this->audit->logModel('memorization_batch.journey_completed', $batch, actor: $actor);
+        }
 
         $this->notifications->notifyStudentCircle(
             $student,
@@ -1346,6 +1369,24 @@ class QuranMemorizationGatingService
             route('student.quran-profile'),
             staffToo: true
         );
+
+        return $completion;
+    }
+
+    /**
+     * عند تسجيل الأجزاء الثلاثين كاملة في سجل الطالب (شبكة «الأجزاء المحفوظة»
+     * في نموذج الطالب، مقدار الحفظ، أو «إدارة الأجزاء المحفوظة» في مراجعة 5):
+     * يُفتح طلب إتمام حفظ «بانتظار التأكيد» — ويبقى الاعتماد يدوياً من صفحة
+     * إتمام الحفظ حتى لو كان مفتاح الاعتماد التلقائي مفعّلاً، لأن مسار دفعات
+     * الحفظ المختبَرة هو طريق الاعتماد الآلي.
+     */
+    public function openCompletionForFullMemorization(Student $student, ?User $actor = null): ?QuranCompletion
+    {
+        if (count($this->memorizedJuzNumbers($student)) < QuranJuzMap::TOTAL_JUZ) {
+            return null;
+        }
+
+        return $this->openCompletion(null, $student, $actor, autoConfirm: false);
     }
 
     /** @param array<int, int> $failedJuz */

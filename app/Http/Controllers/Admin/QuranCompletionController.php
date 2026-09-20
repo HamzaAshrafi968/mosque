@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ProgramType;
 use App\Enums\QuranCompletionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\HafizProfile;
+use App\Models\ProgramEnrollment;
 use App\Models\QuranCompletion;
 use App\Models\Student;
 use App\Services\AuditLogger;
@@ -45,6 +47,7 @@ class QuranCompletionController extends Controller
 
         $completions = null;
         $profiles = null;
+        $qualifyingEnrollments = collect();
 
         if ($status === 'pending') {
             $completions = QuranCompletion::query()
@@ -64,12 +67,21 @@ class QuranCompletionController extends Controller
                 ->orderByDesc('created_at')
                 ->paginate(20)
                 ->withQueryString();
+
+            // الترحيل للتأهيلي: يظهر الزر للحفاظ بلا التحاق سابق، وتظهر شارة
+            // الحالة لمن التحق/أكمل — لتفادي إعادة ترحيل من أنهى التأهيلي.
+            $qualifyingEnrollments = ProgramEnrollment::query()
+                ->whereIn('student_id', $profiles->pluck('student_id'))
+                ->where('program_type', ProgramType::Qualifying)
+                ->get(['student_id', 'status'])
+                ->keyBy('student_id');
         }
 
         return view('admin.quran.completions.index', [
             'status' => $status,
             'completions' => $completions,
             'profiles' => $profiles,
+            'qualifyingEnrollments' => $qualifyingEnrollments,
             'search' => $search,
             'pendingCount' => QuranCompletion::query()->where('status', QuranCompletionStatus::Pending)->count(),
             'hafizCount' => HafizProfile::query()->count(),

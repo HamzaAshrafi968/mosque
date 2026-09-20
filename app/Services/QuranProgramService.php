@@ -63,13 +63,14 @@ class QuranProgramService
 
         $student = $completion->student;
 
-        $alreadyHafiz = HafizProfile::where('student_id', $student->id)->exists()
-            || QuranCompletion::where('student_id', $student->id)
-                ->where('status', QuranCompletionStatus::Confirmed)
-                ->where('id', '!=', $completion->id)
-                ->exists();
+        // ملف حافظ موجود مسبقاً (بيانات قديمة/إصلاح يدوي) لا يمنع التأكيد —
+        // الشرط الفعلي هو ألا يكون هناك إتمام مؤكد آخر لنفس الطالب.
+        $alreadyConfirmed = QuranCompletion::where('student_id', $student->id)
+            ->where('status', QuranCompletionStatus::Confirmed)
+            ->where('id', '!=', $completion->id)
+            ->exists();
 
-        if ($alreadyHafiz) {
+        if ($alreadyConfirmed) {
             throw ValidationException::withMessages([
                 'student_id' => ['تم تأكيد إتمام حفظ القرآن لهذا الطالب مسبقاً'],
             ]);

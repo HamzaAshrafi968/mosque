@@ -449,6 +449,7 @@ class QuranKhamsaService
 
         if ($record->wasRecentlyCreated) {
             $this->audit->logModel('juz_memorization.recorded', $record, actor: $actor);
+            $this->gating->openCompletionForFullMemorization($student, $actor);
         }
 
         return $record;
@@ -511,6 +512,7 @@ class QuranKhamsaService
         });
 
         $this->gating->sync($student, $actor);
+        $this->gating->openCompletionForFullMemorization($student, $actor);
     }
 
     /**
@@ -542,6 +544,7 @@ class QuranKhamsaService
 
         if ($recorded) {
             $this->gating->sync($student, $actor);
+            $this->gating->openCompletionForFullMemorization($student, $actor);
         }
     }
 
