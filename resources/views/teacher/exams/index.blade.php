@@ -3,8 +3,14 @@
 @section('title', 'الامتحانات')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="mb-4">
-    <a href="{{ route('teacher.exams.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إنشاء اختبار</a>
+    @if ($can('exams.create'))
+        <a href="{{ route('teacher.exams.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إنشاء اختبار</a>
+    @endif
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">

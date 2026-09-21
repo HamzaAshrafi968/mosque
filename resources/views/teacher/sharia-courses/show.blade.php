@@ -3,6 +3,10 @@
 @section('title', $course->name)
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-7xl mx-auto space-y-6">
     <div>
         <a href="{{ route('teacher.sharia-courses.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← الدورات الشرعية</a>
@@ -133,22 +137,11 @@
                                 @else
                                     <span class="text-xs text-gray-400">غير محدد</span>
                                 @endif
-                                @if($isSupervisor)
-                                    <details class="inline-block text-right align-middle ms-1">
-                                        <summary class="cursor-pointer text-xs text-blue-600 font-bold select-none">تعديل</summary>
-                                        <form method="POST" action="{{ route('teacher.sharia-courses.students.memorization', $student) }}" class="mt-2 bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 min-w-64">
-                                            @csrf
-                                            @method('PATCH')
-                                            <select name="memorization_status" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
-                                                <option value="">— غير محدد —</option>
-                                                @foreach($memorizationStatuses as $memorizationStatus)
-                                                    <option value="{{ $memorizationStatus->value }}" @selected($student->memorization_status === $memorizationStatus)>{{ $memorizationStatus->label() }}</option>
-                                                @endforeach
-                                            </select>
-                                            <textarea name="memorization_notes" rows="2" maxlength="2000" placeholder="ملاحظات الحفظ" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">{{ $student->memorization_notes }}</textarea>
-                                            <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-lg">حفظ حالة الحفظ</button>
-                                        </form>
-                                    </details>
+                                @if($isSupervisor && $can('sharia_courses.memorization'))
+                                    <x-memorization-status-editor
+                                        :student="$student"
+                                        :statuses="$memorizationStatuses"
+                                        :action="route('teacher.sharia-courses.students.memorization', $student)" />
                                 @endif
                             </td>
                             <td class="px-4 py-3">{{ $student->attendances_count }}</td>
@@ -169,7 +162,7 @@
         </div>
     @endif
 
-    @if($tab === 'attendance')
+    @if($tab === 'attendance' && $can('sharia_courses.attendance'))
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
             <h3 class="font-black text-pine-950 mb-3">اختيار الدرس / اليوم</h3>
             <form method="GET" action="{{ route('teacher.sharia-courses.show', $course) }}" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">

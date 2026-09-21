@@ -3,11 +3,16 @@
 @section('title', 'الحسابات والصلاحيات')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <h1 class="text-2xl font-bold text-gray-800 mb-2">الحسابات والصلاحيات</h1>
 <p class="text-sm text-gray-500 mb-6">إنشاء الحسابات، تحديد الأدوار، وضبط صلاحيات المعلمين ومديري الدوامات.</p>
 
 @include('admin.settings._tabs')
 
+@if ($can('users.create'))
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
     <form method="POST" action="{{ route('admin.users.store') }}" enctype="multipart/form-data" class="space-y-4">
         @csrf
@@ -55,6 +60,7 @@
         </div>
     </form>
 </div>
+@endif
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="overflow-x-auto">
@@ -93,21 +99,25 @@
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
                             <div class="flex gap-2 items-center">
-                                <label for="user-photo-{{ $user->id }}" class="cursor-pointer inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 text-xs font-bold" title="تغيير الصورة الشخصية">
-                                    <x-icon name="camera" class="w-4 h-4" />صورة
-                                </label>
-                                <input id="user-photo-{{ $user->id }}" type="file" name="photo" accept=".jpg,.jpeg,.png,.webp" form="user-form-{{ $user->id }}" class="sr-only">
-                                <label class="inline-flex items-center gap-1 text-xs font-semibold text-red-500 cursor-pointer" title="إزالة الصورة">
-                                    <input type="checkbox" name="remove_photo" value="1" form="user-form-{{ $user->id }}" class="rounded border-gray-300 text-red-500">
-                                    إزالة
-                                </label>
-                                <button type="submit" form="user-form-{{ $user->id }}" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
+                                @if ($can('users.update'))
+                                    <label for="user-photo-{{ $user->id }}" class="cursor-pointer inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 text-xs font-bold" title="تغيير الصورة الشخصية">
+                                        <x-icon name="camera" class="w-4 h-4" />صورة
+                                    </label>
+                                    <input id="user-photo-{{ $user->id }}" type="file" name="photo" accept=".jpg,.jpeg,.png,.webp" form="user-form-{{ $user->id }}" class="sr-only">
+                                    <label class="inline-flex items-center gap-1 text-xs font-semibold text-red-500 cursor-pointer" title="إزالة الصورة">
+                                        <input type="checkbox" name="remove_photo" value="1" form="user-form-{{ $user->id }}" class="rounded border-gray-300 text-red-500">
+                                        إزالة
+                                    </label>
+                                    <button type="submit" form="user-form-{{ $user->id }}" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
+                                @endif
                             </div>
-                            <form id="user-form-{{ $user->id }}" method="POST" action="{{ route('admin.users.update', $user) }}" enctype="multipart/form-data" hidden>
-                                @csrf
-                                @method('PUT')
-                            </form>
-                            @if(auth()->id() !== $user->id)
+                            @if ($can('users.update'))
+                                <form id="user-form-{{ $user->id }}" method="POST" action="{{ route('admin.users.update', $user) }}" enctype="multipart/form-data" hidden>
+                                    @csrf
+                                    @method('PUT')
+                                </form>
+                            @endif
+                            @if(auth()->id() !== $user->id && $can('users.delete'))
                                 <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
                                     @csrf
                                     @method('DELETE')

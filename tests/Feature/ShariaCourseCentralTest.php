@@ -419,6 +419,15 @@ class ShariaCourseCentralTest extends TestCase
         $this->assertSame(ShariaMemorizationStatus::HalfMemorized, $student->memorization_status);
         $this->assertSame($admin->id, $student->memorization_updated_by);
 
+        // الواجهة تعرض محرّر الحالة الاحترافي مع من حدّثها ومتى.
+        $this->actingAs($admin)
+            ->get(route('admin.sharia-courses.show', ['course' => $course, 'tab' => 'students']))
+            ->assertOk()
+            ->assertSee('حالة الحفظ — طالب الحفظ')
+            ->assertSee('أتم نصف المقرر')
+            ->assertSee('آخر تحديث:')
+            ->assertSee($admin->name);
+
         // المشرف يحدّث الحالة.
         $this->actingAs($supervisorUser)
             ->patch(route('teacher.sharia-courses.students.memorization', $student), [
@@ -430,6 +439,13 @@ class ShariaCourseCentralTest extends TestCase
         $this->assertSame(ShariaMemorizationStatus::Memorized, $student->memorization_status);
         $this->assertSame($supervisorUser->id, $student->memorization_updated_by);
         $this->assertNotNull($student->memorization_updated_at);
+
+        $this->actingAs($supervisorUser)
+            ->get(route('teacher.sharia-courses.show', ['course' => $course, 'tab' => 'students']))
+            ->assertOk()
+            ->assertSee('حالة الحفظ — طالب الحفظ')
+            ->assertSee('أتم حفظ المقرر كاملاً')
+            ->assertSee($supervisorUser->name);
 
         // معلم غير مشرف لا يستطيع التحديث.
         $this->actingAs($otherUser)

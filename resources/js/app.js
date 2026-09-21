@@ -1624,6 +1624,29 @@ function initExamTargetPickers() {
     });
 }
 
+function initMemorizationEditors() {
+    document.querySelectorAll('[data-memorization-editor]').forEach((editor) => {
+        const toggle = editor.querySelector('[data-memorization-toggle]');
+        const panel = editor.querySelector('[data-memorization-panel]');
+        const close = editor.querySelector('[data-memorization-close]');
+
+        if (!toggle || !panel) {
+            return;
+        }
+
+        const setOpen = (open) => {
+            panel.classList.toggle('hidden', !open);
+
+            if (open) {
+                panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        };
+
+        toggle.addEventListener('click', () => setOpen(panel.classList.contains('hidden')));
+        close?.addEventListener('click', () => setOpen(false));
+    });
+}
+
 function initApp() {
     initSidebarCollapse();
     initSidebarGroups();
@@ -1643,6 +1666,7 @@ function initApp() {
     initAttendanceTrees();
     initSessionGenderFilters();
     initExamTargetPickers();
+    initMemorizationEditors();
 }
 
 if (document.readyState === 'loading') {

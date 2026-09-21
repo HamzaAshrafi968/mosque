@@ -3,6 +3,11 @@
 @section('title', 'إعدادات نقاط المكافآت')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+    $canUpdate = $can('quran_settings.update');
+@endphp
 <div class="max-w-6xl mx-auto">
     <h1 class="text-2xl font-bold text-gray-800 mb-2">إعدادات نقاط المكافآت</h1>
     <p class="text-sm text-gray-500 mb-6">
@@ -59,10 +64,12 @@
                                 @endif
                             </p>
                         </div>
-                        <button type="button" data-copy-session="{{ $session->id }}"
-                            class="text-[11px] font-bold rounded-lg border border-gray-200 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-800 text-gray-500 px-3 py-1.5 transition">
-                            نسخ قواعد هذا الدوام للكل
-                        </button>
+                        @if ($canUpdate)
+                            <button type="button" data-copy-session="{{ $session->id }}"
+                                class="text-[11px] font-bold rounded-lg border border-gray-200 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-800 text-gray-500 px-3 py-1.5 transition">
+                                نسخ قواعد هذا الدوام للكل
+                            </button>
+                        @endif
                     </div>
 
                     <div class="space-y-3">
@@ -123,11 +130,15 @@
                 تغيير القواعد يسري على الأحداث الجديدة فقط.
             </div>
 
-            <div class="flex justify-end">
-                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-6 py-2.5 rounded-lg">
-                    حفظ إعدادات النقاط
-                </button>
-            </div>
+            @if ($canUpdate)
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-6 py-2.5 rounded-lg">
+                        حفظ إعدادات النقاط
+                    </button>
+                </div>
+            @else
+                <p class="text-xs text-gray-400">لا تملك صلاحية تعديل إعدادات النقاط.</p>
+            @endif
         </form>
     @endif
 </div>

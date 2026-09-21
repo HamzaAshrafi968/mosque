@@ -7,6 +7,7 @@ use App\Http\Responses\ApiResponse;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\ResourceCollection;
 
 abstract class BaseApiController extends Controller
 {
@@ -40,7 +41,7 @@ abstract class BaseApiController extends Controller
         return ApiResponse::forbidden($message);
     }
 
-    protected function paginated(LengthAwarePaginator|CursorPaginator $paginator, string $key = 'items'): JsonResponse
+    protected function paginated(LengthAwarePaginator|CursorPaginator|ResourceCollection $paginator, string $key = 'items'): JsonResponse
     {
         return ApiResponse::paginated($paginator, $key);
     }

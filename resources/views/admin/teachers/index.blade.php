@@ -3,6 +3,10 @@
 @section('title', 'إدارة المعلمين')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6 p-4">
     <form method="GET" action="{{ route('admin.teachers.index') }}" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
         <div>
@@ -25,7 +29,9 @@
 </div>
 
 <div class="mb-4">
-    <a href="{{ route('admin.teachers.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg inline-block">إضافة معلم</a>
+    @if ($can('teachers.create'))
+        <a href="{{ route('admin.teachers.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg inline-block">إضافة معلم</a>
+    @endif
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -84,12 +90,16 @@
                         <td class="px-4 py-3 border-t whitespace-nowrap">
                             <div class="flex gap-2">
                                 <a href="{{ route('admin.teachers.show', $teacher) }}" class="text-emerald-600 hover:underline text-sm">عرض</a>
-                                <a href="{{ route('admin.teachers.edit', $teacher) }}" class="text-blue-600 hover:underline text-sm">تعديل</a>
-                                <form method="POST" action="{{ route('admin.teachers.destroy', $teacher) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
-                                </form>
+                                @if ($can('teachers.update'))
+                                    <a href="{{ route('admin.teachers.edit', $teacher) }}" class="text-blue-600 hover:underline text-sm">تعديل</a>
+                                @endif
+                                @if ($can('teachers.delete'))
+                                    <form method="POST" action="{{ route('admin.teachers.destroy', $teacher) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
+                                    </form>
+                                @endif
                             </div>
                         </td>
                     </tr>

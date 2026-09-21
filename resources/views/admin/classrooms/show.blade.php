@@ -3,6 +3,10 @@
 @section('title', 'الصف: '.$classroom->name)
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="mb-4">
     <a href="{{ route('admin.classrooms.index') }}" class="text-sm text-emerald-700 hover:underline">← الصفوف والشعب</a>
 </div>
@@ -17,13 +21,17 @@
             </span>
         </div>
         <div class="flex items-center gap-3 text-sm">
-            <a href="{{ route('admin.classrooms.edit', $classroom) }}" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تعديل الصف</a>
-            <form method="POST" action="{{ route('admin.classrooms.destroy', $classroom) }}"
-                  onsubmit="return confirm('حذف الصف؟ (يمنع إذا كانت شعبها بها طلاب نشطون)')">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="bg-red-500/80 hover:bg-red-500 px-3 py-1.5 rounded-lg">حذف</button>
-            </form>
+            @if ($can('classes.update'))
+                <a href="{{ route('admin.classrooms.edit', $classroom) }}" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تعديل الصف</a>
+            @endif
+            @if ($can('classes.delete'))
+                <form method="POST" action="{{ route('admin.classrooms.destroy', $classroom) }}"
+                      onsubmit="return confirm('حذف الصف؟ (يمنع إذا كانت شعبها بها طلاب نشطون)')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="bg-red-500/80 hover:bg-red-500 px-3 py-1.5 rounded-lg">حذف</button>
+                </form>
+            @endif
         </div>
     </div>
     <div class="grid grid-cols-2 sm:grid-cols-4 divide-x divide-x-reverse divide-gray-100 text-center">
@@ -46,6 +54,7 @@
     </div>
 </div>
 
+@if ($can('sections.create'))
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
     <h2 class="font-bold text-gray-800 mb-3">إضافة شعبة</h2>
     <form method="POST" action="{{ route('admin.sections.store', $classroom) }}" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
@@ -70,6 +79,7 @@
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إنشاء الشعبة</button>
     </form>
 </div>
+@endif
 
 @if($sections->isNotEmpty())
     <h2 class="font-bold text-gray-800 mb-3">شعب الصف</h2>
@@ -98,11 +108,13 @@
                 <div class="px-4 pb-4 flex gap-2 flex-wrap">
                     <a href="{{ route('admin.sections.show', $section) }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg">لوحة الشعبة</a>
                     <a href="{{ route('admin.attendance.history', ['section_id' => $section->id]) }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg">الحضور</a>
-                    <form method="POST" action="{{ route('admin.sections.destroy', $section) }}" class="inline" onsubmit="return confirm('حذف الشعبة؟ (يمنع مع طلاب نشطون)')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="text-red-600 hover:underline text-xs px-2 py-1.5">حذف</button>
-                    </form>
+                    @if ($can('sections.delete'))
+                        <form method="POST" action="{{ route('admin.sections.destroy', $section) }}" class="inline" onsubmit="return confirm('حذف الشعبة؟ (يمنع مع طلاب نشطون)')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="text-red-600 hover:underline text-xs px-2 py-1.5">حذف</button>
+                        </form>
+                    @endif
                 </div>
             </div>
         @endforeach

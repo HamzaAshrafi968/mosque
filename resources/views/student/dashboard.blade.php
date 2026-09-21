@@ -106,7 +106,7 @@
     <section class="reveal rd-3 rounded-2xl bg-white border border-pine-950/[0.06] shadow-[0_1px_3px_rgba(5,32,25,0.05)] overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2.5">
             <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 grid place-items-center"><x-icon name="teachers" class="w-4 h-4" /></span>
-            <h2 class="font-black text-pine-950">معلموّي</h2>
+            <h2 class="font-black text-pine-950">معلمي</h2>
         </div>
         @forelse($teachers as $row)
             <div class="px-6 py-3 flex items-center gap-3 border-b border-gray-50 last:border-0 hover:bg-emerald-50/40 transition-colors duration-200">

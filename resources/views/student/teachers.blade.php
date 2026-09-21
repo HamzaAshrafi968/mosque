@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'معلموّي')
+@section('title', 'معلمي')
 
 @section('content')
-<h1 class="text-2xl font-bold text-gray-800 mb-6">معلموّي</h1>
+<h1 class="text-2xl font-bold text-gray-800 mb-6">معلمي</h1>
 
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
     @forelse($teachers as $row)

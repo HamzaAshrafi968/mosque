@@ -3,6 +3,10 @@
 @section('title', $meeting->title)
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-6xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -16,12 +20,14 @@
                 'bg-green-100 text-green-800' => $meeting->status->value === 'completed',
                 'bg-red-100 text-red-800' => $meeting->status->value === 'cancelled',
             ])>{{ $meeting->status->label() }}</span>
-            <a href="{{ route('admin.faith-meetings.edit', $meeting) }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">تعديل</a>
-            <form method="POST" action="{{ route('admin.faith-meetings.destroy', $meeting) }}" onsubmit="return confirm('سيُحذف اللقاء وسجله بالكامل. متأكد؟')">
-                @csrf
-                @method('DELETE')
-                <button class="bg-white border border-red-200 text-red-600 text-sm font-bold px-4 py-2 rounded-lg">حذف</button>
-            </form>
+            @if ($can('faith_meetings.update'))
+                <a href="{{ route('admin.faith-meetings.edit', $meeting) }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">تعديل</a>
+                <form method="POST" action="{{ route('admin.faith-meetings.destroy', $meeting) }}" onsubmit="return confirm('سيُحذف اللقاء وسجله بالكامل. متأكد؟')">
+                    @csrf
+                    @method('DELETE')
+                    <button class="bg-white border border-red-200 text-red-600 text-sm font-bold px-4 py-2 rounded-lg">حذف</button>
+                </form>
+            @endif
         </div>
     </div>
 
@@ -34,7 +40,7 @@
             <div><span class="block text-xs text-gray-400 font-bold">المكان</span><span class="font-bold text-gray-800">{{ $meeting->location ?? '—' }}</span></div>
             <div class="col-span-3"><span class="block text-xs text-gray-400 font-bold">الوصف</span><span class="text-gray-700">{{ $meeting->description ?? '—' }}</span></div>
         </div>
-        @if($meeting->status->value !== 'completed')
+        @if($meeting->status->value !== 'completed' && $can('faith_meetings.update'))
             <form method="POST" action="{{ route('admin.faith-meetings.status', $meeting) }}" class="flex gap-2 mt-4 pt-4 border-t border-gray-100">
                 @csrf
                 <select name="status" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
@@ -72,12 +78,13 @@
                 @empty
                     <div class="text-center text-gray-400 py-6 text-sm">لم يُحدد طلاب لهذا اللقاء — أضفهم من «تعديل»</div>
                 @endforelse
-                @if($meeting->studentAttendances->isNotEmpty())
+                @if($meeting->studentAttendances->isNotEmpty() && $can('faith_meetings.attendance'))
                     <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-5 py-2 rounded-lg">حفظ الحضور</button>
                 @endif
             </form>
         </div>
 
+        @if ($can('faith_meetings.update'))
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 font-bold text-gray-800">📝 إضافة ملاحظة / اقتراح / إجراء</div>
             <form method="POST" action="{{ route('admin.faith-meetings.notes.store', $meeting) }}" class="p-4 space-y-3">
@@ -124,6 +131,7 @@
             </form>
         </div>
     </div>
+    @endif
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="px-5 py-3 border-b bg-gray-50 font-bold text-gray-800">🗒️ سجل الملاحظات والإجراءات ({{ $meeting->notes->count() }})</div>
@@ -149,17 +157,19 @@
                         </div>
                     </div>
                     <div class="flex gap-2 items-center">
-                        @if($note->status?->value === 'pending')
+                        @if($note->status?->value === 'pending' && $can('faith_meetings.update'))
                             <form method="POST" action="{{ route('admin.faith-meetings.notes.complete', $note) }}">
                                 @csrf
                                 <button class="text-xs text-green-700 hover:underline font-bold">إنجاز ✔️</button>
                             </form>
                         @endif
-                        <form method="POST" action="{{ route('admin.faith-meetings.notes.destroy', $note) }}" onsubmit="return confirm('حذف الملاحظة؟')">
-                            @csrf
-                            @method('DELETE')
-                            <button class="text-xs text-red-500 hover:underline">حذف</button>
-                        </form>
+                        @if ($can('faith_meetings.update'))
+                            <form method="POST" action="{{ route('admin.faith-meetings.notes.destroy', $note) }}" onsubmit="return confirm('حذف الملاحظة؟')">
+                                @csrf
+                                @method('DELETE')
+                                <button class="text-xs text-red-500 hover:underline">حذف</button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             @empty

@@ -3,6 +3,17 @@
 @section('title', 'القرآن والبرامج')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+    $canPrograms = $can('quran_training.view');
+    $qualifyingUrl = $canPrograms
+        ? route('teacher.quran.programs.index', ['type' => 'qualifying'])
+        : route('teacher.quran.qualifying.index');
+    $ijazahUrl = $canPrograms
+        ? route('teacher.quran.programs.index', ['type' => 'ijazah'])
+        : route('teacher.quran.ijazah.index');
+@endphp
 <div class="max-w-7xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -10,9 +21,15 @@
             <p class="text-sm text-gray-500 mt-1">طلابك ونطاق إشرافك في التسميع والبرامج القرآنية</p>
         </div>
         <div class="flex gap-2 flex-wrap">
-            <a href="{{ route('teacher.quran.tasmee.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تسجيل تسميع</a>
-            <a href="{{ route('teacher.quran.qualifying.evaluations.create') }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">+ تقييم أسبوعي</a>
-            <a href="{{ route('teacher.quran.ijazah.evaluations.create') }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">+ تقييم شهري</a>
+            @if ($can('quran.tasmee.create'))
+                <a href="{{ route('teacher.quran.tasmee.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تسجيل تسميع</a>
+            @endif
+            @if ($can('qualifying.create'))
+                <a href="{{ route('teacher.quran.qualifying.evaluations.create') }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">+ تقييم أسبوعي</a>
+            @endif
+            @if ($can('ijazah.create'))
+                <a href="{{ route('teacher.quran.ijazah.evaluations.create') }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">+ تقييم شهري</a>
+            @endif
         </div>
     </div>
 
@@ -39,7 +56,9 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">⚠️ بحاجة إلى مراجعة</span>
-                <a href="{{ route('teacher.quran.batches.index') }}" class="text-xs text-emerald-700 hover:underline">كل التسميع</a>
+                @if ($can('quran_batch.view'))
+                    <a href="{{ route('teacher.quran.batches.index') }}" class="text-xs text-emerald-700 hover:underline">كل التسميع</a>
+                @endif
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($weakStudents as $student)
@@ -56,7 +75,9 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">📋 طلاب البرنامج التأهيلي</span>
-                <a href="{{ route('teacher.quran.programs.index', ['type' => 'qualifying']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+                @if ($can('qualifying.view') || $canPrograms)
+                    <a href="{{ $qualifyingUrl }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+                @endif
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($qualifyingStudents as $student)
@@ -73,7 +94,9 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">📜 طلاب برنامج الإجازة</span>
-                <a href="{{ route('teacher.quran.programs.index', ['type' => 'ijazah']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+                @if ($can('ijazah.view') || $canPrograms)
+                    <a href="{{ $ijazahUrl }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+                @endif
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($ijazahStudents as $student)
@@ -90,7 +113,9 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">📖 طلاب برنامج القراءات</span>
-                <a href="{{ route('teacher.quran.programs.index', ['type' => 'readings']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+                @if ($canPrograms)
+                    <a href="{{ route('teacher.quran.programs.index', ['type' => 'readings']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+                @endif
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($readingsStudents as $student)
@@ -107,7 +132,9 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">🕊️ لقاءاتي القادمة</span>
-                <a href="{{ route('teacher.quran.faith-meetings.index') }}" class="text-xs text-emerald-700 hover:underline">الكل</a>
+                @if ($can('faith_meetings.view'))
+                    <a href="{{ route('teacher.quran.faith-meetings.index') }}" class="text-xs text-emerald-700 hover:underline">الكل</a>
+                @endif
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($myMeetings as $meeting)
@@ -127,7 +154,9 @@
         <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">🔄 مراجعات (إعادة) معلقة لحفاظي</span>
-                <a href="{{ route('teacher.quran.exams.index') }}" class="text-xs text-emerald-700 hover:underline">اختبارات الحفاظ</a>
+                @if ($can('hafiz_exams.view'))
+                    <a href="{{ route('teacher.quran.exams.index') }}" class="text-xs text-emerald-700 hover:underline">اختبارات الحفاظ</a>
+                @endif
             </div>
             <div class="divide-y divide-gray-50">
                 @forelse($pendingRevisions as $revision)

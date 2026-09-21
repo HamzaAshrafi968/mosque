@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Enums\ExamStatus;
-use App\Enums\QuestionType;
 use App\Models\Exam;
 use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
@@ -32,6 +31,7 @@ class ExamService
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly NotificationService $notifications,
+        private readonly AutoGrader $grader,
     ) {}
 
     // =====================================================================
@@ -250,91 +250,13 @@ class ExamService
      */
     public function gradeQuestion(ExamQuestion $question, array $selectedOptions, ?string $answerText): array
     {
-        return match ($question->type) {
-            QuestionType::Mcq => $this->gradeSingleChoice($question, $selectedOptions, $answerText),
-            QuestionType::Checkbox => $this->gradeCheckbox($question, $selectedOptions),
-            QuestionType::TrueFalse => $this->gradeTrueFalse($question, $selectedOptions, $answerText),
-            QuestionType::Short => $this->gradeShort($question, $answerText),
-            QuestionType::Essay => ['is_correct' => null, 'marks' => null],
-        };
-    }
-
-    /** @return array{is_correct: ?bool, marks: ?float} */
-    private function gradeSingleChoice(ExamQuestion $question, array $selectedOptions, ?string $answerText): array
-    {
-        $correct = trim((string) $question->correct_answer);
-        $given = trim((string) ($selectedOptions[0] ?? $answerText ?? ''));
-
-        if ($correct === '' || $given === '') {
-            return ['is_correct' => false, 'marks' => 0.0];
-        }
-
-        $isCorrect = $given === $correct;
-
-        return ['is_correct' => $isCorrect, 'marks' => $isCorrect ? (float) $question->marks : 0.0];
-    }
-
-    /** @return array{is_correct: ?bool, marks: ?float} */
-    private function gradeCheckbox(ExamQuestion $question, array $selectedOptions): array
-    {
-        $correct = $question->correctOptions();
-        $given = array_values(array_unique($selectedOptions));
-
-        if ($correct === [] || $given === []) {
-            return ['is_correct' => false, 'marks' => 0.0];
-        }
-
-        $selectedCorrect = count(array_intersect($given, $correct));
-        $wrong = array_diff($given, $correct);
-
-        if ($selectedCorrect === count($correct) && $wrong === []) {
-            return ['is_correct' => true, 'marks' => (float) $question->marks];
-        }
-
-        $partial = ($selectedCorrect / count($correct)) * (float) $question->marks;
-
-        return ['is_correct' => false, 'marks' => round($partial, 2)];
-    }
-
-    /** @return array{is_correct: ?bool, marks: ?float} */
-    private function gradeTrueFalse(ExamQuestion $question, array $selectedOptions, ?string $answerText): array
-    {
-        $normalize = fn (?string $value) => match (strtolower(trim((string) $value))) {
-            'true', '1', 'صح', 'صحيح' => 'true',
-            'false', '0', 'خطأ', 'خطا' => 'false',
-            default => '',
-        };
-
-        $correct = $normalize($question->correct_answer);
-        $given = $normalize($selectedOptions[0] ?? $answerText);
-
-        if ($correct === '' || $given === '') {
-            return ['is_correct' => false, 'marks' => 0.0];
-        }
-
-        $isCorrect = $given === $correct;
-
-        return ['is_correct' => $isCorrect, 'marks' => $isCorrect ? (float) $question->marks : 0.0];
-    }
-
-    /** @return array{is_correct: ?bool, marks: ?float} */
-    private function gradeShort(ExamQuestion $question, ?string $answerText): array
-    {
-        $correct = trim((string) $question->correct_answer);
-
-        if ($correct === '') {
-            return ['is_correct' => null, 'marks' => null];
-        }
-
-        $given = trim((string) $answerText);
-
-        if ($given === '') {
-            return ['is_correct' => false, 'marks' => 0.0];
-        }
-
-        $isCorrect = mb_strtolower($given) === mb_strtolower($correct);
-
-        return ['is_correct' => $isCorrect, 'marks' => $isCorrect ? (float) $question->marks : 0.0];
+        return $this->grader->grade(
+            $question->type,
+            (float) $question->marks,
+            $question->correct_answer,
+            $selectedOptions,
+            $answerText,
+        );
     }
 
     // =====================================================================

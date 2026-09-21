@@ -481,7 +481,7 @@ class QuranProgramBatchCycleTest extends TestCase
         $this->assertNotNull($item->fresh()->quran_recitation_session_id);
     }
 
-    public function test_student_portal_cycle_page_is_disabled(): void
+    public function test_student_portal_shows_the_cumulative_cycle_read_only(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $studentUser = User::factory()->create(['tenant_id' => $mosque->id, 'role' => 'student']);
@@ -498,6 +498,8 @@ class QuranProgramBatchCycleTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-programs.index'))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('الاختبار التراكمي')
+            ->assertDontSee('فتح الصفحات وتسجيل الأخطاء');
     }
 }

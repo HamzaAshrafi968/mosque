@@ -4,6 +4,10 @@
 
 @section('content')
 @php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
+@php
     $balance = $summary['balance'];
     $personRoute = $personType === \App\Enums\FinancePersonType::Student
         ? route('admin.students.show', $person)
@@ -45,6 +49,7 @@
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    @if ($can('finance.create'))
     <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="px-4 py-3 bg-emerald-700 text-white font-bold text-sm">تسجيل عملية</div>
         <form method="POST" action="{{ route('admin.finance.transactions.store') }}" class="p-4 space-y-3">
@@ -85,7 +90,9 @@
             <button type="submit" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">تسجيل</button>
         </form>
     </div>
+    @endif
 
+    @if ($can('finance.transfer'))
     <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="px-4 py-3 bg-emerald-700 text-white font-bold text-sm">تحويل إلى شخص آخر</div>
         <form method="POST" action="{{ route('admin.finance.transfers.store') }}" class="p-4 space-y-3">
@@ -116,6 +123,7 @@
             <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold px-4 py-2 rounded-lg">تسجيل التحويل</button>
         </form>
     </div>
+    @endif
 
     <div class="bg-white rounded-xl shadow overflow-hidden p-4 text-sm text-gray-600 space-y-2">
         <h3 class="font-bold text-gray-800">القواعد المحاسبية</h3>
@@ -170,12 +178,12 @@
                         </td>
                         <td class="px-4 py-3 border-t text-xs text-gray-500 whitespace-nowrap">{{ $tx->creator?->name ?? '—' }}</td>
                         <td class="px-4 py-3 border-t text-center whitespace-nowrap">
-                            @if($tx->reverses_id === null)
+                            @if($tx->reverses_id === null && $can('finance.update'))
                                 <form method="POST" action="{{ route('admin.finance.reverse', $tx) }}" onsubmit="return confirm('سيتم عكس العملية (تبقى في السجل كمرجع). متأكد؟')" class="inline">
                                     @csrf
                                     <button type="submit" class="text-amber-600 hover:underline text-xs">عكس</button>
                                 </form>
-                            @else
+                            @elseif($tx->reverses_id !== null)
                                 <span class="text-gray-300 text-xs">مُلغاة</span>
                             @endif
                         </td>

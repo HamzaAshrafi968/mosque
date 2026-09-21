@@ -3,6 +3,10 @@
 @section('title', 'كشف الدرجات')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6 p-4">
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
@@ -41,11 +45,13 @@
 </div>
 
 <div class="flex flex-wrap gap-3 mb-4">
-    <form method="POST" action="{{ route('admin.grades.approve', $exam) }}">
-        @csrf
-        @method('PATCH')
-        <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">اعتماد النتائج</button>
-    </form>
+    @if ($can('grades.approve'))
+        <form method="POST" action="{{ route('admin.grades.approve', $exam) }}">
+            @csrf
+            @method('PATCH')
+            <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">اعتماد النتائج</button>
+        </form>
+    @endif
     <button onclick="window.print()" class="bg-gray-700 hover:bg-gray-800 text-white font-bold px-4 py-2 rounded-lg">طباعة كشف الدرجات</button>
 </div>
 

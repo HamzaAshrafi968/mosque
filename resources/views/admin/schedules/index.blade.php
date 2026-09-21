@@ -24,6 +24,10 @@
 @endphp
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
     <form method="GET" action="{{ route('admin.schedules.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end mb-4">
         <div>
@@ -67,6 +71,7 @@
         </div>
     </form>
 
+    @if ($can('schedule.create'))
     <details class="mb-2" id="schedule-add-form" @if($errors->any()) open @endif>
         <summary class="cursor-pointer text-emerald-700 font-bold mb-2">إضافة حصة جديدة</summary>
         <form method="POST" action="{{ route('admin.schedules.store') }}" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
@@ -174,6 +179,7 @@
             </div>
         </form>
     </details>
+    @endif
 
 </div>
 
@@ -234,11 +240,13 @@
                                                         ← {{ $exception->postponed_date?->format('m/d') }} {{ substr((string) $exception->postponed_starts_at, 0, 5) }}
                                                     @endif
                                                 </span>
-                                                <form method="POST" action="{{ route('admin.schedules.restore', $exception) }}">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="hover:underline font-bold">إرجاع</button>
-                                                </form>
+                                                @if ($can('schedule.update'))
+                                                    <form method="POST" action="{{ route('admin.schedules.restore', $exception) }}">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="hover:underline font-bold">إرجاع</button>
+                                                    </form>
+                                                @endif
                                             </div>
                                             @if($exception->reason)
                                                 <div class="text-[10px] opacity-75">{{ $exception->reason }}</div>
@@ -246,6 +254,7 @@
                                         </div>
                                     @endforeach
 
+                                    @if ($can('schedule.update'))
                                     <details class="mt-1">
                                         <summary class="cursor-pointer text-[11px] text-gray-500">إلغاء/تأجيل</summary>
                                         @php $nextDate = $nextDateFor((int) $schedule->day_of_week); @endphp
@@ -266,90 +275,28 @@
                                             <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white rounded py-0.5 text-xs">تأجيل</button>
                                         </form>
                                     </details>
+                                    @endif
                                 </div>
                             @empty
                                 <p class="text-gray-300 text-xs text-center py-4">لا حصص</p>
                             @endforelse
 
-                            <button type="button"
-                                    class="add-slot-btn w-full text-emerald-700 border border-dashed border-emerald-300 rounded-lg py-1 text-xs hover:bg-emerald-50"
-                                    data-day="{{ $dayNum }}"
-                                    data-next-date="{{ $nextDateFor((int) $dayNum) }}"
-                                    data-classroom="{{ request('classroom_id') }}"
-                                    data-section="{{ request('section_id') }}">
-                                + حصة
-                            </button>
+                            @if ($can('schedule.create'))
+                                <button type="button"
+                                        class="add-slot-btn w-full text-emerald-700 border border-dashed border-emerald-300 rounded-lg py-1 text-xs hover:bg-emerald-50"
+                                        data-day="{{ $dayNum }}"
+                                        data-next-date="{{ $nextDateFor((int) $dayNum) }}"
+                                        data-classroom="{{ request('classroom_id') }}"
+                                        data-section="{{ request('section_id') }}">
+                                    + حصة
+                                </button>
+                            @endif
                         </td>
                     @endforeach
                 </tr>
             </tbody>
         </table>
     </div>
-</div>
-
-<div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead>
-                <tr class="bg-gray-50 text-gray-600 text-sm">
-                    <th class="px-4 py-3 text-right whitespace-nowrap">اليوم</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">الوقت</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">الصلاحية</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">البرنامج</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">الفترة</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">الدوام</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">الصف</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">الشعبة</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">المادة</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">المعلم</th>
-                    <th class="px-4 py-3 text-right whitespace-nowrap">حذف</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($table as $schedule)
-                    <tr>
-                        <td class="px-4 py-3 border-t font-bold whitespace-nowrap">{{ $days[$schedule->day_of_week] }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ substr($schedule->starts_at, 0, 5) }}–{{ substr($schedule->ends_at, 0, 5) }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">
-                            @if($schedule->validityLabel())
-                                <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600">{{ $schedule->validityLabel() }}</span>
-                            @else
-                                <span class="text-gray-400 text-xs">مفتوحة</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">
-                            @if($schedule->program)
-                                <span class="inline-flex items-center gap-1.5">
-                                    <span class="w-2.5 h-2.5 rounded-full" style="background: {{ $schedule->program->color ?: '#475569' }}"></span>
-                                    {{ $schedule->program->name }}
-                                </span>
-                            @else
-                                <span class="text-gray-400">—</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->programPeriod?->name ?? '—' }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->studySession?->name ?? '—' }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->classroom?->name }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->section?->name }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->subject?->name ?? '—' }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">{{ $schedule->teacher?->name }}</td>
-                        <td class="px-4 py-3 border-t whitespace-nowrap">
-                            <form method="POST" action="{{ route('admin.schedules.destroy', $schedule) }}" onsubmit="return confirm('هل أنت متأكد؟')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
-                            </form>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="11" class="px-4 py-6 text-center text-gray-500">لا توجد جداول</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-    <div class="mt-4 px-4">{{ $table->links() }}</div>
 </div>
 
 <script>

@@ -26,6 +26,7 @@ class Homework extends Model
         'due_date',
         'attachment_path',
         'pass_marks',
+        'total_marks',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class Homework extends Model
         return [
             'due_date' => 'date',
             'pass_marks' => 'integer',
+            'total_marks' => 'decimal:2',
         ];
     }
 
@@ -59,5 +61,29 @@ class Homework extends Model
     public function submissions(): HasMany
     {
         return $this->hasMany(HomeworkSubmission::class);
+    }
+
+    public function questions(): HasMany
+    {
+        return $this->hasMany(HomeworkQuestion::class)->orderBy('sort_order');
+    }
+
+    public function hasQuestions(): bool
+    {
+        return $this->questions()->exists();
+    }
+
+    /** مجموع علامات الأسئلة. */
+    public function questionsTotalMarks(): float
+    {
+        return round((float) $this->questions()->sum('marks'), 2);
+    }
+
+    /** لا تُعدَّل أسئلة الواجب بعد تصحيح أي تسليم. */
+    public function canEdit(): bool
+    {
+        return ! $this->submissions()
+            ->where(fn ($query) => $query->where('status', 'graded')->orWhereNotNull('grade'))
+            ->exists();
     }
 }

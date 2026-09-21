@@ -3,6 +3,10 @@
 @section('title', 'اختبار حافظ - '.$exam->month)
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-4xl mx-auto space-y-6">
     <a href="{{ route('admin.quran.exams.month', $exam->month) }}" class="text-sm text-emerald-700 hover:text-emerald-800">← اختبارات {{ $monthLabel($exam->month) }}</a>
 
@@ -24,6 +28,7 @@
         </div>
     </div>
 
+    @if ($can('hafiz_exams.grade'))
     <form method="POST" action="{{ route('admin.quran.exams.grade', $exam) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
         @csrf
         <h3 class="font-extrabold text-gray-800">{{ $exam->exam_status->value === 'not_tested' ? 'تسجيل نتيجة الشهر' : 'تعديل نتيجة الشهر (موثق في سجل العمليات)' }}</h3>
@@ -56,6 +61,7 @@
             <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-8 py-2.5 rounded-xl">حفظ النتيجة</button>
         </div>
     </form>
+    @endif
 
     @if($exam->revisions->isNotEmpty())
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -94,17 +100,17 @@
                             </td>
                             <td class="px-4 py-2">{{ $revision->notes ?? '—' }}</td>
                             <td class="px-4 py-2 text-center whitespace-nowrap">
-                                @if($revision->status->value === 'pending')
+                                @if($revision->status->value === 'pending' && $can('hafiz_exams.update'))
                                     <form method="POST" action="{{ route('admin.quran.exams.revisions.complete', $revision) }}" class="inline">
                                         @csrf
                                         <button class="text-xs text-sky-700 hover:underline font-bold">إكمال الإعادة</button>
                                     </form>
-                                @elseif($revision->status->value === 'completed')
+                                @elseif($revision->status->value === 'completed' && $can('hafiz_exams.update'))
                                     <form method="POST" action="{{ route('admin.quran.exams.revisions.approve', $revision) }}" class="inline">
                                         @csrf
                                         <button class="text-xs text-green-700 hover:underline font-bold">اعتماد</button>
                                     </form>
-                                @else
+                                @elseif($revision->status->value === 'approved')
                                     <span class="text-xs text-green-700">معتمد ✔️</span>
                                 @endif
                             </td>
@@ -116,7 +122,7 @@
         </div>
     @endif
 
-    @if($exam->exam_status->value === 'failed')
+    @if($exam->exam_status->value === 'failed' && $can('hafiz_exams.update'))
         <form method="POST" action="{{ route('admin.quran.exams.revisions.store', $exam) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
             @csrf
             <h3 class="font-extrabold text-gray-800">+ إضافة جزء مطلوب إعادته</h3>

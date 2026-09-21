@@ -61,6 +61,7 @@ class ShariaCourseController extends BaseTeacherController
 
         if ($tab === 'students') {
             $data['students'] = $course->students()
+                ->with('memorizationUpdatedBy:id,name')
                 ->withCount('attendances')
                 ->orderBy('name')
                 ->get();

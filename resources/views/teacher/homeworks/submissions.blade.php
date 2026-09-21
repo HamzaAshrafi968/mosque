@@ -3,6 +3,10 @@
 @section('title', 'تصحيح الواجب')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="p-4">
         <h2 class="text-lg font-bold text-gray-800">{{ $homework->title }}</h2>
@@ -12,9 +16,43 @@
             <span>{{ $homework->classroom?->name }}</span>
             <span class="mx-2">|</span>
             <span>تاريخ التسليم: {{ $homework->due_date->format('Y-m-d') }}</span>
+            @if($homework->total_marks !== null)
+                <span class="mx-2">|</span>
+                <span>الدرجة الكلية: {{ (float) $homework->total_marks }}</span>
+            @endif
         </div>
     </div>
 </div>
+
+@if($homework->questions->isNotEmpty())
+    <details class="bg-white rounded-xl shadow overflow-hidden mb-6">
+        <summary class="cursor-pointer p-4 font-bold text-gray-800 select-none">
+            أسئلة الواجب والإجابات الصحيحة ({{ $homework->questions->count() }}) — مجموع {{ $homework->questionsTotalMarks() }} درجة
+        </summary>
+        <div class="divide-y border-t">
+            @foreach($homework->questions as $index => $question)
+                <div class="p-4 text-sm">
+                    <div class="font-bold text-gray-800">{{ $index + 1 }}. {{ $question->text }}</div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        {{ $question->type->label() }} — {{ $question->marks }} درجة
+                        @if($question->type->hasOptions())
+                            — الخيارات: {{ implode(' / ', $question->optionsList()) }}
+                        @endif
+                    </div>
+                    <div class="text-xs text-emerald-700 mt-1">
+                        @if($question->type->value === 'checkbox')
+                            الإجابات الصحيحة: {{ implode(' / ', $question->correctOptions()) }}
+                        @elseif($question->correct_answer !== null)
+                            الإجابة الصحيحة: {{ $question->correct_answer }}
+                        @else
+                            يُصحح هذا السؤال يدوياً.
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </details>
+@endif
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="overflow-x-auto">
@@ -49,11 +87,13 @@
                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm" placeholder="ملاحظات">
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
-                            <button type="submit" form="submission-form-{{ $submission->id }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-1 rounded-lg text-sm">حفظ التصحيح</button>
-                            <form id="submission-form-{{ $submission->id }}" method="POST" action="{{ route('teacher.submissions.update', $submission) }}" hidden>
-                                @csrf
-                                @method('PATCH')
-                            </form>
+                            @if ($can('assignments.grade'))
+                                <button type="submit" form="submission-form-{{ $submission->id }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-1 rounded-lg text-sm">حفظ التصحيح</button>
+                                <form id="submission-form-{{ $submission->id }}" method="POST" action="{{ route('teacher.submissions.update', $submission) }}" hidden>
+                                    @csrf
+                                    @method('PATCH')
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty

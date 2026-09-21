@@ -3,13 +3,19 @@
 @section('title', 'البرنامج التأهيلي - تقييماتي')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-6xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-800">📋 البرنامج التأهيلي — تقييماتي الأسبوعية</h2>
             <p class="text-sm text-gray-500 mt-1">كل أسبوع يسجل تقييم مستقل — التقييمات السابقة لا تُستبدل أبداً</p>
         </div>
-        <a href="{{ route('teacher.quran.qualifying.evaluations.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تقييم أسبوعي</a>
+        @if ($can('qualifying.create'))
+            <a href="{{ route('teacher.quran.qualifying.evaluations.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تقييم أسبوعي</a>
+        @endif
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
@@ -24,9 +30,15 @@
                             : route('teacher.quran.programs.index', ['type' => 'qualifying', 'student_id' => $student->id]);
                     @endphp
                     <span class="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold px-3 py-1.5 rounded-full transition">
-                        <a href="{{ route('teacher.quran.qualifying.evaluations.create', ['student_id' => $student->id]) }}" class="hover:underline">{{ $student->name }}</a>
-                        <a href="{{ route('teacher.quran.qualifying.evaluations.create', ['student_id' => $student->id]) }}" class="text-emerald-500 hover:text-emerald-700" title="+ تقييم أسبوعي">+</a>
-                        <a href="{{ $cycleUrl }}" class="text-sky-600 hover:text-sky-800 text-xs" title="دورة الاستماع">استماع</a>
+                        @if ($can('qualifying.create'))
+                            <a href="{{ route('teacher.quran.qualifying.evaluations.create', ['student_id' => $student->id]) }}" class="hover:underline">{{ $student->name }}</a>
+                            <a href="{{ route('teacher.quran.qualifying.evaluations.create', ['student_id' => $student->id]) }}" class="text-emerald-500 hover:text-emerald-700" title="+ تقييم أسبوعي">+</a>
+                        @else
+                            <span>{{ $student->name }}</span>
+                        @endif
+                        @if ($can('quran_training.view'))
+                            <a href="{{ $cycleUrl }}" class="text-sky-600 hover:text-sky-800 text-xs" title="دورة الاستماع">استماع</a>
+                        @endif
                     </span>
                 @endforeach
             </div>

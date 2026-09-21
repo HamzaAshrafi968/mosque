@@ -22,7 +22,7 @@
         </div>
 
         {{-- تسجيل في برنامج القراءات (قراءة من القراءات العشر) --}}
-        @if ($selectedType === \App\Enums\ProgramType::Readings)
+        @if ($selectedType === \App\Enums\ProgramType::Readings && ($canEnroll ?? false))
             <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
                 <h2 class="font-extrabold text-emerald-900">تسجيل طالب في برنامج القراءات</h2>
                 <p class="text-xs text-emerald-800/80 mt-1 mb-4">

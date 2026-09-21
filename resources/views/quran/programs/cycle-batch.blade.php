@@ -451,6 +451,7 @@
                     </p>
                 @endif
 
+                @if ($actions['test'] ?? null)
                 <form method="POST" action="{{ $actions['test']($currentBatch) }}" class="space-y-2" data-retake-test-form>
                     @csrf
 
@@ -505,6 +506,11 @@
                         </button>
                     </div>
                 </form>
+                @else
+                    <p class="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                        لا تملك صلاحية تسجيل نتيجة الاختبار — تواصل مع مدير الجامع.
+                    </p>
+                @endif
             @elseif ($currentBatch->isNeedsRepeat())
                 <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
                     رسب الطالب في الأجزاء: <b>{{ $failedJuz === [] ? '—' : implode('، ', $failedJuz) }}</b>

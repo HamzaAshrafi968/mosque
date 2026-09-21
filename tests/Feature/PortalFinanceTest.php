@@ -4,13 +4,16 @@ namespace Tests\Feature;
 
 use App\Enums\AttendanceStatus;
 use App\Models\Classroom;
+use App\Models\Exam;
 use App\Models\FinancialTransaction;
+use App\Models\Grade;
 use App\Models\Guardian;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use App\Models\ParentStudent;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\Subject;
@@ -104,24 +107,26 @@ class PortalFinanceTest extends TestCase
 
     // ---------------------------------------------------------- guardian scope
 
-    public function test_guardian_portal_pages_are_disabled(): void
+    public function test_guardian_sees_own_children_but_not_other_students(): void
     {
         [, , , $guardianUser, $child, $other] = $this->familyFixture();
 
         $this->actingAs($guardianUser)
             ->get(route('guardian.dashboard'))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee($child->name)
+            ->assertDontSee($other->name);
 
         $this->actingAs($guardianUser)
             ->get(route('guardian.children.overview', $child))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk();
 
         $this->actingAs($guardianUser)
             ->get(route('guardian.children.attendance', $other))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertForbidden();
     }
 
-    public function test_teacher_attendance_records_absence_with_audit_log(): void
+    public function test_guardian_attendance_page_shows_derived_records_and_summary(): void
     {
         [, , , $guardianUser, $child, , , $section] = $this->familyFixture();
         $admin = User::factory()->admin()->for(Tenant::find($child->tenant_id))->create();
@@ -139,7 +144,9 @@ class PortalFinanceTest extends TestCase
 
         $this->actingAs($guardianUser)
             ->get(route('guardian.children.attendance', $child))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('غائب')
+            ->assertSee($date);
 
         $this->assertDatabaseHas('attendance_records', ['student_id' => $child->id, 'status' => 'absent']);
         $this->assertDatabaseHas('audit_logs', ['action' => 'attendance.session_created']);
@@ -162,32 +169,54 @@ class PortalFinanceTest extends TestCase
         $this->assertSame(1, $guardianUser->notifications()->count());
     }
 
-    public function test_guardian_children_grades_redirect_to_the_disabled_page(): void
+    public function test_guardian_sees_published_grades_but_not_drafts(): void
     {
         [, , , $guardianUser, $child] = $this->familyFixture();
+        $tenant = $child->tenant()->first();
+        $classroom = Classroom::find($child->classroom_id);
+        $subject = Subject::create(['tenant_id' => $tenant->id, 'name' => 'القرآن']);
+
+        $exam = Exam::create([
+            'tenant_id' => $tenant->id, 'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+            'section_id' => $child->section_id, 'title' => 'امتحان النور', 'exam_date' => today()->subDay(),
+            'total_marks' => 100, 'pass_marks' => 50,
+        ]);
+
+        Grade::create(['tenant_id' => $tenant->id, 'exam_id' => $exam->id, 'student_id' => $child->id, 'score' => 88, 'status' => 'approved']);
+
+        // a not-yet-published grade (submitted) must stay hidden from the portal
+        $exam2 = Exam::create([
+            'tenant_id' => $tenant->id, 'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+            'section_id' => $child->section_id, 'title' => 'امتحان غير منشور', 'exam_date' => today()->subDay(),
+            'total_marks' => 100, 'pass_marks' => 50,
+        ]);
+        Grade::create(['tenant_id' => $tenant->id, 'exam_id' => $exam2->id, 'student_id' => $child->id, 'score' => 91, 'status' => 'submitted']);
 
         $this->actingAs($guardianUser)
             ->get(route('guardian.children.grades', $child))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('امتحان النور')
+            ->assertDontSee('امتحان غير منشور');
     }
 
     // ----------------------------------------------------------- student scope
 
-    public function test_student_portal_is_disabled(): void
+    public function test_student_sees_only_own_records(): void
     {
-        [, , , , , , $studentUser] = $this->familyFixture();
+        [, , , , $child, $other, $studentUser] = $this->familyFixture();
 
         $this->actingAs($studentUser)
             ->get(route('student.dashboard'))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee($child->name);
 
-        // student cannot open teacher pages either
+        // student cannot open another student's homework area or teacher pages
         $this->actingAs($studentUser)
             ->get(route('teacher.dashboard'))
             ->assertForbidden();
     }
 
-    public function test_student_cannot_submit_homework_through_the_disabled_portal(): void
+    public function test_student_can_submit_own_homework_only(): void
     {
         [$tenant, , , , $child, , $studentUser, $section] = $this->familyFixture();
         $classroom = Classroom::find($child->classroom_id);
@@ -206,10 +235,14 @@ class PortalFinanceTest extends TestCase
 
         $this->actingAs($studentUser)
             ->post(route('student.homeworks.submit', $homework), ['content' => 'حفظت السورة كاملة'])
-            ->assertRedirect(route('portal.disabled'));
+            ->assertRedirect();
 
-        $this->assertDatabaseMissing('homework_submissions', ['content' => 'حفظت السورة كاملة']);
-        $this->assertNull(HomeworkSubmission::where('homework_id', $homework->id)->firstOrFail()->submitted_at);
+        $this->assertDatabaseHas('homework_submissions', [
+            'student_id' => $child->id, 'content' => 'حفظت السورة كاملة',
+        ]);
+
+        $submission = HomeworkSubmission::where('homework_id', $homework->id)->where('student_id', $child->id)->first();
+        $this->assertNotNull($submission->submitted_at);
     }
 
     // -------------------------------------------------------------- finance
@@ -336,7 +369,7 @@ class PortalFinanceTest extends TestCase
             ->assertOk();
     }
 
-    public function test_all_guardian_child_pages_are_disabled(): void
+    public function test_all_guardian_child_pages_render(): void
     {
         [, , , $guardianUser, $child] = $this->familyFixture();
 
@@ -347,15 +380,23 @@ class PortalFinanceTest extends TestCase
         ];
 
         foreach ($routes as $route) {
-            $this->actingAs($guardianUser)->get(route($route, $child))->assertRedirect(route('portal.disabled'));
+            $this->actingAs($guardianUser)->get(route($route, $child))->assertOk();
         }
 
-        $this->actingAs($guardianUser)->get(route('guardian.profile'))->assertRedirect(route('portal.disabled'));
+        $this->actingAs($guardianUser)->get(route('guardian.profile'))->assertOk();
     }
 
-    public function test_all_student_pages_are_disabled(): void
+    public function test_all_student_pages_render(): void
     {
-        [, , , , , , $studentUser] = $this->familyFixture();
+        [$tenant, , , , $child, , $studentUser, $section] = $this->familyFixture();
+        $classroom = Classroom::find($child->classroom_id);
+        $teacher = Teacher::factory()->create(['tenant_id' => $tenant->id, 'name' => 'الشيخ عمر']);
+        $subject = Subject::create(['tenant_id' => $tenant->id, 'teacher_id' => $teacher->id, 'name' => 'القرآن']);
+        Schedule::create([
+            'tenant_id' => $tenant->id, 'classroom_id' => $classroom->id, 'section_id' => $section->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'day_of_week' => 1,
+            'starts_at' => '08:00', 'ends_at' => '09:00',
+        ]);
 
         $routes = [
             'student.dashboard', 'student.profile', 'student.attendance', 'student.subjects',
@@ -363,7 +404,7 @@ class PortalFinanceTest extends TestCase
         ];
 
         foreach ($routes as $route) {
-            $this->actingAs($studentUser)->get(route($route))->assertRedirect(route('portal.disabled'));
+            $this->actingAs($studentUser)->get(route($route))->assertOk();
         }
     }
 }

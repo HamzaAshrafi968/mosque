@@ -3,6 +3,10 @@
 @section('title', $course->name)
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-7xl mx-auto space-y-6">
     <div>
         <a href="{{ route('admin.sharia-courses.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← الدورات الشرعية</a>
@@ -39,12 +43,16 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('admin.sharia-courses.edit', $course) }}" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">تعديل الدورة</a>
-                <form method="POST" action="{{ route('admin.sharia-courses.destroy', $course) }}" onsubmit="return confirm('حذف الدورة سيحذف دروسها وطلابها وسجلات حضورهم. متأكد؟')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 text-sm font-bold px-4 py-2 rounded-lg">حذف</button>
-                </form>
+                @if ($can('sharia_courses.update'))
+                    <a href="{{ route('admin.sharia-courses.edit', $course) }}" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">تعديل الدورة</a>
+                @endif
+                @if ($can('sharia_courses.delete'))
+                    <form method="POST" action="{{ route('admin.sharia-courses.destroy', $course) }}" onsubmit="return confirm('حذف الدورة سيحذف دروسها وطلابها وسجلات حضورهم. متأكد؟')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 text-sm font-bold px-4 py-2 rounded-lg">حذف</button>
+                    </form>
+                @endif
             </div>
         </div>
     </div>
@@ -69,6 +77,7 @@
     </div>
 
     @if($tab === 'lessons')
+        @if ($can('sharia_courses.update'))
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
             <h3 class="font-black text-pine-950 mb-3">إضافة درس / محاضرة</h3>
             <form method="POST" action="{{ route('admin.sharia-courses.lessons.store', $course) }}" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -100,6 +109,7 @@
                 </div>
             </form>
         </div>
+        @endif
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="overflow-x-auto">
@@ -190,6 +200,7 @@
                 <span class="text-xs text-gray-400">المحددون: <span id="available-student-count">0</span></span>
             </div>
 
+            @if ($can('sharia_courses.update'))
             <form method="POST" action="{{ route('admin.sharia-courses.students.classroom', $course) }}" class="grid grid-cols-1 md:grid-cols-4 gap-2 items-end bg-emerald-50 border border-emerald-100 rounded-xl p-3 mb-4">
                 @csrf
                 <div class="md:col-span-2">
@@ -214,10 +225,11 @@
                 </div>
                 <button type="submit" class="bg-pine-800 hover:bg-pine-900 text-white text-sm font-bold px-4 py-2 rounded-lg">تسجيل كل الطلاب</button>
             </form>
+            @endif
 
             @if($availableStudents->isEmpty())
                 <p class="text-sm text-gray-400">كل طلاب الجامع النشطين مسجَّلون في الدورة، أو لا يوجد طلاب بعد.</p>
-            @else
+            @elseif ($can('sharia_courses.update'))
                 <form method="POST" action="{{ route('admin.sharia-courses.students.existing', $course) }}" class="space-y-3">
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -244,6 +256,7 @@
             @endif
         </div>
 
+        @if ($can('sharia_courses.update'))
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
             <h3 class="font-black text-pine-950 mb-1">تسجيل طالب جديد في الجامع وربطه بالدورة</h3>
             <p class="text-xs text-gray-500 mb-3">يُنشئ سجل طالب رسمي في الجامع (يظهر في قائمة الطلاب العادية) مع إمكانية تحديد الصف/الشعبة، ثم يربطه بالدورة مباشرة.</p>
@@ -278,6 +291,7 @@
                 </div>
             </form>
         </div>
+        @endif
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 font-bold text-gray-800">طلاب الدورة وحالة الحفظ</div>
@@ -313,24 +327,12 @@
                                 @else
                                     <span class="text-xs text-gray-400">غير محدد</span>
                                 @endif
-                                <details class="inline-block text-right align-middle ms-1">
-                                    <summary class="cursor-pointer text-xs text-blue-600 font-bold select-none">تعديل</summary>
-                                    <form method="POST" action="{{ route('admin.sharia-courses.students.memorization', $student) }}" class="mt-2 bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 min-w-64">
-                                        @csrf
-                                        @method('PATCH')
-                                        <select name="memorization_status" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">
-                                            <option value="">— غير محدد —</option>
-                                            @foreach($memorizationStatuses as $memorizationStatus)
-                                                <option value="{{ $memorizationStatus->value }}" @selected($student->memorization_status === $memorizationStatus)>{{ $memorizationStatus->label() }}</option>
-                                            @endforeach
-                                        </select>
-                                        <textarea name="memorization_notes" rows="2" maxlength="2000" placeholder="ملاحظات الحفظ" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm">{{ $student->memorization_notes }}</textarea>
-                                        <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-lg">حفظ حالة الحفظ</button>
-                                        @if($student->memorization_updated_at)
-                                            <div class="text-[10px] text-gray-400">آخر تحديث: {{ $student->memorization_updated_at->format('Y-m-d H:i') }}</div>
-                                        @endif
-                                    </form>
-                                </details>
+                                @if ($can('sharia_courses.memorization'))
+                                    <x-memorization-status-editor
+                                        :student="$student"
+                                        :statuses="$memorizationStatuses"
+                                        :action="route('admin.sharia-courses.students.memorization', $student)" />
+                                @endif
                             </td>
                             <td class="px-4 py-3">{{ $student->attendances_count }}</td>
                             <td class="px-4 py-3">
@@ -341,6 +343,7 @@
                                 ])>{{ $student->status === 'active' ? 'نشط' : 'مؤرشف' }}</span>
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
+                                @if ($can('sharia_courses.update'))
                                 <details class="inline-block text-right">
                                     <summary class="cursor-pointer text-xs text-blue-600 font-bold select-none">تعديل</summary>
                                     <form method="POST" action="{{ route('admin.sharia-courses.students.update', $student) }}" class="mt-2 bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 min-w-64">
@@ -369,11 +372,14 @@
                                         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-lg">حفظ</button>
                                     </form>
                                 </details>
-                                <form method="POST" action="{{ route('admin.sharia-courses.students.destroy', $student) }}" class="inline ms-2" onsubmit="return confirm('حذف الطالب سيحذف سجلات حضوره. متأكد؟')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-xs text-red-600 hover:underline">حذف</button>
-                                </form>
+                                @endif
+                                @if ($can('sharia_courses.update'))
+                                    <form method="POST" action="{{ route('admin.sharia-courses.students.destroy', $student) }}" class="inline ms-2" onsubmit="return confirm('حذف الطالب سيحذف سجلات حضوره. متأكد؟')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-xs text-red-600 hover:underline">حذف</button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -385,7 +391,7 @@
         </div>
     @endif
 
-    @if($tab === 'attendance')
+    @if($tab === 'attendance' && $can('sharia_courses.attendance'))
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
             <h3 class="font-black text-pine-950 mb-3">اختيار الدرس / اليوم</h3>
             <form method="GET" action="{{ route('admin.sharia-courses.show', $course) }}" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">

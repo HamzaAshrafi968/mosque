@@ -32,4 +32,26 @@ enum ShariaMemorizationStatus: string
             self::Memorized => 'bg-emerald-100 text-emerald-800',
         };
     }
+
+    /** وصف مختصر يظهر في بطاقة الاختيار. */
+    public function description(): string
+    {
+        return match ($this) {
+            self::NotMemorized => 'لم يبدأ الحفظ بعد',
+            self::PartsMemorized => 'حفظ أجزاء متفرقة من المقرر',
+            self::HalfMemorized => 'أتم نصف المقرر',
+            self::Memorized => 'أتم حفظ المقرر كاملاً',
+        };
+    }
+
+    /** لون النص/الحدود عند اختيار الحالة. */
+    public function textClass(): string
+    {
+        return match ($this) {
+            self::NotMemorized => 'text-red-700',
+            self::PartsMemorized => 'text-amber-700',
+            self::HalfMemorized => 'text-sky-700',
+            self::Memorized => 'text-emerald-700',
+        };
+    }
 }

@@ -478,7 +478,7 @@ class RewardPointRulesTest extends TestCase
         $this->assertDatabaseHas('reward_points', ['id' => $automatic->id]);
     }
 
-    public function test_student_portal_points_page_is_disabled(): void
+    public function test_student_portal_shows_points_balance_and_history(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $student = $this->student($mosque, $session);
@@ -495,7 +495,9 @@ class RewardPointRulesTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.reward-points'))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('مكافأة تميز')
+            ->assertSee('+7');
     }
 
     public function test_new_rule_types_and_master_switch_are_saved_from_settings(): void

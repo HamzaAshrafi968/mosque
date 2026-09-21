@@ -3,6 +3,10 @@
 @section('title', 'الشعبة: '.$section->name)
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="mb-4">
     <a href="{{ route('admin.classrooms.show', $section->classroom) }}" class="text-sm text-emerald-700 hover:underline">
         ← {{ $section->classroom?->name }} / {{ $section->name }}
@@ -21,12 +25,17 @@
             ])>{{ $section->studySession?->name ?: 'غير مرتبط بدوام' }}</span>
         </div>
         <div class="flex items-center gap-3 text-sm">
-            <a href="{{ route('admin.attendance.create', ['section_id' => $section->id]) }}" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تسجيل حضور</a>
+            @if ($can('attendance.create'))
+                <a href="{{ route('admin.attendance.create', ['section_id' => $section->id]) }}" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تسجيل حضور</a>
+            @endif
             <a href="{{ route('admin.attendance.history', ['section_id' => $section->id]) }}" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">سجل الحضور</a>
-            <button type="button" data-toggle-section-edit class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تعديل</button>
+            @if ($can('sections.update'))
+                <button type="button" data-toggle-section-edit class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تعديل</button>
+            @endif
         </div>
     </div>
 
+    @if ($can('sections.update'))
     <form method="POST" action="{{ route('admin.sections.update', $section) }}" id="section-edit-form" class="hidden p-4 border-t space-y-3">
         @csrf
         @method('PATCH')
@@ -51,6 +60,7 @@
         </div>
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg text-sm">حفظ تعديل الشعبة</button>
     </form>
+    @endif
 
     <div class="grid grid-cols-2 sm:grid-cols-4 divide-x divide-x-reverse divide-gray-100 text-center">
         <div class="p-4">
@@ -93,12 +103,14 @@
                             <td class="px-4 py-2 border-t whitespace-nowrap">{{ $assignment->role->label() }}</td>
                             <td class="px-4 py-2 border-t whitespace-nowrap text-gray-500">{{ $assignment->starts_at?->format('Y-m-d') ?? '—' }}</td>
                             <td class="px-4 py-2 border-t text-center">
-                                <form method="POST" action="{{ route('admin.sections.teachers.destroy', [$section, $assignment->teacher]) }}"
-                                      onsubmit="return confirm('إنهاء تكليف المعلم؟')" class="inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline text-xs">إنهاء التكليف</button>
-                                </form>
+                                @if ($can('sections.update'))
+                                    <form method="POST" action="{{ route('admin.sections.teachers.destroy', [$section, $assignment->teacher]) }}"
+                                          onsubmit="return confirm('إنهاء تكليف المعلم؟')" class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:underline text-xs">إنهاء التكليف</button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -106,6 +118,7 @@
             </table>
         @endif
         <div class="p-4 border-t bg-gray-50">
+            @if ($can('sections.update'))
             <form method="POST" action="{{ route('admin.sections.teachers.store', $section) }}" class="flex flex-col sm:flex-row gap-3 sm:items-end">
                 @csrf
                 <div class="flex-1">
@@ -124,6 +137,7 @@
                 </div>
                 <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">تكليف المعلم</button>
             </form>
+            @endif
         </div>
     </div>
 @endif
@@ -131,7 +145,9 @@
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="px-4 py-3 bg-gray-50 border-b flex items-center justify-between">
         <span class="font-bold text-gray-800">طلاب الشعبة ({{ $roster->count() }})</span>
-        <a href="{{ route('admin.students.create') }}" class="text-emerald-700 text-sm font-bold hover:underline">+ طالب جديد</a>
+        @if ($can('students.create'))
+            <a href="{{ route('admin.students.create') }}" class="text-emerald-700 text-sm font-bold hover:underline">+ طالب جديد</a>
+        @endif
     </div>
     @if($roster->isEmpty())
         <div class="px-4 py-6 text-center text-gray-500">لا يوجد طلاب مسجلون في هذه الشعبة</div>
@@ -168,7 +184,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 border-t text-center">
-                                @if($sections->where('id', '!=', $section->id)->isNotEmpty())
+                                @if($sections->where('id', '!=', $section->id)->isNotEmpty() && $can('students.transfer'))
                                     <form method="POST" action="{{ route('admin.students.transfer', $row['student']) }}" class="inline-flex items-center gap-1">
                                         @csrf
                                         <select name="section_id" onchange="this.form.submit()" title="نقل إلى شعبة" class="border border-gray-200 rounded-lg px-1 py-1 text-xs">
@@ -181,12 +197,14 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 border-t text-center whitespace-nowrap">
-                                <form method="POST" action="{{ route('admin.sections.students.destroy', [$section, $row['student']]) }}"
-                                      onsubmit="return confirm('إخراج الطالب من الشعبة (مع حفظ السجل)؟')" class="inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline text-xs">إخراج</button>
-                                </form>
+                                @if ($can('sections.update'))
+                                    <form method="POST" action="{{ route('admin.sections.students.destroy', [$section, $row['student']]) }}"
+                                          onsubmit="return confirm('إخراج الطالب من الشعبة (مع حفظ السجل)؟')" class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:underline text-xs">إخراج</button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -244,7 +262,7 @@
                         <p class="mt-3 text-sm font-bold text-gray-700">كل الطلاب النشطين في نطاق هذا الدوام مسجَّلون في الشعبة</p>
                         <p class="text-xs text-gray-400 mt-1">أضف طالباً جديداً أو غيّر الدوام النشط ليظهر هنا.</p>
                     </div>
-                @else
+                @elseif ($can('sections.update'))
                     <form method="POST" action="{{ route('admin.sections.students.store', $section) }}"
                           data-picker-form class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
                         @csrf

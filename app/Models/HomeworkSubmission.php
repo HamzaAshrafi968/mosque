@@ -18,6 +18,7 @@ class HomeworkSubmission extends Model
         'student_id',
         'status',
         'content',
+        'answers',
         'grade',
         'feedback',
         'submitted_at',
@@ -26,6 +27,7 @@ class HomeworkSubmission extends Model
     protected function casts(): array
     {
         return [
+            'answers' => 'array',
             'grade' => 'decimal:2',
             'submitted_at' => 'datetime',
         ];

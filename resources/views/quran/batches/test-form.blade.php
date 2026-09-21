@@ -48,6 +48,7 @@
 
         @error('results') <p class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{{ $message }}</p> @enderror
 
+        @if ($batchTestRoute)
         <form method="POST" action="{{ $batchTestRoute }}" class="space-y-2">
             @csrf
             @foreach ($testScopeJuz as $juz)
@@ -79,6 +80,11 @@
                 </button>
             </div>
         </form>
+        @else
+            <p class="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                لا تملك صلاحية تسجيل نتيجة الاختبار — تواصل مع مدير الجامع.
+            </p>
+        @endif
     @elseif ($currentBatch->isNeedsRepeat())
         <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 mb-3">
             رسب الطالب في الأجزاء: <b>{{ $failedJuz === [] ? '—' : implode('، ', $failedJuz) }}</b>
@@ -96,6 +102,7 @@
             </div>
         @endif
 
+        @if ($batchRetakeRoute)
         <div class="flex flex-wrap items-center gap-2">
             <form method="POST" action="{{ $batchRetakeRoute }}">
                 @csrf
@@ -112,6 +119,11 @@
                 </button>
             </form>
         </div>
+        @else
+            <p class="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                لا تملك صلاحية إنشاء خمسات الإعادة — تواصل مع مدير الجامع.
+            </p>
+        @endif
     @else
         @unless ($placementTestAllowed)
             <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">

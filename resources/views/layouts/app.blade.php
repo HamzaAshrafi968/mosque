@@ -311,14 +311,34 @@
                         <x-icon name="info" class="w-4 h-4 mt-0.5 shrink-0 text-gold-300/80" />
                         <span>اختر جامعاً من القائمة العلوية لفتح لوحة إدارته الكاملة.</span>
                     </div>
-                @elseif($user->isGuardian() || $user->isStudent())
-                    <x-nav-link icon="home" :href="route('portal.disabled')" :active="request()->routeIs('portal.disabled')" label="الرئيسية" />
+                @elseif($user->isGuardian())
+                    <x-nav-link icon="home" :href="route('guardian.dashboard')" :active="request()->routeIs('guardian.dashboard')" label="الرئيسية" />
+                    <x-nav-link icon="children" :href="route('guardian.dashboard')" :active="request()->routeIs('guardian.children.*')" label="أبنائي" />
+                    <x-nav-link icon="user" :href="route('guardian.profile')" :active="request()->routeIs('guardian.profile')" label="الملف الشخصي" />
                     <x-nav-link icon="bell" :href="route('notifications.index')" :active="request()->routeIs('notifications.*')" label="الإشعارات" :badge="$unreadCount > 0 ? $unreadCount : null" />
                     <div
                         class="pt-3 mt-2 border-t border-white/10 text-[11px] leading-relaxed text-gold-200/70 px-3 flex items-start gap-2">
                         <x-icon name="info" class="w-4 h-4 mt-0.5 shrink-0 text-gold-300/80" />
-                        <span>تم تعطيل بوابة {{ $user->isGuardian() ? 'ولي الأمر' : 'الطالب' }} مؤقتاً. تواصل مع إدارة الجامع.</span>
+                        <span>يمكنك الاطلاع على بيانات أبنائك فقط.</span>
                     </div>
+                @elseif($user->isStudent())
+                    <x-nav-link icon="home" :href="route('student.dashboard')" :active="request()->routeIs('student.dashboard')" label="الرئيسية" />
+                    <x-nav-link icon="user" :href="route('student.profile')" :active="request()->routeIs('student.profile')" label="ملفي الشخصي" />
+                    <x-nav-link icon="attendance" :href="route('student.attendance')" :active="request()->routeIs('student.attendance')" label="الحضور والغياب" />
+                    <x-nav-link icon="subjects" :href="route('student.subjects')" :active="request()->routeIs('student.subjects')" label="موادي الدراسية" />
+                    <x-nav-link icon="teachers" :href="route('student.teachers')" :active="request()->routeIs('student.teachers')" label="معلمي" />
+                    <x-nav-link icon="exam" :href="route('student.exams')" :active="request()->routeIs('student.exams')" label="الامتحانات" />
+                    <x-nav-link icon="grades" :href="route('student.grades')" :active="request()->routeIs('student.grades')" label="الدرجات" />
+                    <x-nav-link icon="homework" :href="route('student.homeworks')" :active="request()->routeIs('student.homeworks')" label="الواجبات" />
+                    @if ($can('quran_batch.view'))
+                        <x-nav-link icon="quran" :href="route('student.quran-profile')" :active="request()->routeIs('student.quran-profile')" label="ملفي القرآني" />
+                    @endif
+                    @if ($can('quran_training.view'))
+                        <x-nav-link icon="quran" :href="route('student.quran-programs.index')" :active="request()->routeIs('student.quran-programs.*')" label="برامجي" />
+                    @endif
+                    <x-nav-link icon="trophy" :href="route('student.reward-points')" :active="request()->routeIs('student.reward-points')" label="نقاطي" />
+                    <x-nav-link icon="megaphone" :href="route('student.announcements')" :active="request()->routeIs('student.announcements')" label="الإعلانات" />
+                    <x-nav-link icon="bell" :href="route('notifications.index')" :active="request()->routeIs('notifications.*')" label="الإشعارات" :badge="$unreadCount > 0 ? $unreadCount : null" />
                 @else
                     <x-nav-link icon="home" :href="route('teacher.dashboard')" :active="request()->routeIs('teacher.dashboard')" label="الرئيسية" />
                     @if ($can('sections.view'))
@@ -356,17 +376,13 @@
 
                     <div class="mx-2 my-3 gold-hairline"></div>
 
-                    @if ($can('quran_batch.view') || $can('quran.tasmee.view') || $can('quran_training.view'))
+                    @if ($can('quran_batch.view') || $can('quran.tasmee.view'))
                         <x-nav-group icon="quran" label="القرآن والحفظ" :active="request()->routeIs('teacher.quran.batches.*') ||
                             request()->routeIs('teacher.quran.tasmee.*') ||
                             request()->routeIs('teacher.quran.index') ||
-                            request()->routeIs('teacher.quran.programs.*') ||
                             request()->routeIs('teacher.quran.students.journey')">
                             @if ($can('quran_batch.view'))
                                 <x-nav-link sub :href="route('teacher.quran.batches.index')" :active="request()->routeIs('teacher.quran.batches.*') || request()->routeIs('teacher.quran.tasmee.*')" label="دفعات الحفظ" />
-                            @endif
-                            @if ($can('quran_training.view'))
-                                <x-nav-link sub :href="route('teacher.quran.programs.index')" :active="request()->routeIs('teacher.quran.programs.*')" label="برامج الاستماع" />
                             @endif
                             @if ($can('quran.tasmee.view'))
                                 <x-nav-link sub :href="route('teacher.quran.index')" :active="request()->routeIs('teacher.quran.index') || request()->routeIs('teacher.quran.students.journey')" label="القرآن والبرامج" />
@@ -374,30 +390,10 @@
                         </x-nav-group>
                     @endif
 
-                    @if ($can('qualifying.view') || $can('ijazah.view') || $can('quran_training.view') || $can('hafiz_exams.view') || $can('faith_meetings.view') || $can('sharia_courses.view'))
-                        <x-nav-group icon="qualifying" label="البرامج والدورات" :active="request()->routeIs('teacher.quran.qualifying.*') ||
-                            request()->routeIs('teacher.quran.ijazah.*') ||
-                            request()->routeIs('teacher.quran.exams.*') ||
+                    @if ($can('hafiz_exams.view') || $can('faith_meetings.view') || $can('sharia_courses.view'))
+                        <x-nav-group icon="qualifying" label="البرامج والدورات" :active="request()->routeIs('teacher.quran.exams.*') ||
                             request()->routeIs('teacher.quran.faith-meetings.*') ||
-                            request()->routeIs('teacher.sharia-courses.*') ||
-                            (request()->routeIs('teacher.quran.programs.*') && in_array(request('type'), ['qualifying', 'ijazah', 'readings'], true))">
-                            @if ($can('qualifying.view'))
-                                @if ($can('quran_training.view'))
-                                    <x-nav-link sub :href="route('teacher.quran.programs.index', ['type' => 'qualifying'])" :active="request()->routeIs('teacher.quran.programs.*') && request('type') === 'qualifying'" label="البرنامج التأهيلي" />
-                                @else
-                                    <x-nav-link sub :href="route('teacher.quran.qualifying.index')" :active="request()->routeIs('teacher.quran.qualifying.*')" label="البرنامج التأهيلي" />
-                                @endif
-                            @endif
-                            @if ($can('ijazah.view'))
-                                @if ($can('quran_training.view'))
-                                    <x-nav-link sub :href="route('teacher.quran.programs.index', ['type' => 'ijazah'])" :active="request()->routeIs('teacher.quran.programs.*') && request('type') === 'ijazah'" label="برنامج الإجازة" />
-                                @else
-                                    <x-nav-link sub :href="route('teacher.quran.ijazah.index')" :active="request()->routeIs('teacher.quran.ijazah.*')" label="برنامج الإجازة" />
-                                @endif
-                            @endif
-                            @if ($can('quran_training.view'))
-                                <x-nav-link sub :href="route('teacher.quran.programs.index', ['type' => 'readings'])" :active="request()->routeIs('teacher.quran.programs.*') && request('type') === 'readings'" label="برنامج القراءات" />
-                            @endif
+                            request()->routeIs('teacher.sharia-courses.*')">
                             @if ($can('hafiz_exams.view'))
                                 <x-nav-link sub :href="route('teacher.quran.exams.index')" :active="request()->routeIs('teacher.quran.exams.*')" label="اختبارات الحفاظ" />
                             @endif

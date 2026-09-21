@@ -3,6 +3,10 @@
 @section('title', 'الرحلة القرآنية - '.$student->name)
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-5xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -10,7 +14,9 @@
             <h2 class="text-2xl font-extrabold text-gray-800 mt-1">{{ $student->name }} — الرحلة القرآنية</h2>
         </div>
         <div class="flex gap-2">
-            <a href="{{ route('teacher.quran.tasmee.create', ['student_id' => $student->id]) }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تسميع</a>
+            @if ($can('quran.tasmee.create'))
+                <a href="{{ route('teacher.quran.tasmee.create', ['student_id' => $student->id]) }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تسميع</a>
+            @endif
         </div>
     </div>
 
@@ -58,7 +64,9 @@
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                         <span class="font-bold text-gray-800">📋 تقييمات البرنامج التأهيلي</span>
-                        <a href="{{ route('teacher.quran.qualifying.evaluations.create', ['student_id' => $student->id]) }}" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg font-bold">+ تقييم</a>
+                        @if ($can('qualifying.create'))
+                            <a href="{{ route('teacher.quran.qualifying.evaluations.create', ['student_id' => $student->id]) }}" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg font-bold">+ تقييم</a>
+                        @endif
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
@@ -93,7 +101,9 @@
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                         <span class="font-bold text-gray-800">📜 تقييمات برنامج الإجازة</span>
-                        <a href="{{ route('teacher.quran.ijazah.evaluations.create', ['student_id' => $student->id]) }}" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg font-bold">+ تقييم</a>
+                        @if ($can('ijazah.create'))
+                            <a href="{{ route('teacher.quran.ijazah.evaluations.create', ['student_id' => $student->id]) }}" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg font-bold">+ تقييم</a>
+                        @endif
                     </div>
                     <div class="px-5 py-3 border-b bg-emerald-50/40 flex flex-wrap items-center gap-2">
                         <span class="text-xs font-bold text-gray-600">أسابيع {{ $monthLabel($currentMonth) }}:</span>
@@ -107,7 +117,9 @@
                                 'bg-gray-100 text-gray-500' => ! $weekEvaluation,
                             ])>الأسبوع {{ $week }}: {{ $weekEvaluation?->result?->label() ?? 'لم يُقيَّم' }}</span>
                         @endfor
-                        <a href="{{ route('teacher.quran.ijazah.month', [$student, $currentMonth]) }}" class="text-xs text-emerald-700 hover:underline ms-auto">إدارة الأسابيع ←</a>
+                        @if ($can('ijazah.view'))
+                            <a href="{{ route('teacher.quran.ijazah.month', [$student, $currentMonth]) }}" class="text-xs text-emerald-700 hover:underline ms-auto">إدارة الأسابيع ←</a>
+                        @endif
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
@@ -174,7 +186,9 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
             <span class="font-bold text-gray-800">🗣️ سجل التسميع الأخير</span>
-            <a href="{{ route('teacher.quran.batches.index', ['student_id' => $student->id]) }}" class="text-xs text-emerald-700 hover:underline">كل السجل</a>
+            @if ($can('quran_batch.view'))
+                <a href="{{ route('teacher.quran.batches.index', ['student_id' => $student->id]) }}" class="text-xs text-emerald-700 hover:underline">كل السجل</a>
+            @endif
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">

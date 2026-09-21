@@ -4,6 +4,8 @@
 
 @section('content')
 @php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
     $currentSession = $sessions->firstWhere('id', $currentSessionId);
 @endphp
 
@@ -27,26 +29,29 @@
             <span>الصفوف: {{ $unassigned['classrooms'] }}</span>
             <details class="ms-auto">
                 <summary class="cursor-pointer text-amber-700 hover:underline">توزيعهم على دوام...</summary>
-                <form method="POST" action="{{ route('admin.sessions.assign-unassigned') }}" class="flex flex-wrap gap-2 mt-2">
-                    @csrf
-                    <select name="type" class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm" required>
-                        <option value="students">الطلاب</option>
-                        <option value="teachers">الأساتذة</option>
-                        <option value="sections">الشعب</option>
-                        <option value="classrooms">الصفوف (مع شعبها وطلابها)</option>
-                    </select>
-                    <select name="study_session_id" class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm" required>
-                        @foreach($sessions as $session)
-                            <option value="{{ $session->id }}">{{ $session->display_name }}</option>
-                        @endforeach
-                    </select>
-                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold px-3 py-1.5 rounded-lg">توزيع الكل</button>
-                </form>
+                @if ($can('sessions.update'))
+                    <form method="POST" action="{{ route('admin.sessions.assign-unassigned') }}" class="flex flex-wrap gap-2 mt-2">
+                        @csrf
+                        <select name="type" class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm" required>
+                            <option value="students">الطلاب</option>
+                            <option value="teachers">الأساتذة</option>
+                            <option value="sections">الشعب</option>
+                            <option value="classrooms">الصفوف (مع شعبها وطلابها)</option>
+                        </select>
+                        <select name="study_session_id" class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm" required>
+                            @foreach($sessions as $session)
+                                <option value="{{ $session->id }}">{{ $session->display_name }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold px-3 py-1.5 rounded-lg">توزيع الكل</button>
+                    </form>
+                @endif
             </details>
         </div>
     @endif
 </div>
 
+@if ($can('sessions.create'))
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
     <h2 class="font-bold text-gray-800 mb-3">إضافة دوام جديد</h2>
     <form method="POST" action="{{ route('admin.sessions.store') }}" class="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -65,6 +70,7 @@
     </form>
     <p class="text-xs text-gray-400 mt-2">يمكن تكرار الاسم نفسه بجنس مختلف (مثال: «الدوام الأول (ذكور)» و«الدوام الأول (إناث)») — لكن لا يمكن تكرار نفس الاسم بنفس الجنس.</p>
 </div>
+@endif
 
 @if($sessions->isNotEmpty())
     <h2 class="font-bold text-gray-800 mb-3">الدوامات الحالية</h2>
@@ -107,6 +113,7 @@
                             @endforeach
                         @endif
                     </div>
+                    @if ($can('sessions.update'))
                     <details class="mt-2">
                         <summary class="cursor-pointer text-emerald-700 hover:underline">تخصيص البرامج المتاحة لهذا الدوام...</summary>
                         <form method="POST" action="{{ route('admin.sessions.programs', $session) }}" class="mt-2 space-y-1 bg-gray-50 border border-gray-200 rounded-lg p-3">
@@ -123,6 +130,7 @@
                             <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg">حفظ البرامج</button>
                         </form>
                     </details>
+                    @endif
                 </div>
                 <div class="px-4 pb-4 flex flex-wrap items-center gap-2">
                     <form method="POST" action="{{ route('admin.sessions.switch') }}">
@@ -130,6 +138,7 @@
                         <input type="hidden" name="study_session_id" value="{{ $session->id }}">
                         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg">عرض هذا الدوام</button>
                     </form>
+                    @if ($can('sessions.update'))
                     <details class="inline-block">
                         <summary class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg">تعديل</summary>
                         <form method="POST" action="{{ route('admin.sessions.update', $session) }}" class="mt-2 space-y-2 bg-gray-50 border border-gray-200 rounded-lg p-3 min-w-56">
@@ -153,12 +162,15 @@
                             <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg">حفظ التعديل</button>
                         </form>
                     </details>
+                    @endif
+                    @if ($can('sessions.delete'))
                     <form method="POST" action="{{ route('admin.sessions.destroy', $session) }}" class="ms-auto"
                           onsubmit="return confirm('حذف دوام {{ $session->name }}؟ (يمنع إذا كان عليه طلاب أو أساتذة أو شعب)')">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="text-red-600 hover:underline text-xs px-2 py-1.5">حذف</button>
                     </form>
+                    @endif
                 </div>
             </div>
         @endforeach

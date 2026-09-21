@@ -44,7 +44,7 @@
             <span class="px-3 py-1 rounded-full text-xs font-bold {{ $statusClasses[$review->status->value] ?? 'bg-gray-100 text-gray-600' }}">
                 {{ $review->status->label() }}
             </span>
-            @if(! $readOnly && ! $review->isCompleted() && ! $review->isCancelled())
+            @if(! $readOnly && $cancelRoute && ! $review->isCompleted() && ! $review->isCancelled())
                 <form method="POST" action="{{ $cancelRoute }}" onsubmit="return confirm('إلغاء هذه المراجعة؟')">
                     @csrf
                     <button class="text-sm text-red-600 hover:underline">إلغاء المراجعة</button>
@@ -89,7 +89,7 @@
         <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-900">{{ $review->notes }}</div>
     @endif
 
-    @if(! $readOnly)
+    @if(! $readOnly && $memorizationStoreRoute && $memorizationDestroyRoute)
         @include('quran.khamsa.memorization-panel', [
             'student' => $review->student,
             'memorizedJuz' => $memorizedJuz,

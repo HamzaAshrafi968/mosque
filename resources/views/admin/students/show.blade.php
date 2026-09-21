@@ -5,6 +5,8 @@
 @section('content')
 @php
     $stats = $attendanceStats;
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
 @endphp
 
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
@@ -14,14 +16,18 @@
             <div class="font-bold text-lg truncate">{{ $student->name }}</div>
         </div>
         <div class="flex items-center gap-3">
-            <a href="{{ route('admin.students.edit', $student) }}" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تعديل</a>
-            <form method="POST" action="{{ route('admin.students.archive', $student) }}">
-                @csrf
-                @method('PATCH')
-                <button type="submit" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">
-                    {{ $student->status === 'active' ? 'أرشفة' : 'إلغاء الأرشفة' }}
-                </button>
-            </form>
+            @if ($can('students.update'))
+                <a href="{{ route('admin.students.edit', $student) }}" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">تعديل</a>
+            @endif
+            @if ($can('students.archive'))
+                <form method="POST" action="{{ route('admin.students.archive', $student) }}">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">
+                        {{ $student->status === 'active' ? 'أرشفة' : 'إلغاء الأرشفة' }}
+                    </button>
+                </form>
+            @endif
         </div>
     </div>
     <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -74,7 +80,9 @@
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="px-4 py-3 bg-emerald-700 text-white font-bold flex justify-between items-center">
         <span>سجل الحفظ القرآني</span>
-        <a href="{{ route('admin.quran.journey', $student) }}" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">الرحلة القرآنية</a>
+        @if ($can('quran.tasmee.view'))
+            <a href="{{ route('admin.quran.journey', $student) }}" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg">الرحلة القرآنية</a>
+        @endif
     </div>
     <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -89,32 +97,42 @@
 </div>
 
 @if($cycle !== [])
+    @php
+        $canBatchUpdate = $can('quran_batch.update');
+        $canTest = $can('quran_listening.test');
+        $canKhamsaComplete = $can('quran_khamsa.complete');
+        $canKhamsaUpdate = $can('quran_khamsa.update');
+        $canMemorization = $can('quran.memorization.manage');
+        $canPlanListen = $can('quran_listening.listen');
+        $canPlanUpdate = $can('quran_listening.update');
+        $canSessionStart = $can('quran.tasmee.create') || $can('quran_review.create');
+    @endphp
     @include('quran.batches.cycle', [
         'selectedStudent' => $student,
         'indexRoute' => route('admin.quran.batches.index'),
-        'repeatUrl' => fn ($batch) => route('admin.quran.batches.repeat', $batch),
-        'batchTestUrl' => $currentBatch ? route('admin.quran.batches.test', $currentBatch) : null,
-        'placementTestUrl' => $currentBatch ? route('admin.quran.batches.placement-test', $currentBatch) : null,
-        'batchRetakeUrl' => $currentBatch ? route('admin.quran.batches.retake', $currentBatch) : null,
-        'journeyUrl' => fn ($student) => route('admin.quran.journey', $student),
-        'planUrl' => fn ($plan) => route('admin.quran.listening.show', $plan),
-        'khamsaUrl' => fn ($review) => route('admin.quran.khamsa.show', $review),
-        'reviewCompleteUrl' => fn ($item) => route('admin.quran.khamsa.items.complete', $item),
-        'reviewCancelUrl' => $review ? route('admin.quran.khamsa.cancel', $review) : null,
-        'retakeCancelUrl' => $retakeReview ? route('admin.quran.khamsa.cancel', $retakeReview) : null,
-        'memorizationStoreUrl' => route('admin.quran.khamsa.memorization.store'),
-        'memorizationDestroyUrl' => route('admin.quran.khamsa.memorization.destroy'),
-        'planListenUrl' => fn ($item) => route('admin.quran.listening.items.listen', $item),
+        'repeatUrl' => $canBatchUpdate ? fn ($batch) => route('admin.quran.batches.repeat', $batch) : null,
+        'batchTestUrl' => ($canTest && $currentBatch) ? route('admin.quran.batches.test', $currentBatch) : null,
+        'placementTestUrl' => ($canTest && $currentBatch) ? route('admin.quran.batches.placement-test', $currentBatch) : null,
+        'batchRetakeUrl' => ($canBatchUpdate && $currentBatch) ? route('admin.quran.batches.retake', $currentBatch) : null,
+        'journeyUrl' => $can('quran.tasmee.view') ? fn ($student) => route('admin.quran.journey', $student) : null,
+        'planUrl' => $can('quran_listening.view') ? fn ($plan) => route('admin.quran.listening.show', $plan) : null,
+        'khamsaUrl' => $can('quran_khamsa.view') ? fn ($review) => route('admin.quran.khamsa.show', $review) : null,
+        'reviewCompleteUrl' => $canKhamsaComplete ? fn ($item) => route('admin.quran.khamsa.items.complete', $item) : null,
+        'reviewCancelUrl' => ($canKhamsaUpdate && $review) ? route('admin.quran.khamsa.cancel', $review) : null,
+        'retakeCancelUrl' => ($canKhamsaUpdate && $retakeReview) ? route('admin.quran.khamsa.cancel', $retakeReview) : null,
+        'memorizationStoreUrl' => $canMemorization ? route('admin.quran.khamsa.memorization.store') : null,
+        'memorizationDestroyUrl' => $canMemorization ? route('admin.quran.khamsa.memorization.destroy') : null,
+        'planListenUrl' => $canPlanListen ? fn ($item) => route('admin.quran.listening.items.listen', $item) : null,
         'planAudioUrl' => fn ($item) => route('admin.quran.listening.items.audio', $item),
-        'planProgressUrl' => fn ($item) => route('admin.quran.listening.items.progress', $item),
-        'planTestUrl' => $plan ? route('admin.quran.listening.test', $plan) : null,
-        'planCancelUrl' => $plan ? route('admin.quran.listening.cancel', $plan) : null,
-        'sessionStartUrl' => fn ($student) => route('admin.quran.batches.session-start', ['student_id' => $student->id]),
-        'khamsaReviewUrl' => fn (\App\Models\QuranKhamsaReview $review) => route('admin.quran.khamsa.review', $review),
+        'planProgressUrl' => $canPlanListen ? fn ($item) => route('admin.quran.listening.items.progress', $item) : null,
+        'planTestUrl' => ($canTest && $plan) ? route('admin.quran.listening.test', $plan) : null,
+        'planCancelUrl' => ($canPlanUpdate && $plan) ? route('admin.quran.listening.cancel', $plan) : null,
+        'sessionStartUrl' => $canSessionStart ? fn ($student) => route('admin.quran.batches.session-start', ['student_id' => $student->id]) : null,
+        'khamsaReviewUrl' => $canKhamsaComplete ? fn (\App\Models\QuranKhamsaReview $review) => route('admin.quran.khamsa.review', $review) : null,
     ])
 @endif
 
-@if($student->status === 'active')
+@if($student->status === 'active' && $can('students.transfer'))
     <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
         <div class="px-4 py-3 bg-emerald-700 text-white font-bold">نقل إلى شعبة أخرى (مع حفظ تاريخ الشعب السابقة)</div>
         <form method="POST" action="{{ route('admin.students.transfer', $student) }}" class="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">

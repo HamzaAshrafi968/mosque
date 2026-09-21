@@ -3,10 +3,16 @@
 @section('title', 'إدارة الصفوف والشعب')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
     <div class="flex items-center justify-between mb-3">
         <h2 class="font-bold text-gray-800">الصفوف</h2>
-        <a href="{{ route('admin.classrooms.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">إضافة صف</a>
+        @if ($can('classes.create'))
+            <a href="{{ route('admin.classrooms.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">إضافة صف</a>
+        @endif
     </div>
 </div>
 

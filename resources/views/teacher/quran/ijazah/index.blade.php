@@ -3,13 +3,19 @@
 @section('title', 'برنامج الإجازة - تقييماتي')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-6xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-800">📜 برنامج الإجازة — تقييماتي الشهرية</h2>
             <p class="text-sm text-gray-500 mt-1">كل شهر له تقييم تاريخي مستقل لا يُستبدل</p>
         </div>
-        <a href="{{ route('teacher.quran.ijazah.evaluations.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تقييم شهري</a>
+        @if ($can('ijazah.create'))
+            <a href="{{ route('teacher.quran.ijazah.evaluations.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تقييم شهري</a>
+        @endif
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
@@ -25,8 +31,12 @@
                     @endphp
                     <span class="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold px-3 py-1.5 rounded-full">
                         <a href="{{ route('teacher.quran.ijazah.month', [$student, now()->format('Y-m')]) }}" class="hover:underline">{{ $student->name }}</a>
-                        <a href="{{ route('teacher.quran.ijazah.evaluations.create', ['student_id' => $student->id]) }}" class="text-emerald-500 hover:text-emerald-700" title="+ تقييم شهري">+</a>
-                        <a href="{{ $cycleUrl }}" class="text-sky-600 hover:text-sky-800 text-xs" title="دورة الاستماع">استماع</a>
+                        @if ($can('ijazah.create'))
+                            <a href="{{ route('teacher.quran.ijazah.evaluations.create', ['student_id' => $student->id]) }}" class="text-emerald-500 hover:text-emerald-700" title="+ تقييم شهري">+</a>
+                        @endif
+                        @if ($can('quran_training.view'))
+                            <a href="{{ $cycleUrl }}" class="text-sky-600 hover:text-sky-800 text-xs" title="دورة الاستماع">استماع</a>
+                        @endif
                     </span>
                 @endforeach
             </div>

@@ -260,7 +260,7 @@ class QuranTeacherTimelineTest extends TestCase
             ->assertDontSee('timeline_type=', false);
     }
 
-    public function test_student_profile_is_disabled(): void
+    public function test_student_profile_renders_the_unified_log_read_only(): void
     {
         [$mosque, , $session] = $this->mosque();
         [, $teacher] = $this->teacher($mosque, $session);
@@ -274,7 +274,12 @@ class QuranTeacherTimelineTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-profile'))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('سجل التسميع مع المعلم')
+            ->assertSee('تسميع جديد')
+            ->assertSee('استماع مع المعلم')
+            ->assertDontSee('عرض الجلسة')
+            ->assertDontSee('>تعديل<', false);
     }
 
     public function test_admin_center_exposes_one_unified_session_button(): void

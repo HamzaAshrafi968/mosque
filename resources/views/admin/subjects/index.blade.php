@@ -3,6 +3,11 @@
 @section('title', 'إدارة المواد الدراسية')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
+@if ($can('subjects.create'))
 <div class="bg-white rounded-xl shadow overflow-hidden p-4 mb-6">
     <form method="POST" action="{{ route('admin.subjects.store') }}" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         @csrf
@@ -28,6 +33,7 @@
         <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إضافة مادة</button>
     </form>
 </div>
+@endif
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="overflow-x-auto">
@@ -61,16 +67,20 @@
                         </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
                             <div class="flex gap-2 items-center">
-                                <button type="submit" form="subject-form-{{ $subject->id }}" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
-                                <form id="subject-form-{{ $subject->id }}" method="POST" action="{{ route('admin.subjects.update', $subject) }}" hidden>
-                                    @csrf
-                                    @method('PUT')
-                                </form>
-                                <form method="POST" action="{{ route('admin.subjects.destroy', $subject) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
-                                </form>
+                                @if ($can('subjects.update'))
+                                    <button type="submit" form="subject-form-{{ $subject->id }}" class="text-emerald-700 hover:underline text-sm font-bold">حفظ</button>
+                                    <form id="subject-form-{{ $subject->id }}" method="POST" action="{{ route('admin.subjects.update', $subject) }}" hidden>
+                                        @csrf
+                                        @method('PUT')
+                                    </form>
+                                @endif
+                                @if ($can('subjects.delete'))
+                                    <form method="POST" action="{{ route('admin.subjects.destroy', $subject) }}" class="inline" onsubmit="return confirm('هل أنت متأكد؟')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
+                                    </form>
+                                @endif
                             </div>
                         </td>
                     </tr>

@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Guardian;
 use App\Http\Controllers\NotificationsController;
-use App\Http\Controllers\PortalDisabledController;
 use App\Http\Controllers\QuranPageController;
 use App\Http\Controllers\Student as StudentPortal;
 use App\Http\Controllers\SuperAdmin;
@@ -15,7 +14,8 @@ Route::get('/', fn () => auth()->check()
     ? redirect()->route(match (true) {
         auth()->user()->isSuperAdmin() => 'super-admin.dashboard',
         auth()->user()->isAdmin() => 'admin.dashboard',
-        auth()->user()->isGuardian(), auth()->user()->isStudent() => 'portal.disabled',
+        auth()->user()->isGuardian() => 'guardian.dashboard',
+        auth()->user()->isStudent() => 'student.dashboard',
         default => 'teacher.dashboard',
     })
     : redirect()->route('login'));
@@ -26,9 +26,6 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
-
-// بوابة الطالب وولي الأمر معطّلتان: تسجيل الدخول يعمل وتُعرض هذه الصفحة فقط.
-Route::get('portal-disabled', PortalDisabledController::class)->middleware('auth')->name('portal.disabled');
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('dashboard', [Admin\DashboardController::class, 'index'])->name('dashboard');
@@ -406,6 +403,12 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
         ->middlewareFor(['create', 'store'], 'permission:assignments.create')
         ->middlewareFor('destroy', 'permission:assignments.delete');
 
+    Route::get('homeworks/{homework}/edit', [Teacher\HomeworkController::class, 'edit'])->name('homeworks.edit')->middleware('permission:assignments.create');
+    Route::put('homeworks/{homework}', [Teacher\HomeworkController::class, 'update'])->name('homeworks.update')->middleware('permission:assignments.create');
+    Route::post('homeworks/{homework}/questions', [Teacher\HomeworkController::class, 'storeQuestions'])->name('homeworks.questions.store')->middleware('permission:assignments.create');
+    Route::put('homeworks/questions/{question}', [Teacher\HomeworkController::class, 'updateQuestion'])->name('homeworks.questions.update')->middleware('permission:assignments.create');
+    Route::delete('homeworks/questions/{question}', [Teacher\HomeworkController::class, 'destroyQuestion'])->name('homeworks.questions.destroy')->middleware('permission:assignments.create');
+
     Route::resource('exams', Teacher\ExamController::class)->only(['index', 'create', 'store'])
         ->middlewareFor('index', 'permission:exams.view')
         ->middlewareFor(['create', 'store'], 'permission:exams.create');
@@ -577,8 +580,8 @@ Route::middleware('auth')->group(function () {
     Route::post('notifications/{notification}/read', [NotificationsController::class, 'read'])->name('notifications.read');
 });
 
-// ---- Parent / Guardian portal (spec §2-§10) — معطّل: كل الصفحات تحوّل لصفحة التعطيل ----
-Route::middleware(['auth', 'role:guardian', 'portal.disabled'])->prefix('guardian')->name('guardian.')->group(function () {
+// ---- Parent / Guardian portal (spec §2-§10) ----
+Route::middleware(['auth', 'role:guardian'])->prefix('guardian')->name('guardian.')->group(function () {
     Route::get('dashboard', [Guardian\DashboardController::class, 'index'])->name('dashboard');
     Route::get('profile', [Guardian\ProfileController::class, 'show'])->name('profile');
 
@@ -592,8 +595,8 @@ Route::middleware(['auth', 'role:guardian', 'portal.disabled'])->prefix('guardia
     Route::get('children/{student}/announcements', [Guardian\ChildController::class, 'announcements'])->name('children.announcements');
 });
 
-// ---- Student portal (spec §11-§18) — معطّل: كل الصفحات تحوّل لصفحة التعطيل ----
-Route::middleware(['auth', 'role:student', 'portal.disabled'])->prefix('student')->name('student.')->group(function () {
+// ---- Student portal (spec §11-§18) ----
+Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')->group(function () {
     Route::get('dashboard', [StudentPortal\DashboardController::class, 'index'])->name('dashboard');
     Route::get('profile', [StudentPortal\ProfileController::class, 'show'])->name('profile');
     Route::get('attendance', [StudentPortal\PortalController::class, 'attendance'])->name('attendance');

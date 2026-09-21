@@ -3,9 +3,15 @@
 @section('title', 'أولياء الأمور')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <h1 class="text-2xl font-bold text-gray-800">أولياء الأمور</h1>
-    <a href="{{ route('admin.parents.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2.5 rounded-lg">+ إضافة ولي أمر</a>
+    @if ($can('parents.create'))
+        <a href="{{ route('admin.parents.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2.5 rounded-lg">+ إضافة ولي أمر</a>
+    @endif
 </div>
 
 <form method="GET" class="bg-white rounded-2xl shadow p-4 mb-6 flex flex-wrap gap-3 items-center">
@@ -68,12 +74,16 @@
                             </span>
                         </td>
                         <td class="px-4 py-3">
-                            <a href="{{ route('admin.parents.edit', $guardian) }}" class="text-emerald-700 hover:underline text-xs">تعديل</a>
-                            <form method="POST" action="{{ route('admin.parents.destroy', $guardian) }}" class="inline mr-3" onsubmit="return confirm('سيتم حذف ولي الأمر وربطاته، هل أنت متأكد؟')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-500 hover:underline text-xs">حذف</button>
-                            </form>
+                            @if ($can('parents.update'))
+                                <a href="{{ route('admin.parents.edit', $guardian) }}" class="text-emerald-700 hover:underline text-xs">تعديل</a>
+                            @endif
+                            @if ($can('parents.delete'))
+                                <form method="POST" action="{{ route('admin.parents.destroy', $guardian) }}" class="inline mr-3" onsubmit="return confirm('سيتم حذف ولي الأمر وربطاته، هل أنت متأكد؟')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-500 hover:underline text-xs">حذف</button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty

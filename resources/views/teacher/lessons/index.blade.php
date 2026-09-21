@@ -3,8 +3,14 @@
 @section('title', 'إدارة الدروس')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="mb-4">
-    <a href="{{ route('teacher.lessons.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إضافة درس</a>
+    @if ($can('lessons.create'))
+        <a href="{{ route('teacher.lessons.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إضافة درس</a>
+    @endif
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -47,11 +53,13 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 border-t">
-                            <form method="POST" action="{{ route('teacher.lessons.destroy', $lesson) }}" onsubmit="return confirm('هل أنت متأكد؟')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline font-bold whitespace-nowrap">حذف</button>
-                            </form>
+                            @if ($can('lessons.delete'))
+                                <form method="POST" action="{{ route('teacher.lessons.destroy', $lesson) }}" onsubmit="return confirm('هل أنت متأكد؟')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:underline font-bold whitespace-nowrap">حذف</button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty

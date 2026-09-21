@@ -9,6 +9,8 @@ use App\Models\QuranListeningProgram;
 use App\Models\QuranListeningProgramBatch;
 use App\Models\QuranListeningProgramItem;
 use App\Models\Student;
+use App\Models\User;
+use App\Services\AuthorizationService;
 use App\Services\QuranListeningProgramService;
 use App\Services\QuranPageService;
 use App\Services\QuranProgramBatchService;
@@ -31,6 +33,7 @@ class QuranListeningProgramController extends BaseTeacherController
         private readonly QuranProgramBatchService $batches,
         private readonly QuranScopeService $scope,
         private readonly QuranPageService $pages,
+        private readonly AuthorizationService $authorization,
     ) {}
 
     public function index(Request $request): View
@@ -84,9 +87,10 @@ class QuranListeningProgramController extends BaseTeacherController
             'students' => $this->scope->studentsFor($teacher),
             'types' => ProgramType::cases(),
             'readings' => QuranReading::cases(),
-            'canTest' => true,
-            'canCancel' => true,
-            'actions' => $this->actions(),
+            'canTest' => $this->authorization->can($request->user(), 'quran_training.test'),
+            'canCancel' => $this->authorization->can($request->user(), 'quran_training.update'),
+            'canEnroll' => $this->authorization->can($request->user(), 'quran_training.update'),
+            'actions' => $this->actions($request->user()),
         ]));
     }
 
@@ -309,17 +313,29 @@ class QuranListeningProgramController extends BaseTeacherController
         $this->scope->assertCanManageStudent($this->currentTeacher(request()), $student);
     }
 
-    /** @return array<string, callable> */
-    private function actions(): array
+    /** @return array<string, callable|null> */
+    private function actions(User $user): array
     {
+        $can = fn (string $permission) => $this->authorization->can($user, $permission);
+
         return [
             'index' => route('teacher.quran.programs.index'),
             'show' => fn (QuranListeningProgram $program) => $this->programUrl($program),
-            'tasmee' => fn (QuranListeningProgramItem $item) => route('teacher.quran.programs.items.tasmee', $item),
-            'partial' => fn (QuranListeningProgramItem $item) => route('teacher.quran.programs.items.partial', $item),
-            'test' => fn (QuranListeningProgramBatch $batch) => route('teacher.quran.programs.batches.test', $batch),
-            'placement' => fn (QuranListeningProgramBatch $batch) => route('teacher.quran.programs.batches.placement-test', $batch),
-            'cancel' => fn (QuranListeningProgram $program) => route('teacher.quran.programs.cancel', $program),
+            'tasmee' => $can('quran_training.listen')
+                ? fn (QuranListeningProgramItem $item) => route('teacher.quran.programs.items.tasmee', $item)
+                : null,
+            'partial' => $can('quran_training.listen')
+                ? fn (QuranListeningProgramItem $item) => route('teacher.quran.programs.items.partial', $item)
+                : null,
+            'test' => $can('quran_training.test')
+                ? fn (QuranListeningProgramBatch $batch) => route('teacher.quran.programs.batches.test', $batch)
+                : null,
+            'placement' => $can('quran_training.test')
+                ? fn (QuranListeningProgramBatch $batch) => route('teacher.quran.programs.batches.placement-test', $batch)
+                : null,
+            'cancel' => $can('quran_training.update')
+                ? fn (QuranListeningProgram $program) => route('teacher.quran.programs.cancel', $program)
+                : null,
         ];
     }
 

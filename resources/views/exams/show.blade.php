@@ -6,6 +6,8 @@
     $canEdit = $exam->canEdit();
     $isPublished = $exam->status === \App\Enums\ExamStatus::Published;
     $isClosed = $exam->status === \App\Enums\ExamStatus::Closed;
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
 @endphp
 
 @section('content')
@@ -46,16 +48,18 @@
 {{-- ===================== شريط الإجراءات ===================== --}}
 <div class="bg-white rounded-xl shadow p-4 mb-6 flex flex-wrap items-center gap-3">
     @unless($isPublished || $isClosed)
-        <form method="POST" action="{{ route($routePrefix.'.exams.publish', $exam) }}">
-            @csrf
-            <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">
-                نشر الامتحان
-            </button>
-        </form>
-        <p class="text-xs text-gray-500">شروط النشر: سؤال واحد على الأقل أو ملف PDF، ومجموع علامات الأسئلة = {{ $exam->total_marks }}.</p>
+        @if ($can('exams.publish'))
+            <form method="POST" action="{{ route($routePrefix.'.exams.publish', $exam) }}">
+                @csrf
+                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">
+                    نشر الامتحان
+                </button>
+            </form>
+            <p class="text-xs text-gray-500">شروط النشر: سؤال واحد على الأقل أو ملف PDF، ومجموع علامات الأسئلة = {{ $exam->total_marks }}.</p>
+        @endif
     @endunless
 
-    @if($isPublished)
+    @if($isPublished && $can('exams.publish'))
         <form method="POST" action="{{ route($routePrefix.'.exams.close', $exam) }}">
             @csrf
             <button type="submit" class="bg-gray-700 hover:bg-gray-800 text-white font-bold px-4 py-2 rounded-lg">إغلاق الامتحان</button>
@@ -67,12 +71,14 @@
            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg">
             تحميل ملف الامتحان (PDF)
         </a>
-        <form method="POST" action="{{ route($routePrefix.'.exams.attachment.destroy', $exam) }}" onsubmit="return confirm('حذف ملف الامتحان؟')">
-            @csrf
-            @method('DELETE')
-            <button type="submit" class="text-red-600 hover:underline text-sm">حذف الملف</button>
-        </form>
-    @else
+        @if ($can('exams.update'))
+            <form method="POST" action="{{ route($routePrefix.'.exams.attachment.destroy', $exam) }}" onsubmit="return confirm('حذف ملف الامتحان؟')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="text-red-600 hover:underline text-sm">حذف الملف</button>
+            </form>
+        @endif
+    @elseif ($can('exams.update'))
         <form method="POST" action="{{ route($routePrefix.'.exams.attachment.store', $exam) }}" enctype="multipart/form-data" class="flex items-center gap-2">
             @csrf
             <input type="file" name="attachment" accept="application/pdf" required class="text-sm">
@@ -82,7 +88,7 @@
 </div>
 
 {{-- ===================== بناء الأسئلة ===================== --}}
-@if($canEdit)
+@if($canEdit && $can('exams.update'))
     <form method="POST" action="{{ route($routePrefix.'.exams.questions.store', $exam) }}" id="questions-form">
         @csrf
         <x-exam-question-builder
@@ -123,7 +129,7 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 whitespace-nowrap">
-                        @if($canEdit)
+                        @if($canEdit && $can('exams.update'))
                             <details class="inline-block">
                                 <summary class="cursor-pointer text-xs text-indigo-600 hover:underline">تعديل</summary>
                                 <form method="POST" action="{{ route($routePrefix.'.exams.questions.update', $question) }}" class="mt-2 w-80 space-y-2 border rounded-lg p-3">

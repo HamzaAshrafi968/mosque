@@ -3,6 +3,10 @@
 @section('title', 'الحقول المخصصة')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="mb-4 flex gap-2">
     @foreach(\App\Enums\CustomFieldEntityType::cases() as $type)
         <a href="{{ route('admin.custom-fields.index', ['entity_type' => $type->value]) }}"
@@ -16,6 +20,7 @@
     @endforeach
 </div>
 
+@if ($can('custom_fields.create'))
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="px-4 py-3 bg-gray-50 border-b">
         <span class="font-bold text-gray-800">إضافة حقل مخصص لـ{{ $entityType->label() }}</span>
@@ -62,6 +67,7 @@
         </div>
     </form>
 </div>
+@endif
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="overflow-x-auto">
@@ -91,12 +97,16 @@
                             </span>
                         </td>
                         <td class="px-4 py-3 border-t text-center whitespace-nowrap">
-                            <button type="button" data-toggle-edit="{{ $field->id }}" class="text-emerald-700 hover:underline text-xs ml-2">تعديل</button>
-                            <form method="POST" action="{{ route('admin.custom-fields.destroy', $field) }}" onsubmit="return confirm('سيتم حذف الحقل وقيمه. متأكد؟')" class="inline">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline text-xs">حذف</button>
-                            </form>
+                            @if ($can('custom_fields.update'))
+                                <button type="button" data-toggle-edit="{{ $field->id }}" class="text-emerald-700 hover:underline text-xs ml-2">تعديل</button>
+                            @endif
+                            @if ($can('custom_fields.delete'))
+                                <form method="POST" action="{{ route('admin.custom-fields.destroy', $field) }}" onsubmit="return confirm('سيتم حذف الحقل وقيمه. متأكد؟')" class="inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:underline text-xs">حذف</button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                     <tr id="field-edit-{{ $field->id }}" class="hidden">

@@ -112,7 +112,7 @@ class ShariaCourseController extends Controller
 
         if ($tab === 'students') {
             $data['students'] = $course->students()
-                ->with('student:id,name')
+                ->with(['student:id,name', 'memorizationUpdatedBy:id,name'])
                 ->withCount('attendances')
                 ->orderBy('name')
                 ->get();

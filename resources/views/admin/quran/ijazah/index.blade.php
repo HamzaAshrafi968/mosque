@@ -3,6 +3,10 @@
 @section('title', 'برنامج الإجازة')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-7xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -10,7 +14,9 @@
             <p class="text-sm text-gray-500 mt-1">يلتحق الطالب تلقائياً بعد إكمال البرنامج التأهيلي — كل شهر له تقييم تاريخي مستقل</p>
         </div>
         <div class="flex gap-2">
-            <a href="{{ route('admin.quran.ijazah.evaluations.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تقييم شهري</a>
+            @if ($can('ijazah.create'))
+                <a href="{{ route('admin.quran.ijazah.evaluations.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تقييم شهري</a>
+            @endif
         </div>
     </div>
 
@@ -52,8 +58,14 @@
                     @endphp
                     <tr class="border-t">
                         <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-800">
-                            <a href="{{ $cycleUrl }}" class="hover:text-emerald-700">{{ $enrollment->student->name }}</a>
-                            <a href="{{ route('admin.quran.journey', $enrollment->student) }}" class="text-[11px] text-gray-400 hover:text-emerald-700 font-normal">الرحلة</a>
+                            @if ($can('quran_training.view'))
+                                <a href="{{ $cycleUrl }}" class="hover:text-emerald-700">{{ $enrollment->student->name }}</a>
+                            @else
+                                {{ $enrollment->student->name }}
+                            @endif
+                            @if ($can('quran.tasmee.view'))
+                                <a href="{{ route('admin.quran.journey', $enrollment->student) }}" class="text-[11px] text-gray-400 hover:text-emerald-700 font-normal">الرحلة</a>
+                            @endif
                             <div class="text-xs text-gray-400 font-normal">{{ $enrollment->student->classroom?->name }}</div>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $enrollment->started_at->format('Y-m-d') }}</td>
@@ -78,15 +90,19 @@
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <div class="flex gap-2 justify-center">
                                 <a href="{{ route('admin.quran.ijazah.month', [$enrollment->student, $last?->month ?? now()->format('Y-m')]) }}" class="text-xs text-pine-700 hover:underline">الأسابيع</a>
-                                <a href="{{ route('admin.quran.ijazah.evaluations.create', ['student_id' => $enrollment->student->id]) }}" class="text-xs text-emerald-700 hover:underline">+ تقييم</a>
-                                <a href="{{ $cycleUrl }}" class="text-xs text-sky-700 hover:underline">دورة الاستماع</a>
-                                @if($passed >= \App\Support\QuranProgramSettings::IJAZAH_MIN_PASSED_MONTHS)
+                                @if ($can('ijazah.create'))
+                                    <a href="{{ route('admin.quran.ijazah.evaluations.create', ['student_id' => $enrollment->student->id]) }}" class="text-xs text-emerald-700 hover:underline">+ تقييم</a>
+                                @endif
+                                @if ($can('quran_training.view'))
+                                    <a href="{{ $cycleUrl }}" class="text-xs text-sky-700 hover:underline">دورة الاستماع</a>
+                                @endif
+                                @if($passed >= \App\Support\QuranProgramSettings::IJAZAH_MIN_PASSED_MONTHS && $can('ijazah.complete'))
                                     <form method="POST" action="{{ route('admin.quran.ijazah.enrollments.complete', $enrollment) }}"
                                           onsubmit="return confirm('سيُنهى برنامج الإجازة (اكتمال الرحلة القرآنية). متأكد؟')">
                                         @csrf
                                         <button class="text-xs text-amber-700 hover:underline">إنهاء البرنامج</button>
                                     </form>
-                                @else
+                                @elseif($passed < \App\Support\QuranProgramSettings::IJAZAH_MIN_PASSED_MONTHS)
                                     <span class="text-[11px] text-gray-400">يتطلب شهراً ناجحاً واحداً على الأقل</span>
                                 @endif
                             </div>

@@ -3,8 +3,14 @@
 @section('title', 'الامتحانات')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="mb-4">
-    <a href="{{ route('admin.exams.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg inline-block">إنشاء اختبار</a>
+    @if ($can('exams.create'))
+        <a href="{{ route('admin.exams.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg inline-block">إنشاء اختبار</a>
+    @endif
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -46,11 +52,13 @@
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->attempts_count }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $exam->grades_count }}</td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">
-                            <form method="POST" action="{{ route('admin.exams.destroy', $exam) }}" onsubmit="return confirm('هل أنت متأكد؟')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
-                            </form>
+                            @if ($can('exams.delete'))
+                                <form method="POST" action="{{ route('admin.exams.destroy', $exam) }}" onsubmit="return confirm('هل أنت متأكد؟')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:underline text-sm">حذف</button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty

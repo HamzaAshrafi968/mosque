@@ -434,7 +434,7 @@ class QuranListeningPlanTest extends TestCase
         $this->assertDatabaseCount('quran_listening_tests', 0);
     }
 
-    public function test_student_portal_pages_are_disabled(): void
+    public function test_student_portal_shows_only_his_plan_and_blocks_others(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [, $teacher] = $this->teacher($mosque, $session, 'الأستاذ محمد');
@@ -455,14 +455,16 @@ class QuranListeningPlanTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-profile'))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('الأستاذ محمد')
+            ->assertSee('الجزء 1');
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-listening.show', $otherPlan))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertForbidden();
     }
 
-    public function test_student_cannot_mark_items_listened_through_the_disabled_portal(): void
+    public function test_student_can_mark_listened_but_not_someone_elses_item(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [, $teacher] = $this->teacher($mosque, $session);
@@ -486,13 +488,13 @@ class QuranListeningPlanTest extends TestCase
 
         $this->actingAs($studentUser)
             ->post(route('student.quran-listening.items.listen', $ownItem))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertRedirect();
 
-        $this->assertSame(QuranListeningItemStatus::Available, $ownItem->refresh()->status);
+        $this->assertSame(QuranListeningItemStatus::Listened, $ownItem->refresh()->status);
 
         $this->actingAs($studentUser)
             ->post(route('student.quran-listening.items.listen', $otherItem))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertForbidden();
 
         $this->assertSame(QuranListeningItemStatus::Available, $otherItem->refresh()->status);
     }
@@ -890,7 +892,7 @@ class QuranListeningPlanTest extends TestCase
             ->assertSee('توليد تلقائي من الأجزاء المحفوظة');
     }
 
-    public function test_teacher_show_page_renders_the_khamsa_link_and_student_page_is_disabled(): void
+    public function test_teacher_show_page_renders_the_khamsa_link_and_student_page_renders_items(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [$teacherUser, $teacher] = $this->teacher($mosque, $session);
@@ -924,7 +926,10 @@ class QuranListeningPlanTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-listening.show', $plan))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('العنصر والصفحات')
+            ->assertSee('الخمسة 1')
+            ->assertSee('جديد');
     }
 
     public function test_listen_time_can_link_a_listening_with_teacher_session(): void
@@ -960,7 +965,7 @@ class QuranListeningPlanTest extends TestCase
         $this->assertNull($items[1]->refresh()->quran_review_session_id);
     }
 
-    public function test_student_portal_pages_are_disabled_for_merged_review_items(): void
+    public function test_student_portal_shows_merged_review_items(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [, $teacher] = $this->teacher($mosque, $session);
@@ -976,10 +981,12 @@ class QuranListeningPlanTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-profile'))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('مراجعة 5');
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-listening.show', QuranListeningPlan::firstOrFail()))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('الخمسة 1');
     }
 }

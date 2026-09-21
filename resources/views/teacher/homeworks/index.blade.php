@@ -3,8 +3,14 @@
 @section('title', 'الواجبات')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="mb-4">
-    <a href="{{ route('teacher.homeworks.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إنشاء واجب</a>
+    @if ($can('assignments.create'))
+        <a href="{{ route('teacher.homeworks.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg">إنشاء واجب</a>
+    @endif
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -16,6 +22,7 @@
                     <th class="px-4 py-3 text-right whitespace-nowrap">المادة</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الصف</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">الشعبة</th>
+                    <th class="px-4 py-3 text-right whitespace-nowrap">الأسئلة</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">تاريخ التسليم</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">التسليمات</th>
                     <th class="px-4 py-3 text-right whitespace-nowrap">بانتظار التصحيح</th>
@@ -29,6 +36,13 @@
                         <td class="px-4 py-3 border-t">{{ $homework->subject?->name }}</td>
                         <td class="px-4 py-3 border-t">{{ $homework->classroom?->name }}</td>
                         <td class="px-4 py-3 border-t">{{ $homework->section?->name ?? 'كل الشعب' }}</td>
+                        <td class="px-4 py-3 border-t">
+                            @if($homework->questions_count > 0)
+                                <span class="bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-xs font-bold">{{ $homework->questions_count }} سؤال</span>
+                            @else
+                                <span class="text-gray-400 text-xs">يدوي</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 border-t whitespace-nowrap">{{ $homework->due_date->format('Y-m-d') }}</td>
                         <td class="px-4 py-3 border-t">{{ $homework->submissions_count }}</td>
                         <td class="px-4 py-3 border-t">
@@ -40,18 +54,25 @@
                         </td>
                         <td class="px-4 py-3 border-t">
                             <div class="flex gap-2">
-                                <a href="{{ route('teacher.homeworks.submissions', $homework) }}" class="text-emerald-700 hover:underline font-bold whitespace-nowrap">التصحيح</a>
-                                <form method="POST" action="{{ route('teacher.homeworks.destroy', $homework) }}" onsubmit="return confirm('هل أنت متأكد؟')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline font-bold whitespace-nowrap">حذف</button>
-                                </form>
+                                @if ($can('assignments.grade'))
+                                    <a href="{{ route('teacher.homeworks.submissions', $homework) }}" class="text-emerald-700 hover:underline font-bold whitespace-nowrap">التصحيح</a>
+                                @endif
+                                @if($homework->graded_submissions_count === 0 && $can('assignments.update'))
+                                    <a href="{{ route('teacher.homeworks.edit', $homework) }}" class="text-indigo-600 hover:underline font-bold whitespace-nowrap">تعديل</a>
+                                @endif
+                                @if ($can('assignments.delete'))
+                                    <form method="POST" action="{{ route('teacher.homeworks.destroy', $homework) }}" onsubmit="return confirm('هل أنت متأكد؟')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:underline font-bold whitespace-nowrap">حذف</button>
+                                    </form>
+                                @endif
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-6 text-center text-gray-500">لا توجد واجبات</td>
+                        <td colspan="9" class="px-4 py-6 text-center text-gray-500">لا توجد واجبات</td>
                     </tr>
                 @endforelse
             </tbody>

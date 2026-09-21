@@ -3,9 +3,11 @@
     $studySessions = $studySessions ?? \App\Models\StudySession::orderForDisplay()->get();
     $currentStudySessionId = config('app.current_study_session_id');
     $currentStudySession = $studySessions->firstWhere('id', $currentStudySessionId);
+    $canViewStudySessions = auth()->check()
+        && app(\App\Services\AuthorizationService::class)->can(auth()->user(), 'sessions.view');
 @endphp
 
-@if($studySessions->isNotEmpty())
+@if($canViewStudySessions && $studySessions->isNotEmpty())
     <div id="study-session-switcher" class="relative min-w-0">
         <button
             type="button"

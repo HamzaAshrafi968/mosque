@@ -3,6 +3,10 @@
 @section('title', 'إعدادات برنامج القرآن')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-3xl mx-auto">
     <h1 class="text-2xl font-bold text-gray-800 mb-2">إعدادات برنامج القرآن</h1>
     <p class="text-sm text-gray-500 mb-6">القواعد التي يعتمد عليها النظام في تحديد النجاح والرسوب — تُطبَّق على الاختبارات الجديدة فقط، ولا تغيّر نتائج الاختبارات السابقة.</p>
@@ -55,9 +59,13 @@
             @enderror
         </div>
 
-        <div class="flex justify-end">
-            <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-5 py-2.5 rounded-lg">حفظ الإعدادات</button>
-        </div>
+        @if ($can('quran_settings.update'))
+            <div class="flex justify-end">
+                <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-5 py-2.5 rounded-lg">حفظ الإعدادات</button>
+            </div>
+        @else
+            <p class="text-xs text-gray-400">لا تملك صلاحية تعديل إعدادات برنامج القرآن.</p>
+        @endif
     </form>
 </div>
 @endsection

@@ -3,6 +3,10 @@
 @section('title', 'اللقاءات الإيمانية')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-7xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -10,7 +14,9 @@
             <p class="text-sm text-gray-500 mt-1">لقاءات بإشراف المشايخ مع طلاب محددين + حضور + ملاحظات وإجراءات</p>
         </div>
         <div class="flex gap-2">
-            <a href="{{ route('admin.faith-meetings.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ لقاء جديد</a>
+            @if ($can('faith_meetings.create'))
+                <a href="{{ route('admin.faith-meetings.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ لقاء جديد</a>
+            @endif
             <a href="{{ route('admin.faith-meetings.templates') }}" class="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">القوالب</a>
         </div>
     </div>
@@ -64,7 +70,9 @@
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <div class="flex gap-2 justify-center text-xs">
                                 <a href="{{ route('admin.faith-meetings.show', $meeting) }}" class="text-emerald-700 hover:underline font-bold">عرض / حضور</a>
-                                <a href="{{ route('admin.faith-meetings.edit', $meeting) }}" class="text-gray-500 hover:underline">تعديل</a>
+                                @if ($can('faith_meetings.update'))
+                                    <a href="{{ route('admin.faith-meetings.edit', $meeting) }}" class="text-gray-500 hover:underline">تعديل</a>
+                                @endif
                             </div>
                         </td>
                     </tr>

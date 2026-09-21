@@ -3,14 +3,20 @@
 @section('title', 'سجل نقاط المكافآت')
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="space-y-6 max-w-6xl mx-auto">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-fade-in-up">
         <div>
             <p class="text-gray-500 text-sm">🏆 سجل نقاط المكافآت للطلاب</p>
         </div>
-        <a href="{{ route('teacher.reward-points.create') }}" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-amber-600 hover:to-orange-600 transition shadow-lg shadow-amber-500/20 font-bold text-sm inline-flex items-center gap-2">
-            <span class="text-lg">✚</span> إضافة نقاط
-        </a>
+        @if ($can('reward_points.create'))
+            <a href="{{ route('teacher.reward-points.create') }}" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-amber-600 hover:to-orange-600 transition shadow-lg shadow-amber-500/20 font-bold text-sm inline-flex items-center gap-2">
+                <span class="text-lg">✚</span> إضافة نقاط
+            </a>
+        @endif
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-scale-in">
@@ -21,9 +27,11 @@
                 </div>
                 <p class="text-xl font-bold text-gray-600 mb-2">لا توجد نقاط بعد</p>
                 <p class="text-gray-400 mb-6">ابدأ بإضافة نقاط للطلاب الآن</p>
-                <a href="{{ route('teacher.reward-points.create') }}" class="inline-flex items-center gap-2 bg-amber-500 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition font-medium">
-                    ✨ إضافة نقاط
-                </a>
+                @if ($can('reward_points.create'))
+                    <a href="{{ route('teacher.reward-points.create') }}" class="inline-flex items-center gap-2 bg-amber-500 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition font-medium">
+                        ✨ إضافة نقاط
+                    </a>
+                @endif
             </div>
         @else
             <div class="overflow-x-auto">
@@ -80,7 +88,7 @@
                                 </td>
                                 <td class="px-5 py-4 text-gray-500 text-xs">{{ $point->created_at->format('Y-m-d') }}</td>
                                 <td class="px-5 py-4 text-center">
-                                    @if(! $point->isAutomatic())
+                                    @if(! $point->isAutomatic() && $can('reward_points.delete'))
                                         <form method="POST" action="{{ route('teacher.reward-points.destroy', $point->id) }}" onsubmit="return confirm('هل أنت متأكد من حذف هذه النقاط؟')">
                                             @csrf
                                             @method('DELETE')

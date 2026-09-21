@@ -3,6 +3,10 @@
 @section('title', $meeting->title)
 
 @section('content')
+@php
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
+@endphp
 <div class="max-w-6xl mx-auto space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -16,7 +20,7 @@
                 'bg-green-100 text-green-800' => $meeting->status->value === 'completed',
                 'bg-red-100 text-red-800' => $meeting->status->value === 'cancelled',
             ])>{{ $meeting->status->label() }}</span>
-            @if($meeting->status->value === 'scheduled')
+            @if($meeting->status->value === 'scheduled' && $can('faith_meetings.update'))
                 <form method="POST" action="{{ route('teacher.quran.faith-meetings.complete', $meeting) }}">
                     @csrf
                     <button class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">إنهاء اللقاء</button>
@@ -55,7 +59,7 @@
                 @empty
                     <div class="text-center text-gray-400 py-6 text-sm">لا يوجد طلاب محددون لهذا اللقاء</div>
                 @endforelse
-                @if($meeting->studentAttendances->isNotEmpty())
+                @if($meeting->studentAttendances->isNotEmpty() && $can('faith_meetings.attendance'))
                     <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-5 py-2 rounded-lg">حفظ الحضور</button>
                 @endif
             </form>
@@ -64,6 +68,7 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 font-bold text-gray-800">📝 ملاحظات / اقتراحات / إجراءات</div>
             <div class="p-4 space-y-4 max-h-[28rem] overflow-y-auto">
+                @if ($can('faith_meetings.update'))
                 <form method="POST" action="{{ route('teacher.quran.faith-meetings.notes.store', $meeting) }}" class="space-y-3 border border-gray-100 rounded-xl p-3">
                     @csrf
                     <div class="grid grid-cols-2 gap-3">
@@ -77,6 +82,7 @@
                     <textarea name="content" rows="2" required placeholder="نص الملاحظة/الاقتراح/الإجراء..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
                     <button class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-lg">إضافة</button>
                 </form>
+                @endif
                 @forelse($meeting->notes as $note)
                     <div class="border border-gray-100 rounded-xl p-3">
                         <span @class([
@@ -91,7 +97,7 @@
                             {{ $note->createdBy?->name ?? '—' }} · {{ $note->created_at->format('Y-m-d H:i') }}
                             @if($note->due_date) · يستحق: {{ $note->due_date->format('Y-m-d') }} @endif
                         </div>
-                        @if($note->status?->value === 'pending')
+                        @if($note->status?->value === 'pending' && $can('faith_meetings.update'))
                             <form method="POST" action="{{ route('teacher.quran.faith-meetings.notes.complete', $note) }}" class="mt-2">
                                 @csrf
                                 <button class="text-xs text-green-700 hover:underline font-bold">إنجاز ✔️</button>

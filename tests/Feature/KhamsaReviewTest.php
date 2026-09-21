@@ -269,7 +269,7 @@ class KhamsaReviewTest extends TestCase
         $this->assertDatabaseCount('quran_khamsa_reviews', 0);
     }
 
-    public function test_student_portal_is_disabled(): void
+    public function test_student_portal_shows_only_his_reviews(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         [, $teacher] = $this->teacher($mosque, $session, 'الأستاذ محمد');
@@ -304,7 +304,10 @@ class KhamsaReviewTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.quran-profile'))
-            ->assertRedirect(route('portal.disabled'));
+            ->assertOk()
+            ->assertSee('الأستاذ محمد')
+            ->assertSee('الخمسة 1')
+            ->assertDontSee('الأستاذ سامي');
     }
 
     public function test_student_form_syncs_memorized_juz(): void
