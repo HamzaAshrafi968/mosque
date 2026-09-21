@@ -5,20 +5,18 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Guardian;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\QuranPageController;
+use App\Http\Controllers\Site;
 use App\Http\Controllers\Student as StudentPortal;
 use App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Teacher;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => auth()->check()
-    ? redirect()->route(match (true) {
-        auth()->user()->isSuperAdmin() => 'super-admin.dashboard',
-        auth()->user()->isAdmin() => 'admin.dashboard',
-        auth()->user()->isGuardian() => 'guardian.dashboard',
-        auth()->user()->isStudent() => 'student.dashboard',
-        default => 'teacher.dashboard',
-    })
-    : redirect()->route('login'));
+// ---- الموقع العام (يُفهرس في محركات البحث) ----
+Route::get('/', [Site\HomeController::class, 'index'])->name('site.home');
+Route::get('mosques', [Site\MosqueController::class, 'index'])->name('site.mosques.index');
+Route::get('mosques/{mosque:code}', [Site\MosqueController::class, 'show'])->name('site.mosques.show');
+Route::get('sitemap.xml', [Site\SitemapController::class, 'index'])->name('site.sitemap');
+Route::get('robots.txt', [Site\RobotsController::class, 'index'])->name('site.robots');
 
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthController::class, 'showLogin'])->name('login');
@@ -603,9 +601,9 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::get('subjects', [StudentPortal\PortalController::class, 'subjects'])->name('subjects');
     Route::get('teachers', [StudentPortal\PortalController::class, 'teachers'])->name('teachers');
     Route::get('exams', [StudentPortal\PortalController::class, 'exams'])->name('exams');
-    Route::get('exams/{exam}/start', [StudentPortal\ExamController::class, 'start'])->name('exams.start');
-    Route::get('exams/{exam}/take', [StudentPortal\ExamController::class, 'take'])->name('exams.take');
-    Route::post('exams/{exam}/submit', [StudentPortal\ExamController::class, 'submit'])->name('exams.submit');
+    Route::get('exams/{exam}/start', [StudentPortal\ExamController::class, 'start'])->name('exams.start')->middleware('throttle:exam-actions');
+    Route::get('exams/{exam}/take', [StudentPortal\ExamController::class, 'take'])->name('exams.take')->middleware('throttle:exam-actions');
+    Route::post('exams/{exam}/submit', [StudentPortal\ExamController::class, 'submit'])->name('exams.submit')->middleware('throttle:exam-actions');
     Route::get('exams/{exam}/result', [StudentPortal\ExamController::class, 'result'])->name('exams.result');
     Route::get('grades', [StudentPortal\PortalController::class, 'grades'])->name('grades');
     Route::get('homeworks', [StudentPortal\PortalController::class, 'homeworks'])->name('homeworks');

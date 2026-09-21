@@ -46,6 +46,16 @@
             <input type="text" name="address" value="{{ old('address', $mosque?->address) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
         </div>
 
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">نبذة عن الجامع (تظهر في الموقع العام)</label>
+            <textarea name="description" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="تعريف مختصر بالجامع وأنشطته وحلقاته...">{{ old('description', $mosque?->description) }}</textarea>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">رابط الموقع على الخريطة (اختياري)</label>
+            <input type="url" name="map_url" dir="ltr" value="{{ old('map_url', $mosque?->map_url) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="https://maps.app.goo.gl/...">
+        </div>
+
         @if(!$isEdit)
             <div class="border-t border-gray-100 pt-4">
                 <h3 class="font-bold text-gray-700 mb-3">مدير الجامع (اختياري — يمكن إضافته لاحقاً)</h3>

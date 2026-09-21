@@ -178,16 +178,22 @@ php artisan optimize:clear
 - المسار الموحّد يقبل أي من الصلاحيتين (`permission:quran.completion.view,hafiz_profile.view`) ويعرض التبويبات حسب صلاحيات المستخدم؛ زر التأكيد بـ`quran.completion.confirm`، وروابط الملف/الرحلة بـ`hafiz_profile.view`/`quran.tasmee.view`. التأكيد ينقل إلى تبويب الحفاظ مباشرة.
 - `admin.quran.hafiz.index` يحوّل إلى `admin.quran.completions.index?status=confirmed` (`HafizController::index`)، وأُزيل زر «الحفاظ» من الـSidebar ومن صفحة البرنامج التأهيلي، وبقيت صفحة `admin.quran.hafiz.profile` كما هي. `tests/Feature/QuranProgramsTest.php` + `tests/Feature/PermissionQaTest.php`.
 
+### الموقع العام (public site + SEO) — صفحة للمؤسسة + صفحة لكل جامع
+- مسارات عامة بلا تسجيل دخول في `routes/web.php`: `/` (`site.home` — المؤسسة)، `/mosques` (`site.mosques.index`)، `/mosques/{mosque:code}` (`site.mosques.show`)، `/sitemap.xml`، `/robots.txt` — عبر `app/Http/Controllers/Site/{Home,Mosque,Sitemap,Robots}Controller` والقوالب في `resources/views/site/` (layout مستقل `site/layouts/app` + `partials/mosque-card`). المسجَّل يبقى يُحوَّل من `/` إلى داشبورده (نفس منطق `AuthController`).
+- المحتوى: نصوص المؤسسة من `config/site.php` (يمكن تجاوزها بـ`SITE_*` في `.env`، ومنها `SITE_PHONE/SITE_EMAIL/SITE_ADDRESS/SITE_*` للتواصل)، وبيانات كل جامع من `tenants` (`name/code/phone/email/address/logo`) + العمودان الجديدان `description` و`map_url` (migration `2026_09_21_000005`، يُحرَّران من `/super-admin/mosques/{mosque}/edit`) + `Tenant::publiclyVisible()` (نشط أو بلا حالة) و`isPubliclyVisible()` و`logoUrl()`. الجامع يظهر علناً فقط إذا كان نشطاً وله `code`؛ الموقوف/المؤرشف 404 ولا يدخل الـsitemap. زر «الصفحة العامة» في `/super-admin/mosques`.
+- SEO: `<title>`/description/canonical/OG/Twitter مع تهريب القيم + JSON-LD (`EducationalOrganization` في الرئيسية و`Mosque` لكل جامع)، `noindex, nofollow` في `layouts/guest` (الدخول) و`layouts/app` (كل البوابات)، `PreventBrowserCache` يتخطى استجابات الزوار (عدا صفحة الدخول) حتى تُفهرس الصفحات العامة، و`robots.txt` الديناميكي يمنع `/admin|/teacher|/student|/guardian|/super-admin|/api/|/login|/notifications|/quran/pages/` ويشير للـsitemap. `tests/Feature/PublicSiteTest.php`.
+
 ### Route structure
 | File / prefix | Auth | Purpose |
 |------|------|---------|
+| `routes/web.php` → `/`, `/mosques/*`, `/sitemap.xml`, `/robots.txt` | public | موقع تعريفي عام (SEO): المؤسسة + صفحة لكل جامع |
 | `routes/web.php` → `/admin/*` | `role:admin` | Mosque manager Blade UI (students/teachers/classes/schedules/attendance/exams/grades/reports/announcements/quran/reward-points/users) |
 | `routes/web.php` → `/teacher/*` | `role:teacher` | Teacher Blade UI |
 | `routes/web.php` → `/super-admin/*` | `role:super_admin` | Central management: mosques CRUD, per-mosque users + roles + permission matrix, enter-mosque context |
 | `routes/web.php` → `/student/*`, `/guardian/*` | `role:student` / `role:guardian` | Student & guardian portals (dashboard, profile, attendance, grades, exams, homeworks, Quran, reward points, announcements) |
 | `routes/api.php` → `/api/v1/*` | `auth:sanctum` + `tenant` | Mobile API (login/logout/me, admin & teacher areas) |
 
-No public register (removed). Login only. Unauthenticated endpoints: `POST /api/v1/login`.
+No public register (removed). Unauthenticated endpoints: `POST /api/v1/login` + الموقع العام (`/`, `/mosques/*`, `/sitemap.xml`, `/robots.txt`).
 
 ### Controllers
 - `app/Http/Controllers/Admin/`, `Teacher/`, `SuperAdmin/` — Blade controllers (sub-`Actions/` for shared ops).

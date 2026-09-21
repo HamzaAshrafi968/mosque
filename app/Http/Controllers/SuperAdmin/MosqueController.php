@@ -42,6 +42,8 @@ class MosqueController extends Controller
                 'phone' => $data['phone'] ?? null,
                 'email' => $data['email'] ?? null,
                 'address' => $data['address'] ?? null,
+                'description' => $data['description'] ?? null,
+                'map_url' => $data['map_url'] ?? null,
                 'status' => 'active',
                 'is_active' => true,
             ]);
@@ -136,6 +138,8 @@ class MosqueController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'map_url' => ['nullable', 'url', 'max:500'],
             'status' => ['sometimes', 'in:active,inactive,archived'],
             'manager_name' => ['nullable', 'required_with:manager_email', 'string', 'max:255'],
             'manager_email' => ['nullable', 'email', 'max:255', 'unique:users,email'],

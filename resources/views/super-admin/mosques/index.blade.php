@@ -48,6 +48,9 @@
                                     <button type="submit" class="px-2.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs">الحضور والغياب</button>
                                 </form>
                                 <a href="{{ route('super-admin.mosques.edit', $mosque) }}" class="px-2.5 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg text-xs">تعديل</a>
+                                @if ($mosque->code && $mosque->isPubliclyVisible())
+                                    <a href="{{ route('site.mosques.show', $mosque) }}" target="_blank" rel="noopener" class="px-2.5 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg text-xs">الصفحة العامة</a>
+                                @endif
                                 <form method="POST" action="{{ route('super-admin.mosques.destroy', $mosque) }}" onsubmit="return confirm('سيتم أرشفة هذا الجامع. هل أنت متأكد؟')">
                                     @csrf
                                     @method('DELETE')
