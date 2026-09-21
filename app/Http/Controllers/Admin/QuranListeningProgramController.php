@@ -16,6 +16,7 @@ use App\Services\AuthorizationService;
 use App\Services\QuranListeningProgramService;
 use App\Services\QuranPageService;
 use App\Services\QuranProgramBatchService;
+use App\Services\QuranProgramService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -33,6 +34,7 @@ class QuranListeningProgramController extends Controller
     public function __construct(
         private readonly QuranListeningProgramService $programs,
         private readonly QuranProgramBatchService $batches,
+        private readonly QuranProgramService $programEnrollments,
         private readonly QuranPageService $pages,
         private readonly AuthorizationService $authorization,
     ) {}
@@ -67,11 +69,16 @@ class QuranListeningProgramController extends Controller
                 ?? $studentPrograms->first(fn (QuranListeningProgram $program) => $program->type === $type);
         }
 
+        $students = Student::query()->active()->orderBy('name')->get(['id', 'name']);
+        $eligibleIds = $this->programEnrollments->completedIjazahStudentIds($students->pluck('id'));
+        $eligibleStudents = $students->whereIn('id', $eligibleIds)->values();
+
         return view('admin.quran.programs.index', array_merge($this->panelFor($selected), [
             'programs' => $programs,
             'selectedStudent' => $selectedStudent,
             'selectedType' => $type,
-            'students' => Student::query()->active()->orderBy('name')->get(['id', 'name']),
+            'students' => $students,
+            'eligibleStudents' => $eligibleStudents,
             'types' => ProgramType::cases(),
             'readings' => QuranReading::cases(),
             'canTest' => $this->authorization->can($request->user(), 'quran_training.test'),

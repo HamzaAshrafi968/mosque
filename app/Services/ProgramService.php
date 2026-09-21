@@ -589,7 +589,10 @@ class ProgramService
         return $query->orderBy('sort_order')->orderBy('name')->get();
     }
 
-    /** هل للدوام قائمة برامج محددة؟ (لا ارتباطات = كل البرامج متاحة) */
+    /**
+     * هل للدوام قائمة برامج محددة؟ (لا ارتباطات = كل البرامج متاحة)
+     * البرامج المعطّلة لا تُحتسب قيوداً لأنها غير قابلة للجدولة أصلاً.
+     */
     public function sessionRestrictsPrograms(?string $studySessionId): bool
     {
         if (blank($studySessionId)) {
@@ -597,7 +600,9 @@ class ProgramService
         }
 
         return DB::table('program_study_session')
-            ->where('study_session_id', $studySessionId)
+            ->join('programs', 'programs.id', '=', 'program_study_session.program_id')
+            ->where('program_study_session.study_session_id', $studySessionId)
+            ->where('programs.is_active', true)
             ->exists();
     }
 
@@ -613,17 +618,30 @@ class ProgramService
 
         return DB::table('program_study_session')
             ->join('study_sessions', 'study_sessions.id', '=', 'program_study_session.study_session_id')
+            ->join('programs', 'programs.id', '=', 'program_study_session.program_id')
             ->when($tenantId !== null, fn ($q) => $q->where('study_sessions.tenant_id', $tenantId))
+            ->where('programs.is_active', true)
             ->get(['program_study_session.study_session_id', 'program_study_session.program_id'])
             ->groupBy('study_session_id')
             ->map(fn ($rows) => $rows->pluck('program_id')->values()->all())
             ->all();
     }
 
-    /** هل البرنامج مسموح في الدوام المحدد؟ (بلا دوام أو بلا قيود = مسموح) */
+    /**
+     * هل البرنامج مسموح في الدوام المحدد؟ (بلا دوام أو بلا قيود = مسموح)
+     * البرنامج المعطّل مرفوض دائماً — لا يُجدول.
+     */
     public function programAllowedInSession(?string $programId, ?string $studySessionId): bool
     {
-        if (blank($programId) || blank($studySessionId) || ! $this->sessionRestrictsPrograms($studySessionId)) {
+        if (blank($programId)) {
+            return true;
+        }
+
+        if (! Program::query()->whereKey($programId)->active()->exists()) {
+            return false;
+        }
+
+        if (blank($studySessionId) || ! $this->sessionRestrictsPrograms($studySessionId)) {
             return true;
         }
 

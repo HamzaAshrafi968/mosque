@@ -27,7 +27,14 @@ class ScheduleController extends Controller
 
     public function index(Request $request, ProgramService $programService): View
     {
+        // فلتر الدوام في الصفحة يتقدّم على دوام الترويسة عند إرساله صراحةً
+        // (حتى لا يتعارضا فيظهر الجدول فارغاً).
+        $effectiveSessionId = $request->has('study_session_id')
+            ? ($request->input('study_session_id') ?: null)
+            : config('app.current_study_session_id');
+
         $schedules = Schedule::query()
+            ->withoutGlobalScope('study_session')
             ->notExpired()
             ->with([
                 'classroom:id,name',
@@ -38,19 +45,41 @@ class ScheduleController extends Controller
                 'programPeriod:id,name,starts_at,ends_at',
                 'studySession:id,name,gender',
             ])
+            ->when($effectiveSessionId, fn ($q) => $q->where('study_session_id', $effectiveSessionId))
             ->when($request->filled('classroom_id'), fn ($q) => $q->where('classroom_id', $request->input('classroom_id')))
             ->when($request->filled('teacher_id'), fn ($q) => $q->where('teacher_id', $request->input('teacher_id')))
             ->when($request->filled('program_id'), fn ($q) => $q->where('program_id', $request->input('program_id')))
-            ->when($request->filled('study_session_id'), fn ($q) => $q->where('study_session_id', $request->input('study_session_id')))
             ->orderByStudySession()
             ->get();
+
+        // الصفوف والشعب تتبع الدوام المعروض: دوام الصف أو الصفوف المشتركة.
+        $classrooms = Classroom::query()
+            ->withoutGlobalScope('study_session')
+            ->when($effectiveSessionId, fn ($q) => $q->where(
+                fn ($sub) => $sub->where('study_session_id', $effectiveSessionId)->orWhereNull('study_session_id')
+            ))
+            ->with(['sections' => fn ($q) => $q->withoutGlobalScope('study_session')
+                ->select('id', 'classroom_id', 'name', 'study_session_id')
+                ->orderBy('name')])
+            ->orderBy('name')
+            ->get();
+
+        $teachers = Teacher::query()
+            ->withoutGlobalScope('study_session')
+            ->where('is_active', true)
+            ->when($effectiveSessionId, fn ($q) => $q->where(function ($sub) use ($effectiveSessionId) {
+                $sub->where('study_session_id', $effectiveSessionId)
+                    ->orWhereHas('studySessions', fn ($relation) => $relation->whereKey($effectiveSessionId));
+            }))
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return view('admin.schedules.index', [
             'schedules' => $schedules,
             'exceptions' => $this->sessions->upcomingExceptions($schedules->pluck('id')),
-            'classrooms' => Classroom::with('sections:id,classroom_id,name')->orderBy('name')->get(),
+            'classrooms' => $classrooms,
             'subjects' => Subject::orderBy('name')->get(['id', 'name']),
-            'teachers' => Teacher::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'teachers' => $teachers,
             'programs' => Program::query()
                 ->active()
                 ->with(['periods' => fn ($q) => $q->where('is_active', true)])
@@ -58,8 +87,15 @@ class ScheduleController extends Controller
                 ->orderBy('name')
                 ->get(),
             'sessionProgramMap' => $programService->sessionProgramMap(),
+            'classroomSessionMap' => $classrooms
+                ->filter(fn (Classroom $classroom) => $classroom->study_session_id !== null)
+                ->mapWithKeys(fn (Classroom $classroom) => [$classroom->id => $classroom->study_session_id]),
+            'sectionSessionMap' => $classrooms
+                ->flatMap(fn (Classroom $classroom) => $classroom->sections)
+                ->filter(fn ($section) => $section->study_session_id !== null)
+                ->mapWithKeys(fn ($section) => [$section->id => $section->study_session_id]),
             'studySessions' => StudySession::orderForDisplay()->get(['id', 'name', 'gender']),
-            'currentSessionId' => config('app.current_study_session_id'),
+            'currentSessionId' => $effectiveSessionId,
             'durations' => ScheduleDuration::cases(),
         ]);
     }

@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProgramEnrollmentStatus;
+use App\Enums\ProgramType;
 use App\Models\Announcement;
 use App\Models\Classroom;
 use App\Models\Permission;
+use App\Models\ProgramEnrollment;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\ShariaCourse;
@@ -156,6 +159,17 @@ class PermissionButtonQaTest extends TestCase
     {
         $mosque = $this->mosque();
         $manager = $this->manager($mosque);
+
+        // برنامج القراءات مرحلة متقدمة: النموذج يظهر للمؤهلين (أتموا الإجازة) فقط.
+        $student = Student::factory()->create(['tenant_id' => $mosque->id, 'status' => 'active']);
+
+        ProgramEnrollment::create([
+            'student_id' => $student->id,
+            'program_type' => ProgramType::Ijazah,
+            'started_at' => now()->subMonth()->toDateString(),
+            'completed_at' => now()->toDateString(),
+            'status' => ProgramEnrollmentStatus::Completed,
+        ]);
 
         $this->actingAs($manager)
             ->get(route('admin.quran.programs.index', ['type' => 'readings']))

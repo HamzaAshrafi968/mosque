@@ -38,6 +38,7 @@ class QuranProgramService
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly QuranSettingsService $settings,
+        private readonly NotificationService $notifications,
     ) {}
 
     /** Record a completion request (pending confirmation). */
@@ -158,6 +159,8 @@ class QuranProgramService
         }
 
         $this->completeEnrollment($enrollment, $actor);
+
+        $this->inviteToReadings($enrollment->student);
     }
 
     /**
@@ -310,6 +313,58 @@ class QuranProgramService
     }
 
     /**
+     * هل أتمّ الطالب برنامج الإجازة؟ — شرط دخول برنامج القراءات (المرحلة
+     * المتقدمة الاختيارية). يغطي المسارين: الإنهاء اليدوي (completeIjazah)
+     * والإنهاء التلقائي عند اجتياز اختبار 1–30
+     * (QuranProgramBatchService::completeCycle).
+     */
+    public function hasCompletedIjazah(Student $student): bool
+    {
+        return ProgramEnrollment::query()
+            ->where('student_id', $student->id)
+            ->where('program_type', ProgramType::Ijazah)
+            ->where('status', ProgramEnrollmentStatus::Completed)
+            ->exists();
+    }
+
+    /**
+     * الفلترة الجماعية للمؤهلين لبرنامج القراءات (استعلام واحد — بلا N+1).
+     *
+     * @param  Collection<int, string>|array<int, string>  $studentIds
+     * @return Collection<int, string>
+     */
+    public function completedIjazahStudentIds(Collection|array $studentIds): Collection
+    {
+        $studentIds = collect($studentIds)->unique()->values();
+
+        if ($studentIds->isEmpty()) {
+            return collect();
+        }
+
+        return ProgramEnrollment::query()
+            ->whereIn('student_id', $studentIds)
+            ->where('program_type', ProgramType::Ijazah)
+            ->where('status', ProgramEnrollmentStatus::Completed)
+            ->pluck('student_id')
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * فرض البوابة التراتبية: لا تسجيل قراءات قبل إتمام الإجازة.
+     */
+    public function assertReadingsEligible(Student $student, string $field = 'student_id'): void
+    {
+        if ($this->hasCompletedIjazah($student)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            $field => ['لا يمكن التسجيل في برنامج القراءات قبل إتمام برنامج الإجازة — القراءات مرحلة متقدمة اختيارية تأتي بعد الإجازة'],
+        ]);
+    }
+
+    /**
      * Ensure an active enrollment exists for the student and return it
      * (existing or newly created) — idempotent. Used by the automatic
      * transitions and by the listening programs (إجازة/تأهيلي/قراءات).
@@ -342,6 +397,20 @@ class QuranProgramService
         $this->audit->logModel('program.enrollment.created', $enrollment, actor: $actor);
 
         return $enrollment;
+    }
+
+    /**
+     * دعوة اختيارية لبرنامج القراءات بعد إتمام الإجازة: الطالب يسجّل أو لا
+     * من «برامجي» (لا تسجيل تلقائي — المرحلة اختيارية).
+     */
+    public function inviteToReadings(Student $student): void
+    {
+        $this->notifications->notifyStudentCircle(
+            $student,
+            'أتممت برنامج الإجازة — القراءات مرحلة متقدمة اختيارية',
+            'ما شاء الله! أتممت برنامج الإجازة. يمكنك الآن — إن رغبت — التسجيل في برنامج القراءات (القراءات العشر) من «برامجي». التسجيل اختياري بالكامل.',
+            route('student.quran-programs.index'),
+        );
     }
 
     private function completeEnrollment(ProgramEnrollment $enrollment, ?User $actor): void

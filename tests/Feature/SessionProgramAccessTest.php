@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\Repositories\ScheduleRepositoryInterface;
 use App\Models\Classroom;
 use App\Models\Program;
+use App\Models\Schedule;
+use App\Models\Section;
 use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Models\Tenant;
@@ -327,5 +330,199 @@ class SessionProgramAccessTest extends TestCase
         $this->assertFalse($service->sessionRestrictsPrograms(null));
         $this->assertCount(5, $service->availablePrograms(null));
         $this->assertTrue($service->programAllowedInSession(null, null));
+    }
+
+    // ------------------------------------------- page filter / form maps
+
+    public function test_schedule_page_shift_filter_overrides_the_active_session(): void
+    {
+        [$mosque, $manager] = $this->mosqueWithPrograms();
+        [$first, $second] = $this->sessions($mosque);
+
+        $firstClassroom = Classroom::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'صف النور',
+            'study_session_id' => $first->id,
+        ]);
+        $secondClassroom = Classroom::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'صف الفجر',
+            'study_session_id' => $second->id,
+        ]);
+
+        Schedule::create([
+            'tenant_id' => $mosque->id,
+            'classroom_id' => $firstClassroom->id,
+            'teacher_id' => $this->teacher($mosque, $first->id)->id,
+            'study_session_id' => $first->id,
+            'day_of_week' => 0,
+            'starts_at' => '08:00',
+            'ends_at' => '09:00',
+        ]);
+
+        Schedule::create([
+            'tenant_id' => $mosque->id,
+            'classroom_id' => $secondClassroom->id,
+            'teacher_id' => $this->teacher($mosque, $second->id)->id,
+            'study_session_id' => $second->id,
+            'day_of_week' => 1,
+            'starts_at' => '10:00',
+            'ends_at' => '11:00',
+        ]);
+
+        // الترويسة على الدوام الأول، لكن فلتر الصفحة يطلب الثاني: يجب أن
+        // يعرض الثاني ولا يعود فارغاً بسبب تعارض الفلترين.
+        session(['study_session_id' => $first->id]);
+
+        $this->actingAs($manager)
+            ->get(route('admin.schedules.index', ['study_session_id' => $second->id]))
+            ->assertOk()
+            ->assertSee('صف الفجر')
+            ->assertDontSee('صف النور');
+    }
+
+    public function test_schedule_page_exposes_classroom_and_section_session_maps(): void
+    {
+        [$mosque, $manager] = $this->mosqueWithPrograms();
+        [$first] = $this->sessions($mosque);
+
+        $classroom = Classroom::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'الصف الأول',
+            'study_session_id' => $first->id,
+        ]);
+        $section = Section::create([
+            'tenant_id' => $mosque->id,
+            'classroom_id' => $classroom->id,
+            'name' => 'أ',
+        ]);
+
+        $this->actingAs($manager)
+            ->get(route('admin.schedules.index'))
+            ->assertOk()
+            ->assertSee('classroomSessionMap', false)
+            ->assertSee('sectionSessionMap', false)
+            ->assertSee(json_encode([$classroom->id => $first->id]), false)
+            ->assertSee(json_encode([$section->id => $first->id]), false);
+    }
+
+    public function test_schedule_creation_uses_the_inherited_classroom_shift_for_program_access(): void
+    {
+        [$mosque, $manager] = $this->mosqueWithPrograms();
+        [$first] = $this->sessions($mosque);
+        $tahfeez = $this->program($mosque, 'tahfeez');
+        $ijazah = $this->program($mosque, 'ijazah');
+
+        $first->programs()->attach($tahfeez->id);
+
+        $classroom = Classroom::create([
+            'tenant_id' => $mosque->id,
+            'name' => 'الصف الأول',
+            'study_session_id' => $first->id,
+        ]);
+
+        $payload = [
+            'classroom_id' => $classroom->id,
+            'teacher_id' => $this->teacher($mosque, $first->id)->id,
+            'day_of_week' => 0,
+            'starts_at' => '06:00',
+            'ends_at' => '07:00',
+        ];
+
+        // بلا دوام في الطلب: يُورَّث دوام الصف ويُرفض البرنامج غير المتاح فيه.
+        $this->actingAs($manager)
+            ->post(route('admin.schedules.store'), $payload + ['program_id' => $ijazah->id])
+            ->assertSessionHasErrors('program_id');
+
+        $this->assertDatabaseCount('schedules', 0);
+
+        $this->actingAs($manager)
+            ->post(route('admin.schedules.store'), $payload + ['program_id' => $tahfeez->id])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('schedules', 1);
+    }
+
+    // ----------------------------------------------- inactive programs
+
+    public function test_inactive_program_does_not_restrict_its_shift(): void
+    {
+        [$mosque] = $this->mosqueWithPrograms();
+        [$first] = $this->sessions($mosque);
+        $tahfeez = $this->program($mosque, 'tahfeez');
+
+        $first->programs()->attach($tahfeez->id);
+        $tahfeez->update(['is_active' => false]);
+
+        $service = app(ProgramService::class);
+
+        $this->assertFalse($service->sessionRestrictsPrograms($first->id));
+        $this->assertSame([], $service->sessionProgramMap());
+        $this->assertCount(4, $service->availablePrograms($first->id));
+    }
+
+    public function test_schedule_creation_rejects_an_inactive_program(): void
+    {
+        [$mosque, $manager] = $this->mosqueWithPrograms();
+        [$first] = $this->sessions($mosque);
+        $tahfeez = $this->program($mosque, 'tahfeez');
+
+        $tahfeez->update(['is_active' => false]);
+
+        $this->actingAs($manager)
+            ->post(route('admin.schedules.store'), [
+                'classroom_id' => $this->classroom($mosque)->id,
+                'teacher_id' => $this->teacher($mosque, $first->id)->id,
+                'program_id' => $tahfeez->id,
+                'study_session_id' => $first->id,
+                'day_of_week' => 0,
+                'starts_at' => '06:00',
+                'ends_at' => '07:00',
+            ])
+            ->assertSessionHasErrors('program_id');
+
+        $this->assertDatabaseCount('schedules', 0);
+    }
+
+    public function test_api_schedule_list_uses_the_requested_shift_over_the_active_one(): void
+    {
+        [$mosque] = $this->mosqueWithPrograms();
+        [$first, $second] = $this->sessions($mosque);
+
+        $firstSchedule = Schedule::create([
+            'tenant_id' => $mosque->id,
+            'classroom_id' => $this->classroom($mosque)->id,
+            'teacher_id' => $this->teacher($mosque, $first->id)->id,
+            'study_session_id' => $first->id,
+            'day_of_week' => 0,
+            'starts_at' => '08:00',
+            'ends_at' => '09:00',
+        ]);
+
+        $secondSchedule = Schedule::create([
+            'tenant_id' => $mosque->id,
+            'classroom_id' => $this->classroom($mosque)->id,
+            'teacher_id' => $this->teacher($mosque, $second->id)->id,
+            'study_session_id' => $second->id,
+            'day_of_week' => 1,
+            'starts_at' => '10:00',
+            'ends_at' => '11:00',
+        ]);
+
+        config(['app.current_study_session_id' => $first->id]);
+
+        $repository = app(ScheduleRepositoryInterface::class);
+
+        // الدوام المطلوب صراحةً يتقدّم على دوام الترويسة النشط.
+        $this->assertSame(
+            [$secondSchedule->id],
+            $repository->getWithFilters(['study_session_id' => $second->id])->pluck('id')->all()
+        );
+
+        // بلا طلب صريح يبقى دوام الترويسة هو الفلتر.
+        $this->assertSame(
+            [$firstSchedule->id],
+            $repository->getWithFilters([])->pluck('id')->all()
+        );
     }
 }

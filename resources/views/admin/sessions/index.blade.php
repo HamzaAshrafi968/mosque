@@ -109,7 +109,10 @@
                             <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">كل البرامج</span>
                         @else
                             @foreach($session->programs as $program)
-                                <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{{ $program->name }}</span>
+                                <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                                    {{ $program->name }}
+                                    @if(! $program->is_active)<span class="text-red-600">(معطّل)</span>@endif
+                                </span>
                             @endforeach
                         @endif
                     </div>
@@ -124,6 +127,7 @@
                                            @checked($session->programs->contains('id', $program->id))
                                            class="rounded border-gray-300 text-emerald-700">
                                     {{ $program->name }}
+                                    @if(! $program->is_active)<span class="text-[10px] text-red-600">(معطّل)</span>@endif
                                 </label>
                             @endforeach
                             <p class="text-[11px] text-gray-400">اترك الكل فارغاً ليظهر كل البرامج في هذا الدوام (مثال: الدوام الأول للتحفيظ والإجازة، والثاني للتسميع فقط).</p>

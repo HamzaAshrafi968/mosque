@@ -21,35 +21,47 @@
             @endforeach
         </div>
 
-        {{-- تسجيل في برنامج القراءات (قراءة من القراءات العشر) --}}
+        {{-- تسجيل في برنامج القراءات (قراءة من القراءات العشر) — بعد إتمام الإجازة --}}
         @if ($selectedType === \App\Enums\ProgramType::Readings && ($canEnroll ?? false))
-            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
-                <h2 class="font-extrabold text-emerald-900">تسجيل طالب في برنامج القراءات</h2>
-                <p class="text-xs text-emerald-800/80 mt-1 mb-4">
-                    اختر الطالب والقراءة — يمكن تسجيل الطالب في أكثر من قراءة (قراءات متوازية).
-                </p>
-                <form method="POST" action="{{ route('teacher.quran.programs.enroll') }}" class="flex flex-wrap items-end gap-3">
-                    @csrf
-                    <div class="min-w-56 flex-1">
-                        <label class="block text-xs font-bold text-gray-600 mb-1">الطالب</label>
-                        <select name="student_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
-                            <option value="">اختر الطالب</option>
-                            @foreach ($students as $student)
-                                <option value="{{ $student->id }}" @selected(old('student_id') === $student->id)>{{ $student->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="min-w-56 flex-1">
-                        <label class="block text-xs font-bold text-gray-600 mb-1">القراءة</label>
-                        <select name="reading" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
-                            @foreach ($readings as $reading)
-                                <option value="{{ $reading->value }}" @selected(old('reading') === $reading->value)>{{ $reading->label() }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <button class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-2 rounded-xl text-sm">تسجيل في القراءات</button>
-                </form>
-            </div>
+            @if ($eligibleStudents->isNotEmpty())
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                    <h2 class="font-extrabold text-emerald-900">تسجيل طالب في برنامج القراءات</h2>
+                    <p class="text-xs text-emerald-800/80 mt-1 mb-4">
+                        مرحلة متقدمة اختيارية تُفتح بعد إتمام برنامج الإجازة — اختر الطالب المؤهل والقراءة، ويمكن تسجيل الطالب في أكثر من قراءة (قراءات متوازية).
+                    </p>
+                    <form method="POST" action="{{ route('teacher.quran.programs.enroll') }}" class="flex flex-wrap items-end gap-3">
+                        @csrf
+                        <div class="min-w-56 flex-1">
+                            <label class="block text-xs font-bold text-gray-600 mb-1">الطالب المؤهل (أتم الإجازة)</label>
+                            <select name="student_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                                <option value="">اختر الطالب</option>
+                                @foreach ($eligibleStudents as $student)
+                                    <option value="{{ $student->id }}" @selected(old('student_id') === $student->id)>{{ $student->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('student_id')
+                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div class="min-w-56 flex-1">
+                            <label class="block text-xs font-bold text-gray-600 mb-1">القراءة</label>
+                            <select name="reading" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                                @foreach ($readings as $reading)
+                                    <option value="{{ $reading->value }}" @selected(old('reading') === $reading->value)>{{ $reading->label() }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-2 rounded-xl text-sm">تسجيل في القراءات</button>
+                    </form>
+                </div>
+            @else
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                    <h2 class="font-extrabold text-amber-900">برنامج القراءات — مرحلة متقدمة اختيارية</h2>
+                    <p class="text-xs text-amber-800/80 mt-1">
+                        لا يوجد طلاب مؤهلون بعد — يُفتح التسجيل في القراءات بعد إتمام برنامج الإجازة.
+                    </p>
+                </div>
+            @endif
         @endif
 
         {{-- تصفية بالطالب --}}

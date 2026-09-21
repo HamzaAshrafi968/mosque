@@ -623,8 +623,9 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::post('quran-listening/items/{item}/progress', [StudentPortal\QuranListeningController::class, 'progress'])->name('quran-listening.items.progress')->middleware('permission:quran_listening.listen');
     Route::get('quran-listening/{plan}', [StudentPortal\QuranListeningController::class, 'show'])->name('quran-listening.show');
 
-    // ---- «برامجي»: برامج الاستماع (إجازة/تأهيلي) — عرض فقط ----
+    // ---- «برامجي»: برامج الاستماع (إجازة/تأهيلي) + تسجيل ذاتي اختياري في القراءات بعد الإجازة ----
     Route::get('quran-programs', [StudentPortal\QuranListeningProgramController::class, 'index'])->name('quran-programs.index')->middleware('permission:quran_training.view');
+    Route::post('quran-programs/enroll', [StudentPortal\QuranListeningProgramController::class, 'enroll'])->name('quran-programs.enroll')->middleware('permission:quran_training.enroll');
 });
 
 // ---- Sheikh portal additions: sections & finance ledger (spec §19-§32) ----

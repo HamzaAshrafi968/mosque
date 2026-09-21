@@ -21,7 +21,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-800">البرامج القرآنية</h2>
-            <p class="text-sm text-gray-500 mt-1">رحلة الطالب: تسميع ← إتمام الحفظ ← حافظ ← البرنامج التأهيلي ← برنامج الإجازة · والقراءات مرحلة متقدمة اختيارية</p>
+            <p class="text-sm text-gray-500 mt-1">رحلة الطالب: تسميع ← إتمام الحفظ ← حافظ ← البرنامج التأهيلي ← برنامج الإجازة ← (اختياري) برنامج القراءات · والقراءات مرحلة متقدمة اختيارية تُفتح بعد إتمام الإجازة</p>
         </div>
         <div class="flex gap-2 flex-wrap">
             @if ($can('quran.tasmee.create'))
@@ -58,7 +58,7 @@
         @if ($canPrograms)
             <a href="{{ route('admin.quran.programs.index', ['type' => 'readings']) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                 <div class="text-3xl font-extrabold text-violet-700">{{ $stats['readings'] }}</div>
-                <div class="text-xs text-gray-500 mt-1 font-bold">ببرنامج القراءات</div>
+                <div class="text-xs text-gray-500 mt-1 font-bold">ببرنامج القراءات (بعد الإجازة)</div>
             </a>
         @endif
         @if ($can('quran.completion.view'))

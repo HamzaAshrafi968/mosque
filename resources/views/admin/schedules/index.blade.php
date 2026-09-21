@@ -62,7 +62,7 @@
             <select name="study_session_id" id="filter-session" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                 <option value="">كل الدوامات</option>
                 @foreach($studySessions as $session)
-                    <option value="{{ $session->id }}" @selected(request('study_session_id') == $session->id)>{{ $session->display_name }}</option>
+                    <option value="{{ $session->id }}" @selected((string) $currentSessionId === (string) $session->id)>{{ $session->display_name }}</option>
                 @endforeach
             </select>
         </div>
@@ -345,6 +345,11 @@
     // تعرض له كل البرامج. تُطبَّق على فلاتر البحث والنموذجين.
     const sessionProgramMap = @json($sessionProgramMap);
 
+    // دوام الصف/الشعبة: يُستخدم لاستنتاج الدوام عند تركه «بدون دوام» حتى
+    // تُرشَّح البرامج المتاحة فعلاً (نفس منطق الخادم).
+    const classroomSessionMap = @json($classroomSessionMap);
+    const sectionSessionMap = @json($sectionSessionMap);
+
     function allowedProgramIds(sessionId) {
         if (!sessionId) { return null; }
 
@@ -353,39 +358,79 @@
         return list ? new Set(list) : null;
     }
 
+    function applyProgramFilter(programSelect, sessionId) {
+        if (!programSelect) { return; }
+
+        const allowed = allowedProgramIds(sessionId);
+        let reset = false;
+
+        Array.from(programSelect.options).forEach(function (option) {
+            if (!option.value) { return; }
+
+            const hide = allowed !== null && !allowed.has(option.value);
+            option.hidden = hide;
+            option.disabled = hide;
+            option.style.display = hide ? 'none' : '';
+
+            if (hide && option.selected) { reset = true; }
+        });
+
+        if (reset) {
+            programSelect.value = '';
+            programSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
     function wireProgramSessionFilter(sessionSelectId, programSelectId) {
         const sessionSelect = document.getElementById(sessionSelectId);
         const programSelect = document.getElementById(programSelectId);
 
         if (!sessionSelect || !programSelect) { return; }
 
-        function apply() {
-            const allowed = allowedProgramIds(sessionSelect.value);
-            let reset = false;
-
-            Array.from(programSelect.options).forEach(function (option) {
-                if (!option.value) { return; }
-
-                const hide = allowed !== null && !allowed.has(option.value);
-                option.hidden = hide;
-                option.disabled = hide;
-                option.style.display = hide ? 'none' : '';
-
-                if (hide && option.selected) { reset = true; }
-            });
-
-            if (reset) {
-                programSelect.value = '';
-                programSelect.dispatchEvent(new Event('change'));
-            }
-        }
+        const apply = function () { applyProgramFilter(programSelect, sessionSelect.value); };
 
         sessionSelect.addEventListener('change', apply);
         apply();
     }
 
     wireProgramSessionFilter('filter-session', 'filter-program');
-    wireProgramSessionFilter('schedule-session', 'schedule-program');
+
+    // نموذج الإضافة: الدوام الفعّال = الدوام المختار، وإلا دوام الشعبة، وإلا
+    // دوام الصف — ثم تُرشَّح البرامج ويُزامَن اختيار الدوام مع الصف/الشعبة.
+    const addForm = document.getElementById('schedule-add-form');
+    const addSessionSelect = document.getElementById('schedule-session');
+    const addProgramSelect = document.getElementById('schedule-program');
+    const addClassroomSelect = addForm ? addForm.querySelector('select[name="classroom_id"]') : null;
+    const addSectionSelect = addForm ? addForm.querySelector('select[name="section_id"]') : null;
+
+    function derivedClassroomSession() {
+        if (addSectionSelect && addSectionSelect.value && sectionSessionMap[addSectionSelect.value]) {
+            return sectionSessionMap[addSectionSelect.value];
+        }
+
+        if (addClassroomSelect && addClassroomSelect.value && classroomSessionMap[addClassroomSelect.value]) {
+            return classroomSessionMap[addClassroomSelect.value];
+        }
+
+        return '';
+    }
+
+    function refreshAddFormPrograms() {
+        if (!addSessionSelect || !addProgramSelect) { return; }
+
+        const derived = derivedClassroomSession();
+
+        if (derived && addSessionSelect.value !== derived) {
+            addSessionSelect.value = derived;
+        }
+
+        applyProgramFilter(addProgramSelect, addSessionSelect.value);
+    }
+
+    if (addSessionSelect) { addSessionSelect.addEventListener('change', refreshAddFormPrograms); }
+    if (addClassroomSelect) { addClassroomSelect.addEventListener('change', refreshAddFormPrograms); }
+    if (addSectionSelect) { addSectionSelect.addEventListener('change', refreshAddFormPrograms); }
+    refreshAddFormPrograms();
 
     // «حتى انتهاء الدورة»: عرض تاريخ نهاية البرنامج المختار أو تنبيه بغيابه.
     const courseHint = document.getElementById('schedule-course-hint');
@@ -440,6 +485,8 @@
             if (startsOnInput && button.dataset.nextDate) { startsOnInput.value = button.dataset.nextDate; }
             if (classroomSelect && button.dataset.classroom) { classroomSelect.value = button.dataset.classroom; }
             if (sectionSelect && button.dataset.section) { sectionSelect.value = button.dataset.section; }
+
+            refreshAddFormPrograms();
         });
     });
 </script>

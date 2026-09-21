@@ -30,7 +30,7 @@ class StudySessionController extends Controller
     public function index(): View
     {
         $sessions = StudySession::query()
-            ->with(['programs:id,name,color'])
+            ->with(['programs:id,name,color,is_active'])
             ->withCount([
                 'students' => fn ($q) => $q->withoutGlobalScope('study_session'),
                 'teachers' => fn ($q) => $q->withoutGlobalScope('study_session'),
@@ -40,13 +40,16 @@ class StudySessionController extends Controller
             ->orderForDisplay()
             ->get();
 
+        // البرامج المعطّلة المرتبطة بأي دوام تبقى في القائمة حتى يمكن فكّها.
+        $assignedProgramIds = $sessions->flatMap->programs->pluck('id')->unique()->all();
+
         return view('admin.sessions.index', [
             'sessions' => $sessions,
             'programs' => Program::query()
-                ->active()
+                ->where(fn ($q) => $q->where('is_active', true)->orWhereIn('id', $assignedProgramIds))
                 ->orderBy('sort_order')
                 ->orderBy('name')
-                ->get(['id', 'name', 'color']),
+                ->get(['id', 'name', 'color', 'is_active']),
             'currentSessionId' => config('app.current_study_session_id'),
             'unassigned' => [
                 'students' => Student::query()->withoutGlobalScope('study_session')->whereNull('study_session_id')->count(),

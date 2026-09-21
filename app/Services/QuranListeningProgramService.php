@@ -91,6 +91,8 @@ class QuranListeningProgramService
      */
     public function enrollReadings(Student $student, QuranReading $reading, ?User $actor = null): QuranListeningProgram
     {
+        $this->programs->assertReadingsEligible($student);
+
         $enrollment = $this->programs->enrollIfAbsent(
             ProgramType::Readings,
             $student->id,

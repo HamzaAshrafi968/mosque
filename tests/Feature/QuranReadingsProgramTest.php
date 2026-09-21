@@ -4,29 +4,37 @@ namespace Tests\Feature;
 
 use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
+use App\Enums\QuranEvaluationResult;
 use App\Enums\QuranListeningBatchStatus;
 use App\Enums\QuranListeningProgramStatus;
 use App\Enums\QuranReading;
+use App\Models\IjazahMonthlyEvaluation;
+use App\Models\Permission;
 use App\Models\ProgramEnrollment;
 use App\Models\QuranListeningProgram;
 use App\Models\QuranListeningProgramBatch;
 use App\Models\QuranRecitationSession;
+use App\Models\Role;
 use App\Models\Student;
 use App\Models\StudySession;
 use App\Models\Teacher;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Notifications\PortalNotification;
 use App\Services\QuranListeningProgramService;
 use App\Services\QuranProgramBatchService;
+use App\Services\QuranProgramService;
 use App\Services\RoleService;
 use App\Services\StudySessionService;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
- * برنامج القراءات (القراءات العشر) — نوع اختياري متقدم بنفس محرك دفعات
- * التأهيلي/الإجازة:
+ * برنامج القراءات (القراءات العشر) — مرحلة متقدمة تراتبية اختيارية:
  *
- * - تسجيل يدوي من المدير/الأستاذ مع اختيار قراءة واحدة من العشر.
+ * - لا تسجيل قبل إتمام برنامج الإجازة (البوابة مفروضة في الخدمة على كل المسارات).
+ * - تسجيل ذاتي اختياري من بوابة الطالب (quran_training.enroll) + تسجيل المدير/الأستاذ.
  * - قراءات متوازية لنفس الطالب، وإعادة التسجيل لنفس القراءة idempotent.
  * - الإتمام يُنهي الدورة والالتحاق فقط: لا ختم تأهيل ولا تحويل تلقائي.
  */
@@ -71,8 +79,36 @@ class QuranReadingsProgramTest extends TestCase
         ]);
     }
 
+    /** طالب بوابة بحساب مستخدم مرتبط (للاختبارات الذاتية). */
+    private function studentUser(Tenant $mosque, StudySession $session): array
+    {
+        $user = User::factory()->create(['tenant_id' => $mosque->id, 'role' => User::ROLE_STUDENT]);
+        $student = $this->student($mosque, $session);
+        $student->update(['user_id' => $user->id]);
+
+        return [$user, $student];
+    }
+
+    /** إتمام الإجازة (الشرط التراتبي لدخول القراءات). */
+    private function completeIjazah(Student $student): ProgramEnrollment
+    {
+        return ProgramEnrollment::firstOrCreate(
+            [
+                'student_id' => $student->id,
+                'program_type' => ProgramType::Ijazah,
+                'status' => ProgramEnrollmentStatus::Completed,
+            ],
+            [
+                'started_at' => now()->subMonth()->toDateString(),
+                'completed_at' => now()->toDateString(),
+            ],
+        );
+    }
+
     private function enroll(Student $student, QuranReading $reading = QuranReading::Nafeh): QuranListeningProgram
     {
+        $this->completeIjazah($student);
+
         return app(QuranListeningProgramService::class)->enrollReadings($student, $reading);
     }
 
@@ -95,10 +131,128 @@ class QuranReadingsProgramTest extends TestCase
         $engine->recordBatchTest($batch->fresh(), $results, $actor);
     }
 
+    // ------------------------------------------------------------ البوابة التراتبية
+
+    public function test_admin_cannot_enroll_readings_before_ijazah_completion(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.programs.enroll'), [
+                'student_id' => $student->id,
+                'reading' => QuranReading::Nafeh->value,
+            ])
+            ->assertSessionHasErrors('student_id');
+
+        $this->assertSame(0, ProgramEnrollment::query()
+            ->where('student_id', $student->id)
+            ->where('program_type', ProgramType::Readings)
+            ->count());
+
+        $this->assertSame(0, QuranListeningProgram::query()
+            ->where('student_id', $student->id)
+            ->where('type', ProgramType::Readings)
+            ->count());
+    }
+
+    public function test_teacher_cannot_enroll_readings_before_ijazah_completion(): void
+    {
+        [$mosque, , $session] = $this->mosque();
+        [$teacherUser, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        // جلسة تسميع سابقة تُدخل الطالب في نطاق الأستاذ.
+        QuranRecitationSession::create([
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'revision',
+            'date' => now()->toDateString(),
+            'amount' => 1,
+        ]);
+
+        $this->actingAs($teacherUser)
+            ->post(route('teacher.quran.programs.enroll'), [
+                'student_id' => $student->id,
+                'reading' => QuranReading::Nafeh->value,
+            ])
+            ->assertSessionHasErrors('student_id');
+
+        $this->assertDatabaseMissing('program_enrollments', [
+            'student_id' => $student->id,
+            'program_type' => ProgramType::Readings->value,
+        ]);
+    }
+
+    public function test_service_rejects_readings_enrollment_without_completed_ijazah(): void
+    {
+        [$mosque, , $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+
+        $this->expectException(ValidationException::class);
+
+        app(QuranListeningProgramService::class)->enrollReadings($student, QuranReading::Nafeh);
+    }
+
+    public function test_gate_opens_after_completing_the_ijazah_cycle(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        [, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $enrollment = app(QuranProgramService::class)
+            ->enrollIfAbsent(ProgramType::Ijazah, $student->id, now()->toDateString(), $admin);
+        $program = app(QuranListeningProgramService::class)->ensureForEnrollment($enrollment);
+
+        $this->assertFalse(app(QuranProgramService::class)->hasCompletedIjazah($student));
+
+        for ($number = 1; $number <= QuranListeningProgramBatch::TOTAL_BATCHES; $number++) {
+            $this->passBatch($program->batches()->where('batch_number', $number)->firstOrFail(), $admin, $teacher);
+        }
+
+        $this->assertSame(ProgramEnrollmentStatus::Completed, $enrollment->fresh()->status);
+        $this->assertTrue(app(QuranProgramService::class)->hasCompletedIjazah($student));
+
+        $readings = app(QuranListeningProgramService::class)->enrollReadings($student, QuranReading::Asim);
+
+        $this->assertSame(ProgramType::Readings, $readings->type);
+        $this->assertSame(QuranReading::Asim, $readings->reading);
+    }
+
+    public function test_manual_ijazah_completion_opens_the_gate_and_invites_the_student(): void
+    {
+        Notification::fake();
+
+        [$mosque, $admin, $session] = $this->mosque();
+        [$studentUser, $student] = $this->studentUser($mosque, $session);
+
+        $enrollment = app(QuranProgramService::class)
+            ->enrollIfAbsent(ProgramType::Ijazah, $student->id, now()->toDateString(), $admin);
+
+        IjazahMonthlyEvaluation::create([
+            'student_id' => $student->id,
+            'month' => now()->format('Y-m'),
+            'amount' => 1,
+            'result' => QuranEvaluationResult::Passed,
+        ]);
+
+        app(QuranProgramService::class)->completeIjazah($enrollment, $admin);
+
+        $this->assertTrue(app(QuranProgramService::class)->hasCompletedIjazah($student));
+
+        Notification::assertSentTo($studentUser, PortalNotification::class, function (PortalNotification $notification) {
+            return str_contains($notification->title, 'القراءات')
+                && str_contains($notification->body, 'اختياري');
+        });
+    }
+
+    // ------------------------------------------------------------ التسجيل (مدير/أستاذ)
+
     public function test_admin_enrolls_a_student_in_a_reading_and_the_cycle_is_created(): void
     {
         [$mosque, $admin, $session] = $this->mosque();
         $student = $this->student($mosque, $session);
+        $this->completeIjazah($student);
 
         $response = $this->actingAs($admin)->post(route('admin.quran.programs.enroll'), [
             'student_id' => $student->id,
@@ -205,6 +359,8 @@ class QuranReadingsProgramTest extends TestCase
             'amount' => 1,
         ]);
 
+        $this->completeIjazah($student);
+
         $this->actingAs($teacherUser)
             ->post(route('teacher.quran.programs.enroll'), [
                 'student_id' => $student->id,
@@ -231,7 +387,7 @@ class QuranReadingsProgramTest extends TestCase
         ]);
     }
 
-    public function test_student_role_cannot_enroll_in_readings(): void
+    public function test_student_role_cannot_use_the_admin_enrollment_route(): void
     {
         [$mosque, , $session] = $this->mosque();
         $studentUser = User::factory()->create(['tenant_id' => $mosque->id, 'role' => 'student']);
@@ -244,6 +400,130 @@ class QuranReadingsProgramTest extends TestCase
             ])
             ->assertForbidden();
     }
+
+    // ------------------------------------------------------------ التسجيل الذاتي (الطالب)
+
+    public function test_student_self_enrolls_after_ijazah_completion(): void
+    {
+        Notification::fake();
+
+        [$mosque, , $session] = $this->mosque();
+        [$studentUser, $student] = $this->studentUser($mosque, $session);
+        $this->completeIjazah($student);
+
+        $response = $this->actingAs($studentUser)->post(route('student.quran-programs.enroll'), [
+            'reading' => QuranReading::Yaqub->value,
+        ]);
+
+        $program = QuranListeningProgram::query()
+            ->where('student_id', $student->id)
+            ->where('type', ProgramType::Readings)
+            ->firstOrFail();
+
+        $response->assertRedirect(route('student.quran-programs.index', ['program_id' => $program->id]));
+
+        $this->assertSame(QuranReading::Yaqub, $program->reading);
+        $this->assertSame(6, $program->batches()->count());
+        $this->assertDatabaseHas('program_enrollments', [
+            'student_id' => $student->id,
+            'program_type' => ProgramType::Readings->value,
+            'reading' => QuranReading::Yaqub->value,
+        ]);
+
+        Notification::assertSentTo($studentUser, PortalNotification::class);
+    }
+
+    public function test_student_self_enrollment_is_rejected_before_ijazah_completion(): void
+    {
+        [$mosque, , $session] = $this->mosque();
+        [$studentUser, $student] = $this->studentUser($mosque, $session);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.quran-programs.enroll'), [
+                'reading' => QuranReading::Yaqub->value,
+            ])
+            ->assertSessionHasErrors('reading');
+
+        $this->assertSame(0, QuranListeningProgram::query()
+            ->where('student_id', $student->id)
+            ->where('type', ProgramType::Readings)
+            ->count());
+    }
+
+    public function test_student_self_enrollment_requires_the_permission(): void
+    {
+        [$mosque, , $session] = $this->mosque();
+        [$studentUser, $student] = $this->studentUser($mosque, $session);
+        $this->completeIjazah($student);
+
+        $permission = Permission::where('code', 'quran_training.enroll')->firstOrFail();
+
+        Role::where('tenant_id', $mosque->id)
+            ->where('code', RoleService::ROLE_STUDENT)
+            ->firstOrFail()
+            ->permissions()
+            ->detach($permission->id);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.quran-programs.enroll'), [
+                'reading' => QuranReading::Yaqub->value,
+            ])
+            ->assertForbidden();
+    }
+
+    // ------------------------------------------------------------ الواجهات
+
+    public function test_readings_tab_renders_the_enrollment_form_for_eligible_students(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+        $this->completeIjazah($student);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.programs.index', ['type' => 'readings']))
+            ->assertOk()
+            ->assertSee('تسجيل طالب في برنامج القراءات')
+            ->assertSee('الطالب المؤهل (أتم الإجازة)')
+            ->assertSee('نافع المدني')
+            ->assertSee('خلف العاشر');
+    }
+
+    public function test_readings_tab_shows_the_gate_hint_when_no_eligible_students(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $this->student($mosque, $session);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.programs.index', ['type' => 'readings']))
+            ->assertOk()
+            ->assertSee('لا يوجد طلاب مؤهلون بعد')
+            ->assertDontSee('الطالب المؤهل (أتم الإجازة)');
+    }
+
+    public function test_student_portal_shows_optional_readings_card_only_when_eligible(): void
+    {
+        [$mosque, , $session] = $this->mosque();
+
+        [$eligibleUser] = $this->studentUser($mosque, $session);
+        $eligibleStudent = Student::where('user_id', $eligibleUser->id)->firstOrFail();
+        $this->completeIjazah($eligibleStudent);
+
+        $this->actingAs($eligibleUser)
+            ->get(route('student.quran-programs.index'))
+            ->assertOk()
+            ->assertSee('سجّلني في القراءات')
+            ->assertSee('القراءات العشر');
+
+        [$pendingUser] = $this->studentUser($mosque, $session);
+
+        $this->actingAs($pendingUser)
+            ->get(route('student.quran-programs.index'))
+            ->assertOk()
+            ->assertSee('يُفتح التسجيل الاختياري في برنامج القراءات')
+            ->assertDontSee('سجّلني في القراءات');
+    }
+
+    // ------------------------------------------------------------ الإتمام
 
     public function test_completing_a_reading_closes_cycle_and_enrollment_without_transfer(): void
     {
@@ -269,12 +549,12 @@ class QuranReadingsProgramTest extends TestCase
         // لا ختم تأهيل ولا تحويل تلقائي للإجازة ولا أي برنامج آخر.
         $this->assertSame(0, ProgramEnrollment::query()
             ->where('student_id', $student->id)
-            ->whereIn('program_type', [ProgramType::Qualifying, ProgramType::Ijazah])
+            ->whereIn('program_type', [ProgramType::Qualifying])
             ->count());
 
         $this->assertSame(0, QuranListeningProgram::query()
             ->where('student_id', $student->id)
-            ->whereIn('type', [ProgramType::Qualifying, ProgramType::Ijazah])
+            ->whereIn('type', [ProgramType::Qualifying])
             ->count());
 
         $this->assertDatabaseHas('audit_logs', ['action' => 'readings.completed']);
@@ -289,18 +569,6 @@ class QuranReadingsProgramTest extends TestCase
         $this->enroll($student, QuranReading::Nafeh);
 
         $this->assertNull(app(QuranProgramBatchService::class)->activeCycle($student));
-    }
-
-    public function test_readings_tab_renders_the_enrollment_form(): void
-    {
-        [$mosque, $admin, $session] = $this->mosque();
-
-        $this->actingAs($admin)
-            ->get(route('admin.quran.programs.index', ['type' => 'readings']))
-            ->assertOk()
-            ->assertSee('تسجيل طالب في برنامج القراءات')
-            ->assertSee('نافع المدني')
-            ->assertSee('خلف العاشر');
     }
 
     public function test_hafiz_profile_lists_completed_readings(): void

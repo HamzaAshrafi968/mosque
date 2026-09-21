@@ -112,7 +112,7 @@
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
-                <span class="font-bold text-gray-800">📖 طلاب برنامج القراءات</span>
+                <span class="font-bold text-gray-800">📖 طلاب برنامج القراءات <span class="text-[11px] font-normal text-gray-400">(مرحلة متقدمة اختيارية بعد الإجازة)</span></span>
                 @if ($canPrograms)
                     <a href="{{ route('teacher.quran.programs.index', ['type' => 'readings']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
                 @endif
