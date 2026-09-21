@@ -47,6 +47,12 @@ class QuranProgramController extends Controller
             ->where('status', ProgramEnrollmentStatus::Active)
             ->get();
 
+        $activeReadings = ProgramEnrollment::query()
+            ->with('student:id,name')
+            ->where('program_type', ProgramType::Readings)
+            ->where('status', ProgramEnrollmentStatus::Active)
+            ->get();
+
         // Students whose latest tasmee' result needs review.
         $needsReview = $this->studentsByLatestResult('needs_review');
 
@@ -63,12 +69,14 @@ class QuranProgramController extends Controller
                 'hafiz' => QuranCompletion::query()->where('status', QuranCompletionStatus::Confirmed)->distinct('student_id')->count('student_id'),
                 'qualifying' => $activeQualifying->count(),
                 'ijazah' => $activeIjazah->count(),
+                'readings' => $activeReadings->count(),
                 'pendingCompletions' => $pendingCompletions->count(),
                 'untestedMonth' => $untestedIds->count(),
             ],
             'pendingCompletions' => $pendingCompletions,
             'qualifyingStudents' => $activeQualifying->map(fn ($e) => $e->student)->filter(),
             'ijazahStudents' => $activeIjazah->map(fn ($e) => $e->student)->filter(),
+            'readingsStudents' => $activeReadings->map(fn ($e) => $e->student)->filter(),
             'needsReview' => $needsReview,
             'closeToCompletion' => $closeToCompletion,
             'currentMonth' => $currentMonth,

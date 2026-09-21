@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\ProgramType;
 use App\Enums\QuranCompletionStatus;
+use App\Enums\QuranListeningProgramStatus;
 use App\Http\Controllers\Controller;
 use App\Models\HafizProfile;
 use App\Models\QuranCompletion;
+use App\Models\QuranListeningProgram;
 use App\Models\Student;
 use App\Services\AuditLogger;
 use App\Services\CustomFieldService;
@@ -47,6 +49,12 @@ class HafizController extends Controller
                 ->first(),
             'customFields' => $this->customFields->definitions(HafizProfile::CUSTOM_FIELD_ENTITY),
             'customValues' => $this->customFields->valuesFor(HafizProfile::CUSTOM_FIELD_ENTITY, $profile->id),
+            'completedReadings' => QuranListeningProgram::query()
+                ->where('student_id', $student->id)
+                ->where('type', ProgramType::Readings)
+                ->where('status', QuranListeningProgramStatus::Completed)
+                ->orderByDesc('updated_at')
+                ->get(),
         ]);
     }
 

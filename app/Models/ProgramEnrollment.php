@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
+use App\Enums\QuranReading;
 use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
@@ -24,6 +25,7 @@ class ProgramEnrollment extends Model
         'tenant_id',
         'student_id',
         'program_type',
+        'reading',
         'started_at',
         'completed_at',
         'status',
@@ -35,6 +37,7 @@ class ProgramEnrollment extends Model
     {
         return [
             'program_type' => ProgramType::class,
+            'reading' => QuranReading::class,
             'started_at' => 'date',
             'completed_at' => 'date',
             'status' => ProgramEnrollmentStatus::class,

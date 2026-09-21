@@ -53,7 +53,7 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <h2 class="text-xl font-black text-gray-800">{{ $program->label() }}</h2>
+                    <h2 class="text-xl font-black text-gray-800">{{ $program->displayLabel() }}</h2>
                     <span class="text-[11px] font-bold px-2 py-0.5 rounded-full {{ $program->isActive() ? 'bg-emerald-100 text-emerald-800' : ($program->isCompleted() ? 'bg-sky-100 text-sky-800' : 'bg-gray-100 text-gray-600') }}">
                         {{ $program->status->label() }}
                     </span>
@@ -77,7 +77,7 @@
                 @endif
                 @if ($canCancel && $program->isActive() && ($actions['cancel'] ?? null))
                     <form method="POST" action="{{ $actions['cancel']($program) }}"
-                        onsubmit="return confirm('إلغاء {{ $program->label() }}؟')">
+                        onsubmit="return confirm('إلغاء {{ $program->displayLabel() }}؟')">
                         @csrf
                         <button class="text-xs font-bold text-red-700 border border-red-200 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-lg">
                             إلغاء البرنامج
@@ -243,42 +243,127 @@
 
                 <div class="space-y-2 mb-4">
                     @foreach ($currentBatch->items as $item)
-                        @php $juzRow = $coverage['juz'][$item->juz] ?? null; @endphp
-                        <div class="rounded-xl border border-gray-200 p-3 flex flex-wrap items-center justify-between gap-3">
-                            <div class="min-w-40">
-                                <div class="font-bold text-gray-800 text-sm">{{ $item->label() }}</div>
-                                <div class="text-[11px] text-gray-400">
-                                    {{ $programItemLabel($item->status) }}
-                                    @if ($juzRow)
-                                        — {{ $juzRow['covered'] }}/{{ $juzRow['total'] }} صفحة
+                        @php
+                            $juzRow = $coverage['juz'][$item->juz] ?? null;
+                            $retakeRow = $retakeCoverage[$item->juz] ?? null;
+                            $coveredPagesForJuz = $coveredPages[$item->juz] ?? [];
+                            $nextPage = collect(range($item->from_page, $item->to_page))
+                                ->first(fn (int $page) => ! in_array($page, $coveredPagesForJuz, true)) ?? $item->from_page;
+                        @endphp
+                        <div data-program-item="{{ $item->id }}" class="rounded-xl border p-3 {{ $item->isNeedsRepeat() ? 'border-red-200 bg-red-50/60' : 'border-gray-200' }}">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="min-w-40">
+                                    <div class="font-bold text-gray-800 text-sm">{{ $item->label() }}</div>
+                                    <div class="text-[11px] text-gray-400">
+                                        {{ $programItemLabel($item->status) }}
+                                        @if ($juzRow)
+                                            — {{ $juzRow['covered'] }}/{{ $juzRow['total'] }} صفحة
+                                        @endif
+                                        @if ($item->listened_at)
+                                            — سجّله: {{ $item->listenedBy?->name ?? '—' }} ({{ $item->listened_at->format('Y-m-d') }})
+                                        @endif
+                                        @if ($item->quranRecitationSession?->result)
+                                            — التقدير: {{ $item->quranRecitationSession->result->label() }}
+                                        @endif
+                                    </div>
+                                    @if ($retakeRow)
+                                        <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                                            <div class="h-1.5 w-28 rounded-full bg-red-100 overflow-hidden">
+                                                <div class="h-full bg-red-500" style="width: {{ min(100, $retakeRow['percentage']) }}%"></div>
+                                            </div>
+                                            <span class="text-[11px] font-bold text-red-700">
+                                                أُعيد تسميع {{ $retakeRow['covered'] }} من {{ $retakeRow['total'] }} صفحة بعد الرسوب
+                                                {{ $retakeRow['complete'] ? '✓' : '' }}
+                                            </span>
+                                        </div>
                                     @endif
-                                    @if ($item->listened_at)
-                                        — سجّله: {{ $item->listenedBy?->name ?? '—' }} ({{ $item->listened_at->format('Y-m-d') }})
-                                    @endif
-                                    @if ($item->quranRecitationSession?->result)
-                                        — التقدير: {{ $item->quranRecitationSession->result->label() }}
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @if ($program->isActive() && $item->canBeListened() && ($actions['tasmee'] ?? null))
+                                        <a href="{{ $actions['tasmee']($item) }}"
+                                            class="text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 px-3 py-2 rounded-lg">
+                                            فتح الصفحات وتسجيل الأخطاء
+                                        </a>
+                                        @if ($actions['partial'] ?? null)
+                                            <button type="button" data-partial-toggle="{{ $item->id }}"
+                                                class="text-xs font-bold text-sky-800 bg-sky-100 hover:bg-sky-200 border border-sky-200 px-3 py-2 rounded-lg">
+                                                تسجيل استماع جزئي
+                                            </button>
+                                        @endif
+                                    @elseif ($item->isPassed())
+                                        <span class="text-[11px] font-bold text-emerald-700">✓ ناجح</span>
+                                    @elseif ($item->isNeedsRepeat())
+                                        <span class="text-[11px] font-bold text-red-700">يحتاج إعادة تسميع</span>
+                                    @elseif ($item->isListened())
+                                        <span class="text-[11px] font-bold text-indigo-700">بانتظار الاختبار</span>
+                                    @else
+                                        <span class="text-[11px] font-bold text-gray-400">مقفل</span>
                                     @endif
                                 </div>
                             </div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                @if ($program->isActive() && $item->canBeListened() && ($actions['tasmee'] ?? null))
-                                    <a href="{{ $actions['tasmee']($item) }}"
-                                        class="text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 px-3 py-2 rounded-lg">
-                                        فتح الصفحات وتسجيل الأخطاء
-                                    </a>
-                                @elseif ($item->isPassed())
-                                    <span class="text-[11px] font-bold text-emerald-700">✓ ناجح</span>
-                                @elseif ($item->isNeedsRepeat())
-                                    <span class="text-[11px] font-bold text-red-700">يحتاج إعادة تسميع</span>
-                                @elseif ($item->isListened())
-                                    <span class="text-[11px] font-bold text-indigo-700">بانتظار الاختبار</span>
-                                @else
-                                    <span class="text-[11px] font-bold text-gray-400">مقفل</span>
-                                @endif
-                            </div>
+
+                            @if ($program->isActive() && $item->canBeListened() && ($actions['partial'] ?? null))
+                                <form method="POST" action="{{ $actions['partial']($item) }}"
+                                    class="hidden mt-3 rounded-xl border border-sky-200 bg-sky-50/70 p-3 space-y-2"
+                                    data-partial-form="{{ $item->id }}">
+                                    @csrf
+                                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-600 mb-1">من صفحة</label>
+                                            <input type="number" name="from_page" min="{{ $item->from_page }}" max="{{ $item->to_page }}"
+                                                value="{{ $nextPage }}" data-partial-from
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-600 mb-1">إلى صفحة</label>
+                                            <input type="number" name="to_page" min="{{ $item->from_page }}" max="{{ $item->to_page }}"
+                                                value="{{ $nextPage }}" data-partial-to
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-600 mb-1">التاريخ</label>
+                                            <input type="date" name="date" value="{{ now()->toDateString() }}"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-600 mb-1">ملاحظات</label>
+                                            <input type="text" name="notes" maxlength="2000" placeholder="اختياري"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <p class="text-[11px] text-gray-500">
+                                            سجّل الصفحات التي استمعها الطالب فقط ({{ $item->from_page }}–{{ $item->to_page }}) — يبقى الجزء «قيد التسميع» حتى تكتمل صفحاته.
+                                        </p>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <button type="button" data-partial-preview
+                                                data-preview-url="{{ route('quran.pages.preview', ['page' => '__PAGE__']) }}"
+                                                class="text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg">
+                                                معاينة الصفحات
+                                            </button>
+                                            <button type="submit" class="text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 px-4 py-2 rounded-lg">
+                                                حفظ الاستماع الجزئي
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            @endif
                         </div>
                     @endforeach
                 </div>
+
+                @if ($actions['partial'] ?? null)
+                    <div data-pages-modal class="hidden fixed inset-0 z-[60]">
+                        <div class="absolute inset-0 bg-gray-900/70 backdrop-blur-sm" data-pages-close></div>
+                        <div class="relative mx-auto my-6 w-[min(96vw,56rem)] max-h-[90vh] flex flex-col bg-white rounded-3xl shadow-2xl overflow-hidden">
+                            <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                                <h3 class="font-black text-gray-800">معاينة صفحات المصحف</h3>
+                                <button type="button" data-pages-close class="p-2 rounded-xl hover:bg-gray-100" aria-label="إغلاق">✕</button>
+                            </div>
+                            <div data-pages-body class="p-4 overflow-y-auto bg-[#f4f6f4]"></div>
+                        </div>
+                    </div>
+                @endif
             @endif
 
             @if ($tasmeeSessions->isNotEmpty())
@@ -295,9 +380,20 @@
                         </thead>
                         <tbody>
                             @foreach ($tasmeeSessions as $session)
+                                @php
+                                    $sessionJuz = $session->from_page ? QuranJuzMap::juzForPage((int) $session->from_page) : null;
+                                    $sessionJuzRange = $sessionJuz ? QuranJuzMap::pageRange($sessionJuz) : null;
+                                    $isPartialSession = $sessionJuzRange
+                                        && ((int) $session->from_page !== $sessionJuzRange['from'] || (int) $session->to_page !== $sessionJuzRange['to']);
+                                @endphp
                                 <tr class="border-b border-gray-50">
                                     <td class="py-2 text-gray-500">{{ $session->date?->format('Y-m-d') ?? '—' }}</td>
-                                    <td class="py-2 text-gray-500">{{ $session->from_page }}–{{ $session->to_page }}</td>
+                                    <td class="py-2 text-gray-500">
+                                        {{ $session->from_page }}–{{ $session->to_page }}
+                                        @if ($isPartialSession)
+                                            <span class="text-[10px] font-bold text-sky-700 bg-sky-100 border border-sky-200 px-1.5 py-0.5 rounded-full">جزئي</span>
+                                        @endif
+                                    </td>
                                     <td class="py-2 text-gray-500">{{ $session->teacher?->name ?? '—' }}</td>
                                     <td class="py-2 font-bold text-gray-700">{{ $session->result?->label() ?? '—' }}</td>
                                     <td class="py-2 text-gray-500">{{ is_array($session->word_statuses) ? count($session->word_statuses) : 0 }}</td>
@@ -332,11 +428,21 @@
                     ✓ اجتاز الطالب هذه الدفعة بنسبة {{ $scoreLabel($lastTest?->score) }}% — الدفعة التالية مفتوحة للتسميع.
                 </p>
             @elseif ($currentBatch->isReadyForTest())
+                @php
+                    $retakeModeChoice = $isRetest && ($fullRetakeAvailable ?? false) && ($fullRetakeJuz ?? []) !== [];
+                    $testRows = $retakeModeChoice ? $fullRetakeJuz : $testScopeJuz;
+                    $failedLookup = collect($failedJuz)->map(fn ($value) => (int) $value)->all();
+                @endphp
+
                 @if ($lastTest)
                     <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800 mb-3">
                         المحاولة السابقة: <b>{{ $scoreLabel($lastTest->score) }}%</b>
                         — الأجزاء الراسبة: <b>{{ $failedJuz === [] ? '—' : implode('، ', $failedJuz) }}</b>
-                        — هذه محاولة إعادة، وتشمل الأجزاء: <b>{{ implode('، ', $testScopeJuz) }}</b>.
+                        @if ($retakeModeChoice)
+                            — هذه محاولة إعادة: اختر إعادة الأجزاء الراسبة فقط أو الاختبار التراكمي كاملًا.
+                        @else
+                            — هذه محاولة إعادة، وتشمل الأجزاء: <b>{{ implode('، ', $testScopeJuz) }}</b>.
+                        @endif
                     </div>
                 @else
                     <p class="text-xs text-gray-500 mb-3">
@@ -345,11 +451,34 @@
                     </p>
                 @endif
 
-                <form method="POST" action="{{ $actions['test']($currentBatch) }}" class="space-y-2">
+                <form method="POST" action="{{ $actions['test']($currentBatch) }}" class="space-y-2" data-retake-test-form>
                     @csrf
-                    @foreach ($testScopeJuz as $juz)
-                        @php $juzRange = QuranJuzMap::pageRange($juz); @endphp
-                        <div class="rounded-xl border border-gray-200 p-3 flex flex-wrap items-center justify-between gap-2">
+
+                    @if ($retakeModeChoice)
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 mb-2">
+                            <div class="text-xs font-black text-amber-900 mb-2">نطاق اختبار الإعادة:</div>
+                            <div class="flex flex-wrap items-center gap-4 text-sm">
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="scope" value="failed" checked class="text-amber-600 focus:ring-amber-500" data-retake-scope>
+                                    <span class="font-bold text-amber-900">الأجزاء الراسبة فقط ({{ implode('، ', $failedJuz) }})</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="scope" value="full" class="text-amber-600 focus:ring-amber-500" data-retake-scope>
+                                    <span class="font-bold text-amber-900">
+                                        الاختبار التراكمي كاملًا ({{ count($fullRetakeJuz) }} أجزاء: {{ $fullRetakeJuz[0] }}–{{ end($fullRetakeJuz) }})
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    @endif
+
+                    @foreach ($testRows as $juz)
+                        @php
+                            $juzRange = QuranJuzMap::pageRange($juz);
+                            $isFailedJuz = in_array((int) $juz, $failedLookup, true);
+                        @endphp
+                        <div class="rounded-xl border p-3 flex flex-wrap items-center justify-between gap-2 {{ $isFailedJuz ? 'border-red-200 bg-red-50/60' : 'border-gray-200' }}"
+                            data-retake-row="{{ $juz }}" @if ($retakeModeChoice && ! $isFailedJuz) data-retake-extra @endif>
                             <div>
                                 <div class="font-bold text-gray-800 text-sm">الجزء {{ $juz }}</div>
                                 <div class="text-[11px] text-gray-400">صفحات {{ $juzRange['from'] }}–{{ $juzRange['to'] }}</div>
@@ -371,7 +500,7 @@
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
 
                     <div class="flex justify-end">
-                        <button class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-2 rounded-xl">
+                        <button data-retake-submit class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-2 rounded-xl">
                             {{ $isRetest ? 'تسجيل نتيجة اختبار الإعادة' : 'تسجيل نتيجة الاختبار' }}
                         </button>
                     </div>
@@ -609,3 +738,113 @@
         @endif
     </div>
 </div>
+
+@push('scripts')
+    <script>
+        (function () {
+            document.querySelectorAll('[data-program-item]').forEach(function (root) {
+                const toggle = root.querySelector('[data-partial-toggle]');
+                const form = root.querySelector('[data-partial-form]');
+
+                if (!toggle || !form) {
+                    return;
+                }
+
+                const from = form.querySelector('[data-partial-from]');
+                const to = form.querySelector('[data-partial-to]');
+                const min = parseInt(from.min, 10);
+                const max = parseInt(from.max, 10);
+
+                function clamp() {
+                    let f = parseInt(from.value, 10);
+                    let t = parseInt(to.value, 10);
+
+                    if (!(f >= min)) f = min;
+                    if (f > max) f = max;
+                    if (!(t >= f)) t = f;
+                    if (t > max) t = max;
+
+                    from.value = f;
+                    to.value = t;
+                }
+
+                toggle.addEventListener('click', function () {
+                    form.classList.toggle('hidden');
+                });
+
+                from.addEventListener('change', clamp);
+                to.addEventListener('change', clamp);
+
+                const preview = form.querySelector('[data-partial-preview]');
+                const modal = document.querySelector('[data-pages-modal]');
+                const body = modal ? modal.querySelector('[data-pages-body]') : null;
+
+                if (preview && modal && body) {
+                    preview.addEventListener('click', async function () {
+                        clamp();
+
+                        const f = parseInt(from.value, 10);
+                        const t = parseInt(to.value, 10);
+
+                        modal.classList.remove('hidden');
+                        body.innerHTML = '<p class="text-center text-gray-500 py-10 font-bold">جارٍ التحميل…</p>';
+
+                        try {
+                            const url = preview.dataset.previewUrl.replace('__PAGE__', f) + '?to=' + t;
+                            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                            body.innerHTML = res.ok ? await res.text() : '<p class="text-center text-red-600 py-10 font-bold">تعذّر تحميل المعاينة</p>';
+                        } catch (e) {
+                            body.innerHTML = '<p class="text-center text-red-600 py-10 font-bold">تعذّر تحميل المعاينة</p>';
+                        }
+                    });
+                }
+            });
+
+            const pagesModal = document.querySelector('[data-pages-modal]');
+
+            if (pagesModal) {
+                pagesModal.querySelectorAll('[data-pages-close]').forEach(function (el) {
+                    el.addEventListener('click', function () { pagesModal.classList.add('hidden'); });
+                });
+
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && !pagesModal.classList.contains('hidden')) {
+                        pagesModal.classList.add('hidden');
+                    }
+                });
+            }
+
+            const testForm = document.querySelector('[data-retake-test-form]');
+
+            if (testForm) {
+                const radios = Array.from(testForm.querySelectorAll('[data-retake-scope]'));
+
+                if (radios.length) {
+                    const extras = Array.from(testForm.querySelectorAll('[data-retake-extra]'));
+                    const submit = testForm.querySelector('[data-retake-submit]');
+
+                    function applyRetakeScope() {
+                        const full = (radios.find((radio) => radio.checked)?.value ?? 'failed') === 'full';
+
+                        extras.forEach(function (row) {
+                            row.classList.toggle('hidden', !full);
+
+                            const pass = row.querySelector('input[value="pass"]');
+
+                            if (pass && !full) {
+                                pass.checked = true;
+                            }
+                        });
+
+                        if (submit) {
+                            submit.textContent = full ? 'تسجيل نتيجة الاختبار التراكمي كاملًا' : 'تسجيل نتيجة اختبار الإعادة';
+                        }
+                    }
+
+                    radios.forEach((radio) => radio.addEventListener('change', applyRetakeScope));
+                    applyRetakeScope();
+                }
+            }
+        })();
+    </script>
+@endpush

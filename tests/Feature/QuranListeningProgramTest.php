@@ -102,7 +102,7 @@ class QuranListeningProgramTest extends TestCase
         $this->assertNull(ProgramType::tryFrom('training'));
 
         $this->assertSame(
-            ['qualifying', 'ijazah'],
+            ['qualifying', 'ijazah', 'readings'],
             array_map(fn (ProgramType $type) => $type->value, ProgramType::cases()),
         );
 

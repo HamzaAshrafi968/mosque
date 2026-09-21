@@ -10,6 +10,7 @@ use App\Models\QuranSurah;
 use App\Models\Teacher;
 use App\Services\AuditLogger;
 use App\Services\QuranProgramService;
+use App\Services\QuranSettingsService;
 use App\Support\QuranProgramSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class HafizExamController extends Controller
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly QuranProgramService $programs,
+        private readonly QuranSettingsService $settings,
     ) {}
 
     public function index(Request $request): View|RedirectResponse
@@ -68,7 +70,7 @@ class HafizExamController extends Controller
             'exam' => $exam,
             'supervisors' => Teacher::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'surahs' => QuranSurah::orderBy('sort_order')->get(['id', 'name_arabic']),
-            'passMark' => QuranProgramSettings::HAFIZ_EXAM_PASS_MARK,
+            'passMark' => $this->settings->minimumPassingPercentage(),
             'monthLabel' => fn (string $m) => QuranProgramSettings::monthLabel($m),
         ]);
     }
@@ -82,7 +84,7 @@ class HafizExamController extends Controller
 
         $this->storeRevisions($exam, $request, $request->user());
 
-        $label = (float) $data['grade'] >= QuranProgramSettings::HAFIZ_EXAM_PASS_MARK ? 'نجاح' : 'إعادة';
+        $label = (float) $data['grade'] >= $this->settings->minimumPassingPercentage() ? 'نجاح' : 'إعادة';
 
         return redirect()
             ->route('admin.quran.exams.show', $exam)

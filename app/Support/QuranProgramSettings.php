@@ -8,7 +8,6 @@ use Carbon\Carbon;
  * Business constants of the Quran programs module (spec §18).
  *
  * These are the "configured business rules" of the institution:
- * - monthly hafiz exams pass when the grade >= HAFIZ_EXAM_PASS_MARK
  * - qualifying completion requires at least QUALIFYING_MIN_PASSED_WEEKS
  * - ijazah completion requires at least IJAZAH_MIN_PASSED_MONTHS
  *
@@ -16,9 +15,6 @@ use Carbon\Carbon;
  */
 final class QuranProgramSettings
 {
-    /** Pass mark (out of 100) for monthly hafiz exams. */
-    public const HAFIZ_EXAM_PASS_MARK = 60;
-
     /** Minimum passing weekly evaluations before qualifying can be completed. */
     public const QUALIFYING_MIN_PASSED_WEEKS = 4;
 

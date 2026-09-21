@@ -57,7 +57,7 @@ class RewardPointController extends Controller
             'student_id' => [
                 'required',
                 'uuid',
-                Rule::exists('students', 'id')->where('tenant_id', $request->user()->tenant_id),
+                Rule::exists('students', 'id')->where('tenant_id', config('app.current_tenant_id') ?? $request->user()->tenant_id),
             ],
             'points' => ['required', 'integer', 'min:1'],
             'reason' => ['nullable', 'string', 'max:255'],

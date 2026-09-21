@@ -26,7 +26,7 @@
 
     <form method="POST" action="{{ route('teacher.quran.exams.grade', $exam) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
         @csrf
-        <h3 class="font-extrabold text-gray-800">تسجيل نتيجة الشهر (النجاح من {{ $passMark }}/100)</h3>
+        <h3 class="font-extrabold text-gray-800">تسجيل نتيجة الشهر (النجاح من {{ $passMark }}/100 — حد النجاح الموحّد من إعدادات الجامع)</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-1">الدرجة / 100 <span class="text-red-500">*</span></label>

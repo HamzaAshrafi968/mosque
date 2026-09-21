@@ -89,6 +89,23 @@
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
+                <span class="font-bold text-gray-800">📖 طلاب برنامج القراءات</span>
+                <a href="{{ route('teacher.quran.programs.index', ['type' => 'readings']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+            </div>
+            <div class="divide-y divide-gray-50">
+                @forelse($readingsStudents as $student)
+                    <a href="{{ route('teacher.quran.programs.index', ['type' => 'readings', 'student_id' => $student->id]) }}" class="px-5 py-3 flex justify-between hover:bg-gray-50 text-sm">
+                        <span class="font-bold text-gray-800">{{ $student->name }}</span>
+                        <span class="text-xs text-gray-400">قراءات</span>
+                    </a>
+                @empty
+                    <div class="px-5 py-6 text-center text-gray-400 text-sm">لا يوجد طلاب قراءات ضمن نطاقك</div>
+                @endforelse
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-5 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <span class="font-bold text-gray-800">🕊️ لقاءاتي القادمة</span>
                 <a href="{{ route('teacher.quran.faith-meetings.index') }}" class="text-xs text-emerald-700 hover:underline">الكل</a>
             </div>

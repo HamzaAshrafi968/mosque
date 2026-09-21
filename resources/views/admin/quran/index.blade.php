@@ -7,7 +7,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-800">البرامج القرآنية</h2>
-            <p class="text-sm text-gray-500 mt-1">رحلة الطالب: تسميع ← إتمام الحفظ ← حافظ ← البرنامج التأهيلي ← برنامج الإجازة</p>
+            <p class="text-sm text-gray-500 mt-1">رحلة الطالب: تسميع ← إتمام الحفظ ← حافظ ← البرنامج التأهيلي ← برنامج الإجازة · والقراءات مرحلة متقدمة اختيارية</p>
         </div>
         <div class="flex gap-2 flex-wrap">
             <a href="{{ route('admin.quran.tasmee.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold px-4 py-2 rounded-lg">+ تسجيل تسميع</a>
@@ -16,7 +16,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <a href="{{ route('admin.quran.completions.index', ['status' => 'confirmed']) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
             <div class="text-3xl font-extrabold text-emerald-700">{{ $stats['hafiz'] }}</div>
             <div class="text-xs text-gray-500 mt-1 font-bold">عدد الحفاظ</div>
@@ -28,6 +28,10 @@
         <a href="{{ route('admin.quran.programs.index', ['type' => 'ijazah']) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
             <div class="text-3xl font-extrabold text-amber-700">{{ $stats['ijazah'] }}</div>
             <div class="text-xs text-gray-500 mt-1 font-bold">ببرنامج الإجازة</div>
+        </a>
+        <a href="{{ route('admin.quran.programs.index', ['type' => 'readings']) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+            <div class="text-3xl font-extrabold text-violet-700">{{ $stats['readings'] }}</div>
+            <div class="text-xs text-gray-500 mt-1 font-bold">ببرنامج القراءات</div>
         </a>
         <a href="{{ route('admin.quran.completions.index', ['status' => 'pending']) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
             <div class="text-3xl font-extrabold text-orange-600">{{ $stats['pendingCompletions'] }}</div>
@@ -104,6 +108,22 @@
                     </a>
                 @empty
                     <div class="px-5 py-8 text-center text-gray-400 text-sm">لا يوجد طلاب في البرنامج حالياً</div>
+                @endforelse
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-5 py-3 border-b bg-gray-50 flex items-center justify-between">
+                <span class="font-bold text-gray-800">📖 برنامج القراءات (النشط)</span>
+                <a href="{{ route('admin.quran.programs.index', ['type' => 'readings']) }}" class="text-xs text-emerald-700 hover:underline">إدارة</a>
+            </div>
+            <div class="divide-y divide-gray-50">
+                @forelse($readingsStudents as $student)
+                    <a href="{{ route('admin.quran.programs.index', ['type' => 'readings', 'student_id' => $student->id]) }}" class="px-5 py-3 flex items-center justify-between hover:bg-gray-50">
+                        <span class="font-bold text-gray-800 text-sm">{{ $student->name }}</span>
+                        <span class="text-xs text-gray-500">قراءات</span>
+                    </a>
+                @empty
+                    <div class="px-5 py-8 text-center text-gray-400 text-sm">لا يوجد طلاب في برنامج القراءات حالياً</div>
                 @endforelse
             </div>
         </div>

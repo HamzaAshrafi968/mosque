@@ -777,7 +777,7 @@ class MemorizationBatchTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.settings.quran.edit'))
             ->assertOk()
-            ->assertSee('الحد الأدنى للنجاح');
+            ->assertSee('حد النجاح الموحّد');
 
         $this->actingAs($admin)
             ->patch(route('admin.settings.quran.update'), ['minimum_passing_percentage' => 85])

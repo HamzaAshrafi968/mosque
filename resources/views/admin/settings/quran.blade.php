@@ -14,7 +14,7 @@
         @method('PATCH')
 
         <div>
-            <label for="minimum_passing_percentage" class="block text-sm font-bold text-gray-700 mb-2">الحد الأدنى للنجاح في اختبار دفعات الحفظ (%)</label>
+            <label for="minimum_passing_percentage" class="block text-sm font-bold text-gray-700 mb-2">حد النجاح الموحّد لجميع اختبارات القرآن (%)</label>
             <input type="number" name="minimum_passing_percentage" id="minimum_passing_percentage"
                 value="{{ old('minimum_passing_percentage', $minimumPassingPercentage) }}"
                 min="{{ \App\Services\QuranSettingsService::MIN_PASSING_PERCENTAGE }}"
@@ -25,14 +25,15 @@
             @error('minimum_passing_percentage')
                 <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
             @enderror
-            <p class="text-xs text-gray-400 mt-2">
-                درجة اختبار الدفعة تُحسب آلياً من نسبة العناصر الناجحة (مثال: 7 من 8 = 87.5%)، والـ Backend يقارنها بهذا الحد:
-                <span class="font-bold">النسبة ≥ الحد = نجاح</span> وفتح الدفعة التالية.
+            <p class="text-xs text-gray-400 mt-2 leading-relaxed">
+                علامة واحدة تُطبَّق على جميع اختبارات القرآن: الاختبار التراكمي لدفعات الحفظ والاختبار المباشر،
+                واختبارات برامج الاستماع (التأهيلي والإجازة والقراءات)، واختبار الشهر للحفاظ.
+                <span class="font-bold">النسبة/الدرجة ≥ الحد = نجاح</span>.
             </p>
         </div>
 
         <div class="rounded-xl bg-gray-50 border border-gray-200 p-4 text-xs text-gray-500 leading-relaxed">
-            تُحفظ القيمة المستخدمة مع كل اختبار (لقطة) — فلو غيّرت الحد لاحقاً من {{ $minimumPassingPercentage }}% إلى قيمة أخرى، تبقى نتائج الاختبارات القديمة محسوبة وفق الحد الذي كان سارياً وقتها.
+            تُحفظ القيمة المستخدمة مع كل اختبار (لقطة) — فلو غيّرت الحد لاحقاً من {{ $minimumPassingPercentage }}% إلى قيمة أخرى، تبقى نتائج الاختبارات القديمة محسوبة وفق الحد الذي كان سارياً وقتها. واختبار الشهر للحفاظ يُثبَّت على نتيجته وقت التقييم.
         </div>
 
         <div class="rounded-xl border border-gray-200 p-4">

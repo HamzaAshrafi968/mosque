@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * محرك دورة برامج التأهيلي والإجازة — دفعات 5 أجزاء:
+ * محرك دورة برامج التأهيلي والإجازة والقراءات — دفعات 5 أجزاء:
  *
  *   حفظ صفحات ← تسميع مع تسجيل الأخطاء ← اكتمال أجزاء الدفعة ← اختبار تراكمي
  *   (من الجزء 1 إلى آخر جزء في الدفعة) ← نجاح يفتح الدفعة التالية، والرسوب
@@ -35,13 +35,17 @@ use Illuminate\Validation\ValidationException;
  *
  * لا خمسات ولا خطط استماع: التسميع (QuranRecitationSession) هو مصدر التغطية،
  * والاختبار يُخزَّن في quran_listening_tests/listening_batch_id مثل دفعات
- * الحفظ. الفرق الوحيد بين النوعين عند إتمام الدورة: التأهيلي يُنهي الالتحاق
- * ويحوّل تلقائياً للإجازة (ختم التأهيل)، والإجازة تُنهي دورتها والتحاقها فقط.
+ * الحفظ. الفرق بين الأنواع عند إتمام الدورة: التأهيلي يُنهي الالتحاق ويحوّل
+ * تلقائياً للإجازة (ختم التأهيل)، والإجازة والقراءات تُنهيان دورتهما
+ * والتحاقهما فقط بلا تحويل.
  */
 class QuranProgramBatchService
 {
     /** @var array<int, ProgramType> الأنواع التي يديرها هذا المحرك. */
-    public const SUPPORTED_TYPES = [ProgramType::Qualifying, ProgramType::Ijazah];
+    public const SUPPORTED_TYPES = [ProgramType::Qualifying, ProgramType::Ijazah, ProgramType::Readings];
+
+    /** نطاق اختبار الإعادة الكامل (1..آخر جزء) بعد الرسوب. */
+    public const RETAKE_SCOPE_FULL = 'full';
 
     public function __construct(
         private readonly AuditLogger $audit,
@@ -57,7 +61,12 @@ class QuranProgramBatchService
         return in_array($program->type, self::SUPPORTED_TYPES, true);
     }
 
-    /** دورة التأهيلي/الإجازة النشطة للطالب (إن وُجدت). */
+    /**
+     * دورة التأهيلي/الإجازة النشطة للطالب (إن وُجدت).
+     *
+     * لا تشمل القراءات عن قصد: القراءات قد تكون متوازية (أكثر من قراءة
+     * نشطة)، فتسميعها يُسجَّل من صفحة الدورة نفسها لا من الشاشة العامة.
+     */
     public function activeCycle(Student $student): ?QuranListeningProgram
     {
         return QuranListeningProgram::query()
@@ -204,13 +213,14 @@ class QuranProgramBatchService
     }
 
     /**
-     * تغطية كل جزء داخل الدفعة على حدة.
+     * تغطية كل جزء داخل الدفعة على حدة، ويمكن حصر التغطية بجلسات ما بعد
+     * تاريخ معيّن (لتغطية إعادة التسميع بعد الرسوب).
      *
      * @return array<int, array{juz: int, from: int, to: int, total: int, covered: int, percentage: float, complete: bool}>
      */
-    public function juzCoverage(QuranListeningProgramBatch $batch): array
+    public function juzCoverage(QuranListeningProgramBatch $batch, ?Carbon $after = null): array
     {
-        $intervals = $this->coveredIntervals($batch);
+        $intervals = $this->coveredIntervals($batch, $after);
         $rows = [];
 
         foreach ($batch->juzNumbers() as $juz) {
@@ -236,6 +246,68 @@ class QuranProgramBatchService
         }
 
         return $rows;
+    }
+
+    /**
+     * تغطية إعادة التسميع بعد الرسوب: الأجزاء الراسبة فقط، وبما سُجّل من
+     * جلسات بعد تاريخ الاختبار الراسب — لعرض تقدم إعادة الدراسة.
+     *
+     * @return array<int, array{juz: int, from: int, to: int, total: int, covered: int, percentage: float, complete: bool}>
+     */
+    public function retakeCoverage(QuranListeningProgramBatch $batch): array
+    {
+        $test = $batch->last_test_id ? QuranListeningTest::query()->find($batch->last_test_id) : null;
+        $failed = $this->failedJuzNumbers($batch);
+
+        if (! $test || $test->isPass() || $failed === []) {
+            return [];
+        }
+
+        $rows = $this->juzCoverage($batch, $test->created_at);
+
+        return collect($failed)
+            ->mapWithKeys(fn (int $juz) => [$juz => $rows[$juz] ?? null])
+            ->filter()
+            ->all();
+    }
+
+    /**
+     * الصفحات المغطاة لكل جزء في الدفعة (مرتبة) — للواجهات.
+     *
+     * @return array<int, array<int, int>>
+     */
+    public function coveredPages(QuranListeningProgramBatch $batch): array
+    {
+        $intervals = $this->coveredIntervals($batch);
+        $pages = [];
+
+        foreach ($batch->juzNumbers() as $juz) {
+            $range = QuranJuzMap::pageRange($juz);
+
+            for ($page = $range['from']; $page <= $range['to']; $page++) {
+                if ($this->pageInIntervals($intervals, $page)) {
+                    $pages[$juz][] = $page;
+                }
+            }
+        }
+
+        return $pages;
+    }
+
+    /**
+     * الصفحات المتبقية في جزء العنصر حسب التغطية المسجّلة.
+     */
+    public function remainingPages(QuranListeningProgramItem $item): int
+    {
+        $batch = $item->batch()->first();
+
+        if (! $batch) {
+            return $item->pagesCount();
+        }
+
+        $row = $this->juzCoverage($batch)[$item->juz] ?? null;
+
+        return $row ? max(0, $row['total'] - $row['covered']) : $item->pagesCount();
     }
 
     /**
@@ -368,6 +440,59 @@ class QuranProgramBatchService
     }
 
     /**
+     * تسجيل استماع جزئي لصفحات من جزء مع بقاء صفحات أخرى: جلسة «جديد»
+     * مرتبطة بالدفعة تُحتسب في التغطية دون إنهاء الجزء، ويبقى العنصر
+     * «قيد التسميع» حتى تكتمل صفحاته، و«يحتاج إعادة» حتى يُعاد تسميعها
+     * كاملة بعد الرسوب. النطاق الكامل للجزء يُحوَّل إلى recordTasmee.
+     *
+     * @param  array{date?: ?string, from_page?: int|string, to_page?: int|string, notes?: ?string}  $data
+     */
+    public function recordPartialListening(QuranListeningProgramItem $item, array $data, User $actor, string $teacherId): QuranRecitationSession
+    {
+        $this->assertTasmeeAllowed($item);
+
+        $from = (int) ($data['from_page'] ?? 0);
+        $to = (int) ($data['to_page'] ?? 0);
+
+        if ($from < (int) $item->from_page || $to > (int) $item->to_page || $from > $to) {
+            throw ValidationException::withMessages([
+                'from_page' => ['نطاق الصفحات يجب أن يكون داخل '.$item->label().' — من '.$item->from_page.' إلى '.$item->to_page],
+            ]);
+        }
+
+        if ($from === (int) $item->from_page && $to === (int) $item->to_page) {
+            return $this->recordTasmee($item, $data, $actor, $teacherId);
+        }
+
+        $program = $item->program()->first();
+
+        return DB::transaction(function () use ($item, $data, $actor, $teacherId, $from, $to, $program) {
+            $session = QuranRecitationSession::create([
+                'student_id' => $program?->student_id,
+                'teacher_id' => $teacherId,
+                'program_batch_id' => $item->batch_id,
+                'type' => QuranTasmeeType::New,
+                'date' => $data['date'] ?? now()->toDateString(),
+                'amount' => $to - $from + 1,
+                'recited_portion' => "من الصفحة {$from} إلى الصفحة {$to}",
+                'from_page' => $from,
+                'to_page' => $to,
+                'result' => null,
+                'notes' => $data['notes'] ?? null,
+                'word_statuses' => null,
+            ]);
+
+            $this->audit->logModel('quran_training.item_partial_listened', $item, actor: $actor);
+
+            if ($program) {
+                $this->sync($program);
+            }
+
+            return $session;
+        });
+    }
+
+    /**
      * إنشاء جلسة تسميع «جديد» على صفحات الجزء كاملة (بلا تحديث حالة العنصر).
      * مشتركة بين دورة التأهيلي والإجازة.
      *
@@ -466,15 +591,48 @@ class QuranProgramBatchService
 
     /**
      * نطاق أجزاء الاختبار: الأجزاء الراسبة فقط عند وجود اختبار راسب سابق،
-     * وإلا النطاق التراكمي من الجزء 1 إلى آخر جزء في الدفعة.
+     * وإلا النطاق التراكمي من الجزء 1 إلى آخر جزء في الدفعة. ومع
+     * scope=full بعد الرسوب يُعاد الاختبار التراكمي كاملاً (1..آخر جزء).
      *
      * @return array<int, int>
      */
-    public function testScopeJuzNumbers(QuranListeningProgramBatch $batch): array
+    public function testScopeJuzNumbers(QuranListeningProgramBatch $batch, ?string $scope = null): array
     {
+        if ($scope === self::RETAKE_SCOPE_FULL && $this->fullRetakeAvailable($batch)) {
+            return $this->cumulativeJuzNumbers($batch);
+        }
+
         $failed = $this->failedJuzNumbers($batch);
 
-        return $failed !== [] ? $failed : range(1, $batch->to_juz);
+        return $failed !== [] ? $failed : $this->cumulativeJuzNumbers($batch);
+    }
+
+    /**
+     * هل للدفعة اختبار سابق بنطاق تراكمي كامل (1..آخر جزء)؟ يميّز الاختبار
+     * التراكمي عن الاختبار المباشر (غير التراكمي) عند عرض خيار الإعادة.
+     */
+    public function hasCumulativeTest(QuranListeningProgramBatch $batch): bool
+    {
+        return QuranListeningTest::query()
+            ->where('listening_batch_id', $batch->id)
+            ->with('items:id,test_id,juz')
+            ->get()
+            ->contains(function (QuranListeningTest $test) use ($batch) {
+                $juz = $test->items
+                    ->pluck('juz')
+                    ->map(fn ($value) => (int) $value)
+                    ->sort()
+                    ->values()
+                    ->all();
+
+                return $juz === range(1, $batch->to_juz);
+            });
+    }
+
+    /** هل يتاح بعد الرسوب إعادة الاختبار التراكمي كاملاً (لا الراسب فقط)؟ */
+    public function fullRetakeAvailable(QuranListeningProgramBatch $batch): bool
+    {
+        return $this->failedJuzNumbers($batch) !== [] && $this->hasCumulativeTest($batch);
     }
 
     /**
@@ -510,12 +668,13 @@ class QuranProgramBatchService
     }
 
     /**
-     * تسجيل الاختبار التراكمي (أو إعادة اختبار الأجزاء الراسبة): نتيجة لكل
-     * جزء من النطاق، والنجاح وفق الدرجة وحد الجامع.
+     * تسجيل الاختبار التراكمي (أو إعادة اختبار الأجزاء الراسبة، أو إعادة
+     * الاختبار كاملاً عبر scope=full): نتيجة لكل جزء من النطاق، والنجاح
+     * وفق الدرجة وحد الجامع.
      *
      * @param  array<int|string, string>  $results  juz => pass|fail
      */
-    public function recordBatchTest(QuranListeningProgramBatch $batch, array $results, User $actor, ?string $notes = null): QuranListeningTest
+    public function recordBatchTest(QuranListeningProgramBatch $batch, array $results, User $actor, ?string $notes = null, ?string $scope = null): QuranListeningTest
     {
         $student = $batch->student()->first();
 
@@ -526,7 +685,7 @@ class QuranProgramBatchService
         $this->assertBatchTestAllowed($batch);
         $batch->refresh();
 
-        return $this->recordTest($batch, $student, $this->testScopeJuzNumbers($batch), $results, $actor, $notes);
+        return $this->recordTest($batch, $student, $this->testScopeJuzNumbers($batch, $scope), $results, $actor, $notes);
     }
 
     /**
@@ -874,6 +1033,10 @@ class QuranProgramBatchService
         $coverage = null;
         $failedJuz = [];
         $testScopeJuz = [];
+        $retakeCoverage = [];
+        $fullRetakeAvailable = false;
+        $fullRetakeJuz = [];
+        $coveredPages = [];
         $tasmeeSessions = collect();
         $placementTestAllowed = false;
         $placementTestScope = [];
@@ -888,6 +1051,10 @@ class QuranProgramBatchService
             $coverage = $this->batchCoverage($currentBatch);
             $failedJuz = $this->failedJuzNumbers($currentBatch);
             $testScopeJuz = $this->testScopeJuzNumbers($currentBatch);
+            $retakeCoverage = $this->retakeCoverage($currentBatch);
+            $fullRetakeAvailable = $this->fullRetakeAvailable($currentBatch);
+            $fullRetakeJuz = $fullRetakeAvailable ? $this->cumulativeJuzNumbers($currentBatch) : [];
+            $coveredPages = $this->coveredPages($currentBatch);
             $tasmeeSessions = $this->tasmeeSessions($currentBatch);
             $placementTestAllowed = $this->placementTestAllowed($currentBatch);
 
@@ -923,6 +1090,10 @@ class QuranProgramBatchService
             'coverage' => $coverage,
             'failedJuz' => $failedJuz,
             'testScopeJuz' => $testScopeJuz,
+            'retakeCoverage' => $retakeCoverage,
+            'fullRetakeAvailable' => $fullRetakeAvailable,
+            'fullRetakeJuz' => $fullRetakeJuz,
+            'coveredPages' => $coveredPages,
             'tasmeeSessions' => $tasmeeSessions,
             'tests' => $tests,
             'memorizedJuz' => $student ? $this->memorization->memorizedJuzNumbers($student) : [],
@@ -1006,6 +1177,8 @@ class QuranProgramBatchService
      * إتمام الدورة عند نجاح اختبار الدفعة السادسة (1–30):
      * - التأهيلي: إنهاء الالتحاق + ختم التأهيل + تحويل تلقائي للإجازة.
      * - الإجازة: إنهاء الدورة والالتحاق فقط بلا ختم ولا تحويل.
+     * - القراءات: إنهاء الدورة والالتحاق وإشعار باسم القراءة بلا أي تحويل
+     *   (القراءات مرحلة متقدمة اختيارية مستقلة عن رحلة البرامج).
      */
     private function completeCycle(QuranListeningProgram $program, User $actor): void
     {
@@ -1025,6 +1198,17 @@ class QuranProgramBatchService
         }
 
         if (! $student) {
+            return;
+        }
+
+        if ($program->type === ProgramType::Readings) {
+            $this->notifications->notifyStudentCircle(
+                $student,
+                'اكتمل برنامج القراءات',
+                'ما شاء الله! أتممت '.($program->readingLabel() ?? 'برنامج القراءات').' كاملة (اختبار 1–30).',
+                route('student.quran-programs.index'),
+            );
+
             return;
         }
 

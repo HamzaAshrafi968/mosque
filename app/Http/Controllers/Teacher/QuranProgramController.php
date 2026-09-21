@@ -55,6 +55,12 @@ class QuranProgramController extends BaseTeacherController
             ->whereIn('student_id', $studentIds)
             ->pluck('student_id');
 
+        $readingsIds = ProgramEnrollment::query()
+            ->where('program_type', ProgramType::Readings)
+            ->where('status', ProgramEnrollmentStatus::Active)
+            ->whereIn('student_id', $studentIds)
+            ->pluck('student_id');
+
         $untestedMonth = HafizMonthlyExam::query()
             ->where('month', $currentMonth)
             ->where('exam_status', 'not_tested')
@@ -104,8 +110,10 @@ class QuranProgramController extends BaseTeacherController
             'tasmeeStats' => $tasmeeStats,
             'qualifyingIds' => $qualifyingIds,
             'ijazahIds' => $ijazahIds,
+            'readingsIds' => $readingsIds,
             'qualifyingStudents' => $students->whereIn('id', $qualifyingIds)->take(8),
             'ijazahStudents' => $students->whereIn('id', $ijazahIds)->take(8),
+            'readingsStudents' => $students->whereIn('id', $readingsIds)->take(8),
             'untestedMonth' => $untestedMonth,
             'weakStudents' => $weakStudents->take(8),
             'pendingRevisions' => $pendingRevisions,

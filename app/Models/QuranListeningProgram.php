@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ProgramType;
 use App\Enums\QuranListeningProgramStatus;
+use App\Enums\QuranReading;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,6 +29,7 @@ class QuranListeningProgram extends Model
         'student_id',
         'enrollment_id',
         'type',
+        'reading',
         'status',
         'notes',
     ];
@@ -36,6 +38,7 @@ class QuranListeningProgram extends Model
     {
         return [
             'type' => ProgramType::class,
+            'reading' => QuranReading::class,
             'status' => QuranListeningProgramStatus::class,
         ];
     }
@@ -92,5 +95,19 @@ class QuranListeningProgram extends Model
     public function label(): string
     {
         return $this->type->label();
+    }
+
+    /** «قراءة نافع المدني» — فارغ لغير برنامج القراءات. */
+    public function readingLabel(): ?string
+    {
+        return $this->reading?->programLabel();
+    }
+
+    /** اسم البرنامج كاملاً مع القراءة إن وُجدت. */
+    public function displayLabel(): string
+    {
+        $reading = $this->readingLabel();
+
+        return $reading ? $this->label().' — '.$reading : $this->label();
     }
 }

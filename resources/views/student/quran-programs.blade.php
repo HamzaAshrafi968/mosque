@@ -14,14 +14,14 @@
         @if ($programs->isEmpty())
             <div class="bg-white rounded-2xl shadow p-8 text-center text-gray-500">
                 لا توجد برامج استماع مسجّلة لك حالياً — عند تسجيلك في البرنامج التأهيلي أو الإجازة
-                يظهر هنا تقدمك واختباراتك.
+                أو برنامج القراءات يظهر هنا تقدمك واختباراتك.
             </div>
         @else
             <div class="flex flex-wrap gap-2">
                 @foreach ($programs as $row)
                     <a href="{{ route('student.quran-programs.index', ['program_id' => $row->id]) }}"
                         class="px-4 py-2 rounded-xl text-sm font-bold border {{ $selectedProgram?->id === $row->id ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300' }}">
-                        {{ $row->type->label() }}
+                        {{ $row->displayLabel() }}
                         <span class="text-[10px] font-bold opacity-80">({{ $row->status->label() }})</span>
                     </a>
                 @endforeach

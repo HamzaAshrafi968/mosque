@@ -41,7 +41,7 @@ final class AuditActionCatalog
             'prefixes' => [
                 'quran.', 'quran_listening.', 'quran_training.', 'khamsa_review.',
                 'memorization_batch.', 'juz_memorization.', 'hafiz.', 'hafiz_exam.',
-                'qualifying.', 'ijazah.',
+                'qualifying.', 'ijazah.', 'readings.',
             ],
         ],
         'finance' => [
@@ -135,6 +135,7 @@ final class AuditActionCatalog
         'quran_training.batch_passed' => ['label' => 'نجاح دفعة برنامج قرآني', 'group' => 'quran'],
         'quran_training.batch_needs_repeat' => ['label' => 'رسوب دفعة برنامج قرآني', 'group' => 'quran'],
         'quran_training.item_tasmee_recorded' => ['label' => 'تسجيل تسميع عنصر برنامج', 'group' => 'quran'],
+        'quran_training.item_partial_listened' => ['label' => 'تسجيل استماع جزئي لعنصر برنامج', 'group' => 'quran'],
         'quran_training.test_recorded' => ['label' => 'تسجيل اختبار برنامج قرآني', 'group' => 'quran'],
         'hafiz.profile.created' => ['label' => 'إنشاء ملف حافظ', 'group' => 'quran'],
         'hafiz.profile.updated' => ['label' => 'تعديل ملف حافظ', 'group' => 'quran'],
@@ -151,6 +152,7 @@ final class AuditActionCatalog
         'ijazah.weekly_deleted' => ['label' => 'حذف تقييم أسبوعي (إجازة)', 'group' => 'quran'],
         'ijazah.monthly_recorded' => ['label' => 'تسجيل تقييم شهري (إجازة)', 'group' => 'quran'],
         'ijazah.completed' => ['label' => 'إتمام برنامج الإجازة', 'group' => 'quran'],
+        'readings.completed' => ['label' => 'إتمام قراءة من القراءات العشر', 'group' => 'quran'],
 
         'finance.transaction_created' => ['label' => 'تسجيل عملية مالية', 'group' => 'finance'],
         'finance.transaction_reversed' => ['label' => 'عكس عملية مالية', 'group' => 'finance'],

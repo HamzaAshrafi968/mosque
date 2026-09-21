@@ -31,7 +31,7 @@
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-1">الدرجة / 100 <span class="text-red-500">*</span></label>
                 <input type="number" step="0.01" min="0" max="100" name="grade" required value="{{ old('grade', $exam->grade) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                <p class="text-xs text-gray-400 mt-1">النجاح من {{ $passMark }} فأعلى (قاعدة قابلة للضبط)</p>
+                <p class="text-xs text-gray-400 mt-1">النجاح من {{ $passMark }} فأعلى (حد النجاح الموحّد من إعدادات الجامع)</p>
             </div>
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-1">المشرف على الاختبار</label>

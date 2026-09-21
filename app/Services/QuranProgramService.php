@@ -6,6 +6,7 @@ use App\Enums\HafizExamStatus;
 use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
 use App\Enums\QuranCompletionStatus;
+use App\Enums\QuranReading;
 use App\Models\HafizMonthlyExam;
 use App\Models\HafizProfile;
 use App\Models\ProgramEnrollment;
@@ -34,7 +35,10 @@ use Illuminate\Validation\ValidationException;
  */
 class QuranProgramService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly QuranSettingsService $settings,
+    ) {}
 
     /** Record a completion request (pending confirmation). */
     public function recordCompletion(Student $student, ?string $completedAt, ?string $notes, ?User $actor = null): QuranCompletion
@@ -270,15 +274,16 @@ class QuranProgramService
     }
 
     /**
-     * Record a monthly exam grade. The status is derived from the configured
-     * pass mark: grade >= HAFIZ_EXAM_PASS_MARK → passed, otherwise failed.
+     * Record a monthly exam grade. The status is derived from the mosque's
+     * unified pass mark (settings → quran.minimum_passing_percentage):
+     * grade >= pass mark → passed, otherwise failed.
      */
     public function gradeMonthlyExam(HafizMonthlyExam $exam, array $data, ?User $actor = null): HafizMonthlyExam
     {
         $before = $exam->getAttributes();
 
         $exam->update([
-            'exam_status' => (float) $data['grade'] >= QuranProgramSettings::HAFIZ_EXAM_PASS_MARK
+            'exam_status' => (float) $data['grade'] >= $this->settings->minimumPassingPercentage()
                 ? HafizExamStatus::Passed
                 : HafizExamStatus::Failed,
             'grade' => $data['grade'],
@@ -292,12 +297,13 @@ class QuranProgramService
         return $exam;
     }
 
-    /** Latest active qualifying/ijazah enrollment of the student. */
-    public function activeEnrollment(Student $student, ProgramType $type): ?ProgramEnrollment
+    /** Latest active qualifying/ijazah/readings enrollment of the student. */
+    public function activeEnrollment(Student $student, ProgramType $type, ?QuranReading $reading = null): ?ProgramEnrollment
     {
         return ProgramEnrollment::query()
             ->where('student_id', $student->id)
             ->where('program_type', $type)
+            ->when($reading, fn ($query) => $query->where('reading', $reading))
             ->where('status', ProgramEnrollmentStatus::Active)
             ->latest()
             ->first();
@@ -306,13 +312,17 @@ class QuranProgramService
     /**
      * Ensure an active enrollment exists for the student and return it
      * (existing or newly created) — idempotent. Used by the automatic
-     * transitions and by the listening programs (إجازة/تأهيلي).
+     * transitions and by the listening programs (إجازة/تأهيلي/قراءات).
+     *
+     * The reading scopes the uniqueness for برنامج القراءات so a student can
+     * hold several parallel readings; it stays null for qualifying/ijazah.
      */
-    public function enrollIfAbsent(ProgramType $type, string $studentId, ?string $startedAt = null, ?User $actor = null): ProgramEnrollment
+    public function enrollIfAbsent(ProgramType $type, string $studentId, ?string $startedAt = null, ?User $actor = null, ?QuranReading $reading = null): ProgramEnrollment
     {
         $existing = ProgramEnrollment::query()
             ->where('student_id', $studentId)
             ->where('program_type', $type)
+            ->when($reading, fn ($query) => $query->where('reading', $reading))
             ->where('status', ProgramEnrollmentStatus::Active)
             ->latest()
             ->first();
@@ -324,6 +334,7 @@ class QuranProgramService
         $enrollment = ProgramEnrollment::create([
             'student_id' => $studentId,
             'program_type' => $type,
+            'reading' => $reading,
             'started_at' => $startedAt ?? Carbon::today()->format('Y-m-d'),
             'status' => ProgramEnrollmentStatus::Active,
         ]);
@@ -343,9 +354,13 @@ class QuranProgramService
             'completed_by' => $actor?->id,
         ]);
 
-        $this->audit->logModel($type === ProgramType::Qualifying
-            ? 'qualifying.completed'
-            : 'ijazah.completed', $enrollment, actor: $actor);
+        $code = match ($type) {
+            ProgramType::Qualifying => 'qualifying.completed',
+            ProgramType::Ijazah => 'ijazah.completed',
+            ProgramType::Readings => 'readings.completed',
+        };
+
+        $this->audit->logModel($code, $enrollment, actor: $actor);
     }
 
     private function assertEnrollment(ProgramEnrollment $enrollment, ProgramType $type): void

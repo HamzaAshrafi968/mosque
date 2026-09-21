@@ -22,7 +22,7 @@
                     </span>
                 </div>
                 <h2 class="font-bold text-gray-800 mt-4">إعدادات برنامج القرآن</h2>
-                <p class="text-xs text-gray-500 mt-1 leading-relaxed">حد النجاح في اختبار دفعات الحفظ وقواعد اجتياز الاختبارات.</p>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">حد النجاح الموحّد لجميع اختبارات القرآن (دفعات الحفظ وبرامج الاستماع واختبار الشهر للحفاظ).</p>
             </a>
 
             <a href="{{ route('admin.settings.rewards.edit') }}"

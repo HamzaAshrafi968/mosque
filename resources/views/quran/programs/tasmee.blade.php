@@ -11,7 +11,7 @@
         <div>
             <h2 class="text-2xl font-extrabold text-gray-800">تسميع الجزء مع تسجيل الأخطاء</h2>
             <p class="text-sm text-gray-500 mt-1">
-                {{ $student->name }} — {{ $program->label() }} — {{ $item->label() }}
+                {{ $student->name }} — {{ $program->displayLabel() }} — {{ $item->label() }}
             </p>
         </div>
         <a href="{{ $backRoute }}" class="text-sm text-emerald-700 hover:text-emerald-800">← رجوع للدورة</a>

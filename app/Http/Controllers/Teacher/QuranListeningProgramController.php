@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Enums\ProgramType;
 use App\Enums\QuranListeningTestResult;
+use App\Enums\QuranReading;
 use App\Models\QuranListeningProgram;
 use App\Models\QuranListeningProgramBatch;
 use App\Models\QuranListeningProgramItem;
@@ -82,10 +83,34 @@ class QuranListeningProgramController extends BaseTeacherController
             'selectedType' => $type,
             'students' => $this->scope->studentsFor($teacher),
             'types' => ProgramType::cases(),
+            'readings' => QuranReading::cases(),
             'canTest' => true,
             'canCancel' => true,
             'actions' => $this->actions(),
         ]));
+    }
+
+    /** تسجيل طالب من نطاق الأستاذ في برنامج القراءات لقراءة محددة. */
+    public function enroll(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'student_id' => ['required', 'uuid'],
+            'reading' => ['required', Rule::enum(QuranReading::class)],
+        ]);
+
+        $student = Student::query()->findOrFail($data['student_id']);
+
+        $this->scope->assertCanManageStudent($this->currentTeacher($request), $student);
+
+        $program = $this->programs->enrollReadings(
+            $student,
+            QuranReading::from($data['reading']),
+            $request->user(),
+        );
+
+        return redirect()
+            ->to($this->programUrl($program))
+            ->with('success', 'تم تسجيل '.$student->name.' في '.$program->displayLabel());
     }
 
     /** الرابط المساري القديم يحوّل إلى الرابط القانوني بالاستعلام (?type&program_id). */
@@ -162,6 +187,35 @@ class QuranListeningProgramController extends BaseTeacherController
             ->with('success', 'تم تسجيل تسميع '.$item->label().' — التقدير: '.($session->result?->label() ?? '—'));
     }
 
+    /** تسجيل استماع جزئي لصفحات من جزء مع بقاء صفحات أخرى (دون إنهاء الجزء). */
+    public function storePartial(Request $request, QuranListeningProgramItem $item): RedirectResponse
+    {
+        $this->assertCanManageItem($item);
+
+        $data = $request->validate([
+            'from_page' => ['required', 'integer', 'min:1'],
+            'to_page' => ['required', 'integer', 'min:1', 'gte:from_page'],
+            'date' => ['required', 'date'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $program = $item->program()->first();
+
+        if (! $program) {
+            abort(404);
+        }
+
+        $session = $this->batches->recordPartialListening($item, $data, $request->user(), $this->currentTeacher($request)->id);
+
+        $full = (int) $session->from_page === (int) $item->from_page && (int) $session->to_page === (int) $item->to_page;
+
+        return redirect()
+            ->to($this->programUrl($program))
+            ->with('success', $full
+                ? 'تم تسجيل تسميع '.$item->label().' كاملاً'
+                : 'تم تسجيل استماع صفحات '.$session->from_page.'–'.$session->to_page.' من '.$item->label().' — المتبقي '.$this->batches->remainingPages($item->fresh()).' صفحة');
+    }
+
     public function test(Request $request, QuranListeningProgramBatch $batch): RedirectResponse
     {
         $this->assertCanManageStudentId($batch->student_id);
@@ -170,9 +224,10 @@ class QuranListeningProgramController extends BaseTeacherController
             'results' => ['required', 'array', 'min:1'],
             'results.*' => ['required', Rule::enum(QuranListeningTestResult::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'scope' => ['nullable', Rule::in([QuranProgramBatchService::RETAKE_SCOPE_FULL, 'failed'])],
         ]);
 
-        $test = $this->batches->recordBatchTest($batch, $data['results'], $request->user(), $data['notes'] ?? null);
+        $test = $this->batches->recordBatchTest($batch, $data['results'], $request->user(), $data['notes'] ?? null, $data['scope'] ?? null);
 
         $score = $this->formatPercent((float) $test->score);
 
@@ -261,6 +316,7 @@ class QuranListeningProgramController extends BaseTeacherController
             'index' => route('teacher.quran.programs.index'),
             'show' => fn (QuranListeningProgram $program) => $this->programUrl($program),
             'tasmee' => fn (QuranListeningProgramItem $item) => route('teacher.quran.programs.items.tasmee', $item),
+            'partial' => fn (QuranListeningProgramItem $item) => route('teacher.quran.programs.items.partial', $item),
             'test' => fn (QuranListeningProgramBatch $batch) => route('teacher.quran.programs.batches.test', $batch),
             'placement' => fn (QuranListeningProgramBatch $batch) => route('teacher.quran.programs.batches.placement-test', $batch),
             'cancel' => fn (QuranListeningProgram $program) => route('teacher.quran.programs.cancel', $program),

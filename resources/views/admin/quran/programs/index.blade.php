@@ -21,6 +21,37 @@
             @endforeach
         </div>
 
+        {{-- تسجيل في برنامج القراءات (قراءة من القراءات العشر) --}}
+        @if ($selectedType === \App\Enums\ProgramType::Readings)
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                <h2 class="font-extrabold text-emerald-900">تسجيل طالب في برنامج القراءات</h2>
+                <p class="text-xs text-emerald-800/80 mt-1 mb-4">
+                    اختر الطالب والقراءة — يمكن تسجيل الطالب في أكثر من قراءة (قراءات متوازية).
+                </p>
+                <form method="POST" action="{{ route('admin.quran.programs.enroll') }}" class="flex flex-wrap items-end gap-3">
+                    @csrf
+                    <div class="min-w-56 flex-1">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">الطالب</label>
+                        <select name="student_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            <option value="">اختر الطالب</option>
+                            @foreach ($students as $student)
+                                <option value="{{ $student->id }}" @selected(old('student_id') === $student->id)>{{ $student->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="min-w-56 flex-1">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">القراءة</label>
+                        <select name="reading" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            @foreach ($readings as $reading)
+                                <option value="{{ $reading->value }}" @selected(old('reading') === $reading->value)>{{ $reading->label() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-2 rounded-xl text-sm">تسجيل في القراءات</button>
+                </form>
+            </div>
+        @endif
+
         {{-- تصفية بالطالب --}}
         <div class="bg-white rounded-2xl shadow p-5">
             <form method="GET" action="{{ route('admin.quran.programs.index') }}" class="flex flex-wrap items-end gap-3">
@@ -59,7 +90,7 @@
                                     <a href="{{ route('admin.quran.programs.index', ['type' => $row->type->value, 'program_id' => $row->id]) }}"
                                         class="hover:text-emerald-700 hover:underline">{{ $row->student?->name ?? '—' }}</a>
                                 </td>
-                                <td class="px-4 py-3 text-gray-500">{{ $row->type->label() }}</td>
+                                <td class="px-4 py-3 text-gray-500">{{ $row->displayLabel() }}</td>
                                 <td class="px-4 py-3">
                                     <span class="text-[11px] font-bold px-2 py-0.5 rounded-full {{ $row->isActive() ? 'bg-emerald-100 text-emerald-800' : ($row->isCompleted() ? 'bg-sky-100 text-sky-800' : 'bg-gray-100 text-gray-600') }}">
                                         {{ $row->status->label() }}

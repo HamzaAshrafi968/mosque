@@ -8,9 +8,13 @@
     $examRate = isset($stats['exam_pass_rate']) ? (float) rtrim($stats['exam_pass_rate'], '%') : null;
     $hwRate = isset($stats['homework_pass_rate']) ? (float) rtrim($stats['homework_pass_rate'], '%') : null;
     $firstName = preg_split('/\s+/u', trim(auth()->user()->name), 2)[0] ?? auth()->user()->name;
-    $attendanceTodayUrl = app(\App\Services\AuthorizationService::class)->can(auth()->user(), 'attendance.view')
+    $authorization = app(\App\Services\AuthorizationService::class);
+    $attendanceTodayUrl = $authorization->can(auth()->user(), 'attendance.view')
         ? route('admin.attendance.today')
         : null;
+    $studentsUrl = $authorization->can(auth()->user(), 'students.view') ? route('admin.students.index') : null;
+    $teachersUrl = $authorization->can(auth()->user(), 'teachers.view') ? route('admin.teachers.index') : null;
+    $classroomsUrl = $authorization->can(auth()->user(), 'classes.view') ? route('admin.classrooms.index') : null;
 @endphp
 
 {{-- ===== ترحيب/هيرو ===== --}}
@@ -60,30 +64,48 @@
 {{-- ===== البطاقات الرئيسية ===== --}}
 <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 mb-8">
     <div class="reveal rd-1 group relative overflow-hidden rounded-2xl bg-white p-5 border border-pine-950/[0.06] card-hover card-hover-ring shadow-[0_1px_3px_rgba(5,32,25,0.05)]">
+        @if($studentsUrl)
+            <a href="{{ $studentsUrl }}" class="absolute inset-0 z-10" aria-label="عرض الطلاب المسجلين" title="عرض قائمة الطلاب"></a>
+        @endif
         <span class="w-11 h-11 rounded-xl grid place-items-center text-white shadow-lg bg-gradient-to-br from-emerald-400 to-emerald-700 group-hover:rotate-6 group-hover:scale-110 transition-all duration-300"><x-icon name="students" class="w-5 h-5" /></span>
         <div class="mt-4">
             <div class="text-2xl sm:text-3xl font-black text-pine-950 tabular-nums" data-count-up data-to="{{ $stats['students_count'] ?? 0 }}">{{ $stats['students_count'] ?? 0 }}</div>
             <div class="text-[13px] text-gray-500 font-bold mt-1">الطلاب المسجلون</div>
-            <div class="text-[11px] text-gray-400 font-semibold mt-1">ذكور {{ $stats['male_students_count'] ?? 0 }} · إناث {{ $stats['female_students_count'] ?? 0 }}</div>
+            <div class="text-[11px] text-gray-400 font-semibold mt-1">ذكور {{ $stats['male_students_count'] ?? 0 }} · إناث {{ $stats['female_students_count'] ?? 0 }}{{ $studentsUrl ? ' · اضغط للتفاصيل' : '' }}</div>
         </div>
+        @if($studentsUrl)
+            <span aria-hidden="true" class="absolute top-5 end-5 text-gray-300 group-hover:text-emerald-600 group-hover:-translate-x-0.5 transition-all duration-300">←</span>
+        @endif
     </div>
 
     <div class="reveal rd-2 group relative overflow-hidden rounded-2xl bg-white p-5 border border-pine-950/[0.06] card-hover card-hover-ring shadow-[0_1px_3px_rgba(5,32,25,0.05)]">
+        @if($teachersUrl)
+            <a href="{{ $teachersUrl }}" class="absolute inset-0 z-10" aria-label="عرض المعلمين" title="عرض قائمة المعلمين"></a>
+        @endif
         <span class="w-11 h-11 rounded-xl grid place-items-center text-white shadow-lg bg-gradient-to-br from-pine-500 to-pine-800 group-hover:rotate-6 group-hover:scale-110 transition-all duration-300"><x-icon name="teachers" class="w-5 h-5" /></span>
         <div class="mt-4">
             <div class="text-2xl sm:text-3xl font-black text-pine-950 tabular-nums" data-count-up data-to="{{ $stats['teachers_count'] ?? 0 }}">{{ $stats['teachers_count'] ?? 0 }}</div>
             <div class="text-[13px] text-gray-500 font-bold mt-1">المعلمون</div>
-            <div class="text-[11px] text-gray-400 font-semibold mt-1">هيئة التدريس بالجامع</div>
+            <div class="text-[11px] text-gray-400 font-semibold mt-1">هيئة التدريس بالجامع{{ $teachersUrl ? ' · اضغط للتفاصيل' : '' }}</div>
         </div>
+        @if($teachersUrl)
+            <span aria-hidden="true" class="absolute top-5 end-5 text-gray-300 group-hover:text-pine-700 group-hover:-translate-x-0.5 transition-all duration-300">←</span>
+        @endif
     </div>
 
     <div class="reveal rd-3 group relative overflow-hidden rounded-2xl bg-white p-5 border border-pine-950/[0.06] card-hover card-hover-ring shadow-[0_1px_3px_rgba(5,32,25,0.05)]">
+        @if($classroomsUrl)
+            <a href="{{ $classroomsUrl }}" class="absolute inset-0 z-10" aria-label="عرض الصفوف الدراسية" title="عرض الصفوف والشعب"></a>
+        @endif
         <span class="w-11 h-11 rounded-xl grid place-items-center text-white shadow-lg bg-gradient-to-br from-gold-400 to-gold-700 group-hover:rotate-6 group-hover:scale-110 transition-all duration-300"><x-icon name="classrooms" class="w-5 h-5" /></span>
         <div class="mt-4">
             <div class="text-2xl sm:text-3xl font-black text-pine-950 tabular-nums" data-count-up data-to="{{ $stats['classrooms_count'] ?? 0 }}">{{ $stats['classrooms_count'] ?? 0 }}</div>
             <div class="text-[13px] text-gray-500 font-bold mt-1">الصفوف الدراسية</div>
-            <div class="text-[11px] text-gray-400 font-semibold mt-1">بواقع {{ $stats['sections_count'] ?? 0 }} شعبة</div>
+            <div class="text-[11px] text-gray-400 font-semibold mt-1">بواقع {{ $stats['sections_count'] ?? 0 }} شعبة{{ $classroomsUrl ? ' · اضغط للتفاصيل' : '' }}</div>
         </div>
+        @if($classroomsUrl)
+            <span aria-hidden="true" class="absolute top-5 end-5 text-gray-300 group-hover:text-gold-700 group-hover:-translate-x-0.5 transition-all duration-300">←</span>
+        @endif
     </div>
 
     <div class="reveal rd-4 group relative overflow-hidden rounded-2xl bg-white p-5 border border-pine-950/[0.06] card-hover card-hover-ring shadow-[0_1px_3px_rgba(5,32,25,0.05)]">

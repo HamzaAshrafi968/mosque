@@ -11,7 +11,7 @@ use Illuminate\View\View;
 
 /**
  * «مدير الجامع → الإعدادات → برنامج القرآن»:
- * حد النجاح في اختبار دفعات الحفظ (minimum passing percentage)
+ * حد النجاح الموحّد لجميع اختبارات القرآن (minimum passing percentage)
  * + الاعتماد التلقائي للحافظ عند إتمام 30 جزءاً.
  */
 class QuranSettingsController extends Controller

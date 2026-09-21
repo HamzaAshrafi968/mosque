@@ -409,6 +409,43 @@ class RewardPointRulesTest extends TestCase
         $this->assertSame(6, $student->fresh()->totalPoints());
     }
 
+    public function test_super_admin_inside_a_mosque_can_add_and_deduct_points(): void
+    {
+        // Create the tenant-less مدير الجوامع before a mosque context exists,
+        // otherwise the tenant trait binds it to the current mosque.
+        config(['app.current_tenant_id' => null]);
+        $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => User::ROLE_SUPER_ADMIN]);
+        app(RoleService::class)->assignRole($superAdmin, RoleService::ROLE_SUPER_ADMIN);
+
+        [$mosque, , $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+
+        $this->actingAs($superAdmin)->withSession(['super_admin_mosque_id' => $mosque->id]);
+
+        $this->post(route('admin.reward-points.store'), [
+            'student_id' => $student->id,
+            'points' => 10,
+            'type' => 'earned',
+            'reason' => 'حفظ ممتاز',
+        ])->assertRedirect(route('admin.reward-points.index'))->assertSessionHasNoErrors();
+
+        $this->post(route('admin.reward-points.store'), [
+            'student_id' => $student->id,
+            'points' => 3,
+            'type' => 'deducted',
+            'reason' => 'إهمال الواجب',
+        ])->assertRedirect(route('admin.reward-points.index'))->assertSessionHasNoErrors();
+
+        $this->assertSame(7, $student->fresh()->totalPoints());
+
+        $this->assertDatabaseHas('reward_points', [
+            'student_id' => $student->id,
+            'tenant_id' => $mosque->id,
+            'study_session_id' => $session->id,
+            'awarded_by' => $superAdmin->id,
+        ]);
+    }
+
     public function test_admin_can_delete_manual_points_but_not_automatic_ones(): void
     {
         [$mosque, $admin, $session] = $this->mosque();

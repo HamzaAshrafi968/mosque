@@ -21,6 +21,21 @@
         </div>
     </div>
 
+    @if ($completedReadings->isNotEmpty())
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <h3 class="font-extrabold text-gray-800 mb-3">📖 القراءات المكتملة (من القراءات العشر)</h3>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($completedReadings as $reading)
+                    <span class="inline-flex items-center gap-2 bg-violet-50 border border-violet-200 text-violet-800 text-sm font-bold px-3 py-1.5 rounded-xl">
+                        {{ $reading->readingLabel() ?? $reading->label() }}
+                        <span class="text-[11px] font-normal text-violet-600">{{ $reading->updated_at?->format('Y-m-d') }}</span>
+                    </span>
+                @endforeach
+            </div>
+            <p class="text-xs text-gray-400 mt-3">تُسجَّل تلقائياً عند إتمام اختبار 1–30 في دورة القراءة.</p>
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('admin.quran.hafiz.profile.update', $student) }}" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
         @csrf
         @method('PATCH')

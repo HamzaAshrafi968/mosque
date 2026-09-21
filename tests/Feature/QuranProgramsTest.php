@@ -25,6 +25,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AuthorizationService;
 use App\Services\QuranProgramService;
+use App\Services\QuranSettingsService;
 use App\Services\RoleService;
 use App\Support\PermissionCatalog;
 use App\Support\QuranProgramSettings;
@@ -569,6 +570,37 @@ class QuranProgramsTest extends TestCase
 
         $this->assertDatabaseHas('hafiz_monthly_exams', ['id' => $exam->id, 'exam_status' => 'passed', 'grade' => 88.0]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'hafiz_exam.graded']);
+    }
+
+    public function test_monthly_exam_grading_follows_unified_settings_pass_mark(): void
+    {
+        [$mosque, $admin] = $this->mosque();
+        [, $teacher] = $this->makeTeacher($mosque->id);
+        $student = $this->makeHafiz($mosque->id, $admin);
+
+        $month = QuranProgramSettings::monthOf(now());
+        $exam = HafizMonthlyExam::where('student_id', $student->id)->where('month', $month)->firstOrFail();
+
+        $settings = app(QuranSettingsService::class);
+        $settings->setMinimumPassingPercentage(90);
+
+        // 85 < 90 → failed under the mosque's unified pass mark.
+        $this->actingAs($admin)->post(route('admin.quran.exams.grade', $exam), [
+            'grade' => 85,
+            'supervisor_id' => $teacher->id,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('hafiz_monthly_exams', ['id' => $exam->id, 'exam_status' => 'failed', 'grade' => 85.0]);
+
+        $settings->setMinimumPassingPercentage(50);
+
+        // 55 ≥ 50 → passed with the lowered mark.
+        $this->actingAs($admin)->post(route('admin.quran.exams.grade', $exam), [
+            'grade' => 55,
+            'supervisor_id' => $teacher->id,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('hafiz_monthly_exams', ['id' => $exam->id, 'exam_status' => 'passed', 'grade' => 55.0]);
     }
 
     public function test_failed_exam_tracks_repetition_portions(): void
