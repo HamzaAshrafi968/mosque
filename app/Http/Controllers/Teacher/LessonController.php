@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Teacher;
 use App\Models\Classroom;
 use App\Models\Lesson;
 use App\Models\Subject;
+use App\Support\DocumentUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -42,7 +43,7 @@ class LessonController extends BaseTeacherController
             'subject_id' => ['required', 'exists:subjects,id'],
             'classroom_id' => ['nullable', 'exists:classrooms,id'],
             'type' => ['required', 'in:file,video,link,presentation'],
-            'file' => ['nullable', 'file', 'max:20480', 'required_if:type,file,presentation'],
+            'file' => ['nullable', ...DocumentUpload::rules(20480), 'required_if:type,file,presentation'],
             'url' => ['nullable', 'url', 'required_if:type,video,link'],
         ]);
 

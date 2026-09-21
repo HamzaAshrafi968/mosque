@@ -5,11 +5,13 @@ namespace App\Models;
 use App\Enums\ScheduleProgramType;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
+use App\View\Composers\SidebarComposer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * تخصص جدول (program): برنامج التحفيظ، الإجازة، اختبارات الحفظ،
@@ -41,6 +43,19 @@ class Program extends Model
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // أي تعديل على البرامج يُبطل كاش قائمة الشريط الجانبي لهذا الجامع.
+        $flushSidebar = function (Program $program) {
+            if (! empty($program->tenant_id)) {
+                Cache::forget(SidebarComposer::cacheKey($program->tenant_id));
+            }
+        };
+
+        static::saved($flushSidebar);
+        static::deleted($flushSidebar);
     }
 
     public function periods(): HasMany

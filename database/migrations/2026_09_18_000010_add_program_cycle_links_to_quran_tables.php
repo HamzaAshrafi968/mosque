@@ -32,7 +32,7 @@ return new class extends Migration
                 $table->foreignUuid('quran_recitation_session_id')
                     ->nullable()
                     ->after('listen_seconds')
-                    ->constrained('quran_recitation_sessions')
+                    ->constrained('quran_recitation_sessions', 'id', 'qlpi_recitation_session_fk')
                     ->nullOnDelete();
             });
         }

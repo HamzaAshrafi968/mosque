@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1\Teacher;
 
+use App\Support\DocumentUpload;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreLessonRequest extends FormRequest
@@ -14,7 +15,7 @@ class StoreLessonRequest extends FormRequest
             'subject_id' => ['required', 'exists:subjects,id'],
             'classroom_id' => ['nullable', 'exists:classrooms,id'],
             'type' => ['required', 'in:file,video,link,presentation'],
-            'file' => ['nullable', 'file', 'max:20480', 'required_if:type,file,presentation'],
+            'file' => ['nullable', ...DocumentUpload::rules(20480), 'required_if:type,file,presentation'],
             'url' => ['nullable', 'url', 'required_if:type,video,link'],
         ];
     }

@@ -25,6 +25,15 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'بيانات الدخول غير صحيحة'])->onlyInput('email');
         }
 
+        // جامع موقوف: لا يُسمح لمستخدميه بالدخول.
+        if (Auth::user()->tenant?->isSuspended()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors(['email' => 'حساب الجامع غير مُفعّل حالياً'])->onlyInput('email');
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(match (true) {

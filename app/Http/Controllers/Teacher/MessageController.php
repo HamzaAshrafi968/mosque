@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class MessageController extends BaseTeacherController
@@ -55,7 +56,10 @@ class MessageController extends BaseTeacherController
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'recipient_id' => ['required', 'exists:users,id'],
+            'recipient_id' => [
+                'required',
+                Rule::exists('users', 'id')->where('tenant_id', config('app.current_tenant_id')),
+            ],
             'subject' => ['nullable', 'string', 'max:255'],
             'body' => ['required', 'string'],
         ]);

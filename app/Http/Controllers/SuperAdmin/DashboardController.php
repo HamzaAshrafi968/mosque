@@ -20,24 +20,36 @@ class DashboardController extends Controller
         $mosques = Tenant::query()
             ->withCount('users')
             ->orderBy('created_at')
-            ->get()
-            ->map(function (Tenant $mosque) {
-                $mosque->setAttribute('students_count', Student::withoutGlobalScope('tenant')
-                    ->where('students.tenant_id', $mosque->id)->count());
+            ->get();
 
-                $mosque->setAttribute('teachers_count', Teacher::withoutGlobalScope('tenant')
-                    ->where('teachers.tenant_id', $mosque->id)->count());
+        // إحصاءات كل جامع باستعلامات مجمّعة (بدل 4 استعلامات لكل جامع).
+        $studentCounts = Student::withoutGlobalScope('tenant')
+            ->selectRaw('tenant_id, count(*) as aggregate')
+            ->groupBy('tenant_id')
+            ->pluck('aggregate', 'tenant_id');
 
-                $mosque->setAttribute('classrooms_count', Classroom::withoutGlobalScope('tenant')
-                    ->where('classrooms.tenant_id', $mosque->id)->count());
+        $teacherCounts = Teacher::withoutGlobalScope('tenant')
+            ->selectRaw('tenant_id, count(*) as aggregate')
+            ->groupBy('tenant_id')
+            ->pluck('aggregate', 'tenant_id');
 
-                $mosque->setAttribute('pending_approvals', Grade::withoutGlobalScope('tenant')
-                    ->where('grades.tenant_id', $mosque->id)
-                    ->where('grades.status', 'submitted')
-                    ->count());
+        $classroomCounts = Classroom::withoutGlobalScope('tenant')
+            ->selectRaw('tenant_id, count(*) as aggregate')
+            ->groupBy('tenant_id')
+            ->pluck('aggregate', 'tenant_id');
 
-                return $mosque;
-            });
+        $pendingCounts = Grade::withoutGlobalScope('tenant')
+            ->where('grades.status', 'submitted')
+            ->selectRaw('tenant_id, count(*) as aggregate')
+            ->groupBy('tenant_id')
+            ->pluck('aggregate', 'tenant_id');
+
+        $mosques->each(function (Tenant $mosque) use ($studentCounts, $teacherCounts, $classroomCounts, $pendingCounts) {
+            $mosque->setAttribute('students_count', (int) ($studentCounts[$mosque->id] ?? 0));
+            $mosque->setAttribute('teachers_count', (int) ($teacherCounts[$mosque->id] ?? 0));
+            $mosque->setAttribute('classrooms_count', (int) ($classroomCounts[$mosque->id] ?? 0));
+            $mosque->setAttribute('pending_approvals', (int) ($pendingCounts[$mosque->id] ?? 0));
+        });
 
         $totals = [
             'mosques' => Tenant::count(),

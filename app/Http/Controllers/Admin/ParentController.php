@@ -314,7 +314,7 @@ class ParentController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
-            'password' => ['nullable', 'string', 'min:6'],
+            'password' => ['nullable', 'string', 'min:8'],
             'student_ids' => ['nullable', 'array'],
             'student_ids.*' => ['uuid'],
             'relationships' => ['nullable', 'array'],

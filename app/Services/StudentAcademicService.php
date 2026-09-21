@@ -187,4 +187,89 @@ class StudentAcademicService
             'points' => $student->totalPoints(),
         ];
     }
+
+    /**
+     * بطاقات لوحة ولي الأمر لكل الأبناء باستعلامات مجمّعة بدل 4 استعلامات
+     * لكل ابن (الحضور + الامتحانات + الواجبات + الدرجات).
+     *
+     * @param  Collection<int, Student>  $students
+     * @return Collection<int, array{student: Student, attendance: array, upcomingExams: Collection, pendingHomeworks: int, publishedGrades: int}>
+     */
+    public function dashboardCards(Collection $students): Collection
+    {
+        if ($students->isEmpty()) {
+            return collect();
+        }
+
+        $ids = $students->pluck('id')->all();
+
+        // 1) الحضور — مجمّع مسبقاً في AttendanceMetricService.
+        $attendance = $this->attendance->studentStats($students);
+
+        // 2) الامتحانات القادمة — استعلام واحد ثم مطابقة الاستهداف في الذاكرة.
+        $exams = Exam::query()
+            ->with(['subject:id,name', 'section:id,name', 'classrooms:id,name'])
+            ->whereIn('status', [ExamStatus::Published, ExamStatus::Closed])
+            ->whereDate('exam_date', '>=', today())
+            ->orderBy('exam_date')
+            ->get();
+
+        // 3) الواجبات — استعلام واحد مع تسليمات كل الأبناء.
+        $homeworks = Homework::query()
+            ->with([
+                'subject:id,name',
+                'teacher:id,name,photo',
+                'submissions' => fn ($q) => $q->whereIn('student_id', $ids),
+            ])
+            ->whereIn('classroom_id', $students->pluck('classroom_id')->filter()->unique()->all())
+            ->latest()
+            ->get();
+
+        // 4) الدرجات المعتمدة — استعلام واحد مجمّع بالطالب.
+        $grades = Grade::query()
+            ->with(['exam:id,title,exam_date,total_marks,pass_marks,subject_id', 'exam.subject:id,name'])
+            ->whereIn('student_id', $ids)
+            ->where('status', GradeStatus::Approved)
+            ->latest('updated_at')
+            ->get()
+            ->groupBy('student_id');
+
+        return $students->map(function (Student $student) use ($attendance, $exams, $homeworks, $grades) {
+            $studentHomeworks = $homeworks->filter(fn (Homework $homework) => $homework->classroom_id === $student->classroom_id
+                && ($homework->section_id === null || $homework->section_id === $student->section_id));
+
+            $pending = $studentHomeworks->filter(function (Homework $homework) use ($student) {
+                $submission = $homework->submissions->firstWhere('student_id', $student->id);
+
+                return $submission !== null && $submission->status === 'pending';
+            })->count();
+
+            return [
+                'student' => $student,
+                'attendance' => $attendance->get($student->id, []),
+                'upcomingExams' => $exams->filter(fn (Exam $exam) => $this->examTargetsStudent($exam, $student))->values(),
+                'pendingHomeworks' => $pending,
+                'publishedGrades' => $grades->get($student->id, collect())->count(),
+            ];
+        })->values();
+    }
+
+    /** مطابقة استهداف الامتحان للطالب في الذاكرة (نفس منطق Exam::targetsStudent). */
+    private function examTargetsStudent(Exam $exam, Student $student): bool
+    {
+        $classroomIds = $exam->classrooms->pluck('id')->all();
+
+        if ($classroomIds === [] && $exam->classroom_id !== null) {
+            $classroomIds = [$exam->classroom_id];
+        }
+
+        if (in_array($student->classroom_id, $classroomIds, true)) {
+            return $exam->section_id === null || $exam->section_id === $student->section_id;
+        }
+
+        return $exam->classroom_id === null
+            && $classroomIds === []
+            && $exam->study_session_id !== null
+            && $exam->study_session_id === $student->study_session_id;
+    }
 }

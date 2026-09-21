@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AttendanceStatus;
+use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class AttendanceRecord extends Model
 {
-    use MultiTenantTrait, UuidTrait;
+    use FlushesTenantCache, MultiTenantTrait, UuidTrait;
 
     protected $fillable = [
         'tenant_id',

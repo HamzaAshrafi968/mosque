@@ -11,6 +11,7 @@ use App\Models\HomeworkSubmission;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Services\NotificationService;
+use App\Support\DocumentUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -63,7 +64,7 @@ class HomeworkController extends BaseTeacherController
             'due_date' => ['required', 'date', 'after_or_equal:today'],
             'pass_marks' => ['nullable', 'integer', 'min:0', 'max:1000'],
             'total_marks' => ['nullable', 'numeric', 'min:0', 'max:1000'],
-            'attachment' => ['nullable', 'file', 'max:10240'],
+            'attachment' => ['nullable', ...DocumentUpload::rules(10240)],
         ]);
 
         [$defaultType, $rows] = $this->validatedQuestionsData($request);
@@ -150,7 +151,7 @@ class HomeworkController extends BaseTeacherController
             'due_date' => ['required', 'date'],
             'pass_marks' => ['nullable', 'integer', 'min:0', 'max:1000'],
             'total_marks' => ['nullable', 'numeric', 'min:0', 'max:1000'],
-            'attachment' => ['nullable', 'file', 'max:10240'],
+            'attachment' => ['nullable', ...DocumentUpload::rules(10240)],
         ]);
 
         [$defaultType, $rows] = $this->validatedQuestionsData($request);

@@ -19,6 +19,28 @@ use Illuminate\Database\Eloquent\Model;
  */
 class AuthorizationService
 {
+    /**
+     * ذاكرة مؤقتة على مستوى الطلب: أدوار وصلاحيات كل مستخدم تُحمَّل مرة
+     * واحدة (استعلامان) بدل 2-3 استعلامات لكل نداء can() — الواجهة تنادي
+     * can() عشرات المرات في كل صفحة.
+     *
+     * @var array<string, bool>
+     */
+    private array $superAdminMemo = [];
+
+    /** @var array<string, array{overrides: array<string, array<int, array{effect: ?string, scope: ?string}>>, roles: array<string, array<int, ?string>>}> */
+    private array $permissionMemo = [];
+
+    /**
+     * تُفرَّغ في بداية كل طلب (InitializeTenant) وعند أي تغيير على الأدوار
+     * أو الصلاحيات (RoleService) فتبقى المنح/السحب فورية.
+     */
+    public function flushMemo(): void
+    {
+        $this->superAdminMemo = [];
+        $this->permissionMemo = [];
+    }
+
     /** True when the user holds a role granting this permission at any scope. */
     public function hasPermission(User $user, string $permission): bool
     {
@@ -101,35 +123,77 @@ class AuthorizationService
      */
     public function scopesFor(User $user, string $permission): array
     {
-        $overrides = $user->permissions()
-            ->where('permissions.code', $permission)
-            ->get();
+        $memo = $this->memoFor($user);
 
-        if ($overrides->isNotEmpty()) {
-            if ($overrides->contains(fn ($override) => $override->pivot->effect === 'deny')) {
-                return [];
+        $overrides = $memo['overrides'][$permission] ?? [];
+
+        if ($overrides !== []) {
+            foreach ($overrides as $override) {
+                if ($override['effect'] === 'deny') {
+                    return [];
+                }
             }
 
-            return $overrides
-                ->pluck('pivot.scope')
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
+            return array_values(array_unique(array_filter(
+                array_column($overrides, 'scope'),
+                fn ($scope) => $scope !== null && $scope !== ''
+            )));
         }
 
-        return $user->roles()
-            ->join('permission_role', 'permission_role.role_id', '=', 'roles.id')
-            ->join('permissions', 'permissions.id', '=', 'permission_role.permission_id')
-            ->where('permissions.code', $permission)
-            ->pluck('permission_role.scope')
-            ->unique()
-            ->values()
-            ->all();
+        return array_values(array_unique(array_filter(
+            $memo['roles'][$permission] ?? [],
+            fn ($scope) => $scope !== null && $scope !== ''
+        )));
+    }
+
+    /**
+     * تحميل كل صلاحيات المستخدم (التجاوزات المباشرة + منح الأدوار) مرة واحدة
+     * لكل مستخدم في الطلب الواحد.
+     *
+     * @return array{overrides: array<string, array<int, array{effect: ?string, scope: ?string}>>, roles: array<string, array<int, ?string>>}
+     */
+    private function memoFor(User $user): array
+    {
+        $id = (string) $user->getKey();
+
+        if (! isset($this->permissionMemo[$id])) {
+            $overrides = [];
+
+            foreach ($user->permissions()->get(['permissions.id', 'permissions.code']) as $permission) {
+                $overrides[$permission->code][] = [
+                    'effect' => $permission->pivot->effect,
+                    'scope' => $permission->pivot->scope,
+                ];
+            }
+
+            $roles = [];
+
+            foreach ($user->roles()->with('permissions')->get() as $role) {
+                foreach ($role->permissions as $permission) {
+                    $roles[$permission->code][] = $permission->pivot->scope;
+                }
+            }
+
+            $this->permissionMemo[$id] = ['overrides' => $overrides, 'roles' => $roles];
+        }
+
+        return $this->permissionMemo[$id];
     }
 
     public function userHasRoleCode(User $user, string $code): bool
     {
-        return $user->roles()->where('roles.code', $code)->exists();
+        $id = (string) $user->getKey();
+
+        if ($code === RoleService::ROLE_SUPER_ADMIN && isset($this->superAdminMemo[$id])) {
+            return $this->superAdminMemo[$id];
+        }
+
+        $exists = $user->roles()->where('roles.code', $code)->exists();
+
+        if ($code === RoleService::ROLE_SUPER_ADMIN) {
+            $this->superAdminMemo[$id] = $exists;
+        }
+
+        return $exists;
     }
 }

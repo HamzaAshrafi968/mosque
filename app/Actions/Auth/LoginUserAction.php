@@ -20,6 +20,13 @@ class LoginUserAction
             ]);
         }
 
+        // جامع موقوف: لا تُصدر له توكنات API.
+        if ($user->tenant?->isSuspended()) {
+            throw ValidationException::withMessages([
+                'email' => 'حساب الجامع غير مُفعّل حالياً',
+            ]);
+        }
+
         $token = $user->createToken('api')->plainTextToken;
 
         return ['user' => $user, 'token' => $token];

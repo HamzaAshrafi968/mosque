@@ -20,8 +20,8 @@ return new class extends Migration
             $table->timestamps();
 
             // One attendance-taking event per section per day.
-            $table->unique(['tenant_id', 'section_id', 'date']);
-            $table->index(['tenant_id', 'date', 'status']);
+            $table->unique(['tenant_id', 'section_id', 'date'], 'attendance_sessions_unique');
+            $table->index(['tenant_id', 'date', 'status'], 'attendance_sessions_date_status_idx');
         });
 
         Schema::create('attendance_records', function (Blueprint $table) {
@@ -34,9 +34,9 @@ return new class extends Migration
             $table->timestamps();
 
             // One record per student per session.
-            $table->unique(['tenant_id', 'attendance_session_id', 'student_id']);
-            $table->index(['tenant_id', 'student_id']);
-            $table->index(['attendance_session_id', 'status']);
+            $table->unique(['tenant_id', 'attendance_session_id', 'student_id'], 'attendance_records_unique');
+            $table->index(['tenant_id', 'student_id'], 'attendance_records_student_idx');
+            $table->index(['attendance_session_id', 'status'], 'attendance_records_session_status_idx');
         });
     }
 

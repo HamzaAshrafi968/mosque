@@ -13,6 +13,7 @@ use App\Models\WorkSlot;
 use App\Services\FinanceService;
 use App\Services\HourlyRateService;
 use App\Services\PayrollPeriodService;
+use App\Support\Csv;
 use App\Support\TimesheetAggregator;
 use App\Support\XlsxWriter;
 use Carbon\CarbonImmutable;
@@ -349,8 +350,8 @@ class PayrollController extends Controller
                 $summary = $summaries[$teacher->id];
 
                 fputcsv($handle, [
-                    $teacher->name,
-                    WorkSlot::formatMinutes($summary['total_minutes']),
+                    Csv::safe($teacher->name),
+                    Csv::safe(WorkSlot::formatMinutes($summary['total_minutes'])),
                     $summary['hourly_rate'] !== null
                         ? number_format($summary['hourly_rate'], 2, '.', '')
                         : ($summary['rate_is_mixed']
@@ -359,7 +360,7 @@ class PayrollController extends Controller
                     number_format($summary['gross'], 2, '.', ''),
                     number_format($summary['paid'], 2, '.', ''),
                     number_format($summary['remaining'], 2, '.', ''),
-                    $summary['state']->label(),
+                    Csv::safe($summary['state']->label()),
                 ]);
             }
 

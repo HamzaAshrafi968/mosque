@@ -110,13 +110,17 @@ class DashboardService
 
     public function latestAnnouncements(string $tenantId, int $limit = 5)
     {
-        return Cache::remember(self::key($tenantId, 'latest_announcements'), self::TTL, function () use ($limit) {
+        // تُخزَّن أحدث 20 مرة واحدة ثم يُقتطع العدد المطلوب — فيبقى مفتاح
+        // الكاش واحداً مهما اختلف limit.
+        $announcements = Cache::remember(self::key($tenantId, 'latest_announcements'), self::TTL, function () {
             return Announcement::query()
                 ->with('author:id,name')
                 ->notExpired()
                 ->latest('published_at')
-                ->limit($limit)
+                ->limit(20)
                 ->get();
         });
+
+        return $announcements->take($limit);
     }
 }

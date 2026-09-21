@@ -152,6 +152,8 @@ class RoleService
                 $pivot->insert($chunk);
             }
         });
+
+        $this->flushAuthorizationMemo();
     }
 
     /**
@@ -195,6 +197,8 @@ class RoleService
                 $pivot->insert($chunk);
             }
         });
+
+        $this->flushAuthorizationMemo();
     }
 
     /**
@@ -217,12 +221,21 @@ class RoleService
 
         if ($role && ! $user->roles()->where('roles.code', $code)->exists()) {
             $user->roles()->attach($role->id);
+            $this->flushAuthorizationMemo();
         }
     }
 
     public function removeRole(User $user, string $code): void
     {
         $user->roles()->where('roles.code', $code)->get()->each(fn (Role $role) => $user->roles()->detach($role->id));
+
+        $this->flushAuthorizationMemo();
+    }
+
+    /** أي تغيير على أدوار/صلاحيات مستخدم يُبطل ذاكرة الطلب فوراً. */
+    private function flushAuthorizationMemo(): void
+    {
+        app(AuthorizationService::class)->flushMemo();
     }
 
     /**

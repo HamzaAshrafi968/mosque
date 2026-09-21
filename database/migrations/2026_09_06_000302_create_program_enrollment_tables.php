@@ -39,7 +39,7 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            $table->index(['tenant_id', 'student_id', 'week_start']);
+            $table->index(['tenant_id', 'student_id', 'week_start'], 'qualifying_weekly_student_idx');
             $table->index(['tenant_id', 'evaluated_by']);
         });
 

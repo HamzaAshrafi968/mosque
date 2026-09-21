@@ -17,9 +17,18 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // MySQL: مفتاح test_id الأجنبي يحتاج فهرساً داعماً مستقلاً قبل حذف
+        // القيد الفريد المركّب (test_id, plan_item_id).
+        Schema::table('quran_listening_test_items', function (Blueprint $table) {
+            $table->index('test_id', 'qlti_test_id_index');
+        });
+
+        Schema::table('quran_listening_test_items', function (Blueprint $table) {
+            $table->dropForeign(['plan_item_id']);
+        });
+
         Schema::table('quran_listening_test_items', function (Blueprint $table) {
             $table->dropUnique(['test_id', 'plan_item_id']);
-            $table->dropForeign(['plan_item_id']);
         });
 
         Schema::table('quran_listening_test_items', function (Blueprint $table) {

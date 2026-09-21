@@ -48,7 +48,7 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->unique(['program_id', 'batch_number']);
-                $table->index(['tenant_id', 'student_id', 'status']);
+                $table->index(['tenant_id', 'student_id', 'status'], 'quran_prog_batches_student_status_idx');
             });
         }
 

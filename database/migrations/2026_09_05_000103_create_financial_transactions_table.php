@@ -24,8 +24,8 @@ return new class extends Migration
             $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['tenant_id', 'person_type', 'person_id', 'created_at']);
-            $table->index(['tenant_id', 'related_person_type', 'related_person_id']);
+            $table->index(['tenant_id', 'person_type', 'person_id', 'created_at'], 'fin_tx_person_created_idx');
+            $table->index(['tenant_id', 'related_person_type', 'related_person_id'], 'fin_tx_related_person_idx');
             $table->index(['tenant_id', 'reverses_id']);
         });
     }

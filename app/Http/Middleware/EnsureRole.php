@@ -27,9 +27,13 @@ class EnsureRole
             }
 
             $enteredMosque = $request->hasSession() ? $request->session()->get('super_admin_mosque_id') : null;
+            // InitializeTenant تحقّق من الجامع في هذا الطلب؛ نعيد استخدام
+            // النتيجة بدل تكرار نفس الاستعلام.
             $insideValidMosque = $enteredMosque !== null
                 && $enteredMosque !== ''
-                && Tenant::where('id', $enteredMosque)->exists();
+                && ($request->attributes->get('super_admin_mosque_valid') === true
+                    || (! $request->attributes->has('super_admin_mosque_valid')
+                        && Tenant::where('id', $enteredMosque)->exists()));
 
             if ($insideValidMosque && $role === User::ROLE_ADMIN) {
                 return $next($request);

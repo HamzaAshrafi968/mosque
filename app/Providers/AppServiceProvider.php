@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\PersonalAccessToken;
+use App\Services\AuthorizationService;
 use App\View\Composers\SidebarComposer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +22,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // singleton حتى تشارك كل الصفحة (الوسيط + القوالب + المتحكمات)
+        // الذاكرة المؤقتة للصلاحيات على مستوى الطلب.
+        $this->app->singleton(AuthorizationService::class);
     }
 
     /**

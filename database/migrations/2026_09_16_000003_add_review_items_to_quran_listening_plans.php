@@ -35,8 +35,15 @@ return new class extends Migration
         });
 
         Schema::table('quran_listening_plan_items', function (Blueprint $table) {
-            $table->dropUnique(['plan_id', 'juz']);
+            // MySQL: فهرس داعم لمفتاح plan_id الأجنبي قبل حذف القيد الفريد المركّب.
+            $table->index('plan_id', 'qlpi_plan_id_index');
+        });
 
+        Schema::table('quran_listening_plan_items', function (Blueprint $table) {
+            $table->dropUnique(['plan_id', 'juz']);
+        });
+
+        Schema::table('quran_listening_plan_items', function (Blueprint $table) {
             $table->string('type', 10)->default('new')->after('juz');
             $table->unsignedTinyInteger('khamsa')->default(0)->after('type');
             $table->foreignUuid('khamsa_review_item_id')

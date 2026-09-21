@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AttendanceSessionStatus;
+use App\Traits\FlushesTenantCache;
 use App\Traits\MultiTenantTrait;
 use App\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -21,7 +22,7 @@ use Illuminate\Support\Carbon;
  */
 class AttendanceSession extends Model
 {
-    use MultiTenantTrait, UuidTrait;
+    use FlushesTenantCache, MultiTenantTrait, UuidTrait;
 
     protected $fillable = [
         'tenant_id',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1\Teacher;
 
+use App\Support\DocumentUpload;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreHomeworkRequest extends FormRequest
@@ -15,7 +16,7 @@ class StoreHomeworkRequest extends FormRequest
             'classroom_id' => ['required', 'exists:classrooms,id'],
             'section_id' => ['nullable', 'exists:sections,id'],
             'due_date' => ['required', 'date', 'after_or_equal:today'],
-            'attachment' => ['nullable', 'file', 'max:10240'],
+            'attachment' => ['nullable', ...DocumentUpload::rules(10240)],
         ];
     }
 
