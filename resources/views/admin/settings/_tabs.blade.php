@@ -5,6 +5,7 @@
     $canUsers = $settingsAuthorization->can($settingsUser, 'users.view');
     $canWorkHours = $settingsAuthorization->can($settingsUser, 'work_hours.view');
     $canHourlyRates = $settingsAuthorization->can($settingsUser, 'hourly_rates.manage');
+    $canPortalNotice = $settingsAuthorization->can($settingsUser, 'portal_notice.view');
 
     $settingsTabs = [
         [
@@ -12,6 +13,12 @@
             'href' => route('admin.settings.index'),
             'active' => request()->routeIs('admin.settings.index'),
             'visible' => true,
+        ],
+        [
+            'label' => 'إعلان بوابة أولياء الأمور',
+            'href' => route('admin.settings.portal-notice.edit'),
+            'active' => request()->routeIs('admin.settings.portal-notice.*'),
+            'visible' => $canPortalNotice,
         ],
         [
             'label' => 'برنامج القرآن',

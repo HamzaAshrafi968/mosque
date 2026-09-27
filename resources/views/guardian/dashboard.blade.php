@@ -21,6 +21,20 @@
     </div>
 </section>
 
+@if (! empty($notice))
+    <section class="reveal relative overflow-hidden rounded-2xl border border-gold-200 bg-gradient-to-l from-gold-50 via-white to-white p-5 sm:p-6 mb-8 shadow-[0_1px_3px_rgba(5,32,25,0.05)]">
+        <div class="flex items-start gap-4">
+            <span class="w-11 h-11 shrink-0 rounded-xl bg-gold-400/20 text-gold-600 grid place-items-center">
+                <x-icon name="megaphone" class="w-5 h-5" />
+            </span>
+            <div class="min-w-0">
+                <div class="text-[11px] font-black text-gold-700 tracking-wide mb-1">إعلان هام</div>
+                <p class="text-sm text-pine-950/80 font-semibold leading-relaxed">{!! nl2br(e($notice)) !!}</p>
+            </div>
+        </div>
+    </section>
+@endif
+
 <h2 class="font-black text-pine-950 text-lg mb-4 flex items-center gap-2.5">
     <span class="w-8 h-8 rounded-lg bg-gold-50 text-gold-600 grid place-items-center"><x-icon name="children" class="w-4 h-4" /></span>
     أبنائي

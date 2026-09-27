@@ -10,6 +10,22 @@
     @include('admin.settings._tabs')
 
     <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+        @if ($canPortalNotice)
+            <a href="{{ route('admin.settings.portal-notice.edit') }}"
+                class="card-hover block bg-white rounded-2xl shadow p-6 border border-transparent hover:border-emerald-200">
+                <div class="flex items-start justify-between gap-3">
+                    <span class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 grid place-items-center">
+                        <x-icon name="megaphone" class="w-6 h-6" />
+                    </span>
+                    <span class="text-[11px] font-bold rounded-full px-3 py-1 {{ $portalNotice ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500' }}">
+                        {{ $portalNotice ? 'الإعلان مفعّل' : 'لا يوجد إعلان' }}
+                    </span>
+                </div>
+                <h2 class="font-bold text-gray-800 mt-4">إعلان بوابة أولياء الأمور</h2>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">نص ثابت يظهر أعلى الصفحة الرئيسية لبوابة ولي الأمر.</p>
+            </a>
+        @endif
+
         @if ($canQuranSettings)
             <a href="{{ route('admin.settings.quran.edit') }}"
                 class="card-hover block bg-white rounded-2xl shadow p-6 border border-transparent hover:border-emerald-200">

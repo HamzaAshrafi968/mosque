@@ -79,6 +79,9 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
+                @if ($indexRoute)
+                    <a href="{{ $indexRoute }}" class="text-xs font-bold text-gray-500 hover:underline">عرض كل الطلاب</a>
+                @endif
                 @if ($journeyUrl)
                     <a href="{{ $journeyUrl($selectedStudent) }}" class="text-xs font-bold text-emerald-700 hover:underline">فتح رحلة الطالب</a>
                 @endif

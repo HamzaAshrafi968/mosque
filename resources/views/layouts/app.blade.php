@@ -295,7 +295,7 @@
 
                     <div class="mx-2 my-3 gold-hairline"></div>
 
-                    @if ($can('quran_settings.view') || $can('users.view'))
+                    @if ($can('quran_settings.view') || $can('users.view') || $can('portal_notice.view'))
                         <x-nav-link icon="settings" :href="route('admin.settings.index')" :active="request()->routeIs('admin.settings.*') || request()->routeIs('admin.users.*')" label="الإعدادات" />
                     @endif
                     @if ($can('sessions.view'))

@@ -1647,6 +1647,346 @@ function initMemorizationEditors() {
     });
 }
 
+/* ============================================================
+   10) قوائم اختيار قابلة للبحث (الطلاب والمعلمون وأولياء الأمور)
+=========================================================== */
+const SEARCHABLE_SELECT_NAMES = new Set([
+    'student_id',
+    'teacher_id',
+    'supervisor_id',
+    'evaluated_by',
+    'recipient_id',
+    'assigned_to',
+    'to_id',
+    'from_id',
+    'user_id',
+]);
+
+const SEARCHABLE_LAYOUT_CLASSES = /^(?:w-|min-w-|max-w-|flex-|grow|shrink|basis-|col-|row-|order-|self-|justify-self|place-self|align-self|sm:|md:|lg:|xl:|2xl:)/;
+
+const searchableSelectClosers = [];
+
+function normalizeSearchTerm(value) {
+    return String(value ?? '')
+        .toLowerCase()
+        .replace(/[\u064B-\u0652\u0640]/g, '')
+        .replace(/[أإآٱ]/g, 'ا')
+        .replace(/ى/g, 'ي')
+        .replace(/ة/g, 'ه')
+        .replace(/ؤ/g, 'و')
+        .replace(/ئ/g, 'ي')
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim();
+}
+
+function enhanceSearchableSelect(select) {
+    if (select.dataset.searchableReady || select.multiple || select.options.length < 3) return;
+
+    select.dataset.searchableReady = '1';
+
+    const layoutClasses = select.className
+        .split(/\s+/)
+        .filter((token) => token !== '' && token !== 'hidden' && SEARCHABLE_LAYOUT_CLASSES.test(token));
+
+    const wrapper = document.createElement('div');
+    wrapper.className = ['relative', ...layoutClasses].join(' ');
+    wrapper.dataset.searchableSelect = '';
+    select.parentNode.insertBefore(wrapper, select);
+    wrapper.appendChild(select);
+
+    select.setAttribute('tabindex', '-1');
+    select.style.position = 'absolute';
+    select.style.width = '1px';
+    select.style.height = '1px';
+    select.style.padding = '0';
+    select.style.margin = '-1px';
+    select.style.overflow = 'hidden';
+    select.style.clip = 'rect(0, 0, 0, 0)';
+    select.style.whiteSpace = 'nowrap';
+    select.style.border = '0';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `${select.className} flex w-full items-center justify-between gap-2 bg-white text-right cursor-pointer disabled:cursor-not-allowed disabled:opacity-60`
+        .replace(/\s+/g, ' ')
+        .trim();
+    button.dataset.searchableButton = '';
+    button.setAttribute('aria-haspopup', 'listbox');
+    button.setAttribute('aria-expanded', 'false');
+
+    const buttonLabel = document.createElement('span');
+    buttonLabel.className = 'truncate';
+    button.appendChild(buttonLabel);
+
+    const chevron = document.createElement('span');
+    chevron.className = 'shrink-0 text-gray-400 transition-transform duration-200';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '▾';
+    button.appendChild(chevron);
+
+    wrapper.appendChild(button);
+
+    const panel = document.createElement('div');
+    panel.className = 'hidden fixed z-[80] rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden';
+    panel.dataset.searchablePanel = '';
+
+    const hint = document.createElement('div');
+    hint.className = 'hidden border-b border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700';
+    hint.textContent = 'الرجاء اختيار قيمة من القائمة';
+    panel.appendChild(hint);
+
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'border-b border-gray-100 bg-gray-50/80 p-2';
+
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none';
+    searchInput.placeholder = 'ابحث بالاسم...';
+    searchInput.setAttribute('autocomplete', 'off');
+    searchInput.setAttribute('aria-label', 'بحث في القائمة');
+    searchInput.dataset.searchableInput = '';
+    searchWrap.appendChild(searchInput);
+
+    const list = document.createElement('div');
+    list.className = 'max-h-64 overflow-y-auto py-1';
+    list.setAttribute('role', 'listbox');
+    list.dataset.searchableList = '';
+
+    const empty = document.createElement('div');
+    empty.className = 'hidden px-3 py-4 text-center text-sm text-gray-400';
+    empty.textContent = 'لا توجد نتائج مطابقة';
+
+    panel.appendChild(searchWrap);
+    panel.appendChild(list);
+    panel.appendChild(empty);
+    document.body.appendChild(panel);
+
+    let items = [];
+    let visibleItems = [];
+    let activeIndex = -1;
+    let isOpen = false;
+
+    const optionLabel = (option) => (option?.textContent ?? '').trim();
+
+    const placeholderLabel = () => {
+        const option = Array.from(select.options).find((item) => item.value === '');
+        return optionLabel(option) || '— اختر —';
+    };
+
+    const markSelected = () => {
+        items.forEach((item) => {
+            const isSelected = item.dataset.value !== '' && item.dataset.value === select.value;
+            item.classList.toggle('bg-emerald-50', isSelected);
+            item.classList.toggle('font-bold', isSelected);
+            item.classList.toggle('text-emerald-800', isSelected);
+            item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        });
+    };
+
+    const highlightActive = () => {
+        items.forEach((item) => item.classList.remove('bg-gray-100'));
+        if (activeIndex < 0 || activeIndex >= visibleItems.length) return;
+
+        const active = visibleItems[activeIndex];
+        active.classList.add('bg-gray-100');
+        active.scrollIntoView({ block: 'nearest' });
+    };
+
+    const applyFilter = () => {
+        const term = normalizeSearchTerm(searchInput.value);
+        let count = 0;
+
+        items.forEach((item) => {
+            const matches = term === '' || item.dataset.search.includes(term);
+            item.classList.toggle('hidden', !matches);
+            if (matches) count += 1;
+        });
+
+        empty.classList.toggle('hidden', count > 0);
+        visibleItems = items.filter((item) => !item.classList.contains('hidden') && !item.disabled);
+        activeIndex = visibleItems.findIndex((item) => item.dataset.value === select.value);
+        highlightActive();
+    };
+
+    const buildItems = () => {
+        list.innerHTML = '';
+        items = [];
+
+        Array.from(select.options).forEach((option) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.setAttribute('role', 'option');
+            item.dataset.searchableOption = '';
+            item.dataset.value = option.value;
+            item.dataset.search = normalizeSearchTerm(optionLabel(option));
+            item.className = 'flex w-full items-center gap-2 px-3 py-2 text-right text-sm transition hover:bg-emerald-50';
+
+            if (option.disabled) {
+                item.disabled = true;
+                item.classList.add('cursor-not-allowed', 'opacity-40');
+            }
+
+            const text = document.createElement('span');
+            text.className = 'truncate';
+            text.textContent = optionLabel(option) || '—';
+            item.appendChild(text);
+
+            item.addEventListener('click', () => choose(option.value));
+            list.appendChild(item);
+            items.push(item);
+        });
+
+        markSelected();
+    };
+
+    const positionPanel = () => {
+        const rect = button.getBoundingClientRect();
+        panel.style.top = `${Math.round(rect.bottom + 4)}px`;
+        panel.style.left = `${Math.round(rect.left)}px`;
+        panel.style.width = `${Math.round(rect.width)}px`;
+    };
+
+    const closePanel = () => {
+        if (!isOpen) return;
+        isOpen = false;
+        panel.classList.add('hidden');
+        button.setAttribute('aria-expanded', 'false');
+        chevron.classList.remove('rotate-180');
+        window.removeEventListener('scroll', positionPanel, true);
+        window.removeEventListener('resize', positionPanel);
+    };
+
+    const openPanel = (showHint = false) => {
+        if (isOpen || select.disabled || button.offsetParent === null) return;
+
+        searchableSelectClosers.forEach((close) => close());
+        isOpen = true;
+        panel.classList.remove('hidden');
+        hint.classList.toggle('hidden', !showHint);
+        button.setAttribute('aria-expanded', 'true');
+        chevron.classList.add('rotate-180');
+        searchInput.value = '';
+        applyFilter();
+        positionPanel();
+        window.addEventListener('scroll', positionPanel, true);
+        window.addEventListener('resize', positionPanel);
+        window.requestAnimationFrame(() => searchInput.focus());
+    };
+
+    const choose = (value) => {
+        select.value = value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        syncLabel();
+        markSelected();
+        closePanel();
+        button.focus();
+    };
+
+    const syncLabel = () => {
+        const option = select.selectedOptions[0];
+        const hasValue = !!option && option.value !== '';
+        buttonLabel.textContent = hasValue ? optionLabel(option) : placeholderLabel();
+        buttonLabel.classList.toggle('text-gray-400', !hasValue);
+        button.disabled = select.disabled;
+        button.classList.toggle('hidden', select.hidden || select.classList.contains('hidden'));
+        button.setAttribute('aria-required', select.required ? 'true' : 'false');
+
+        if (button.classList.contains('hidden') || select.disabled) closePanel();
+    };
+
+    searchableSelectClosers.push(closePanel);
+
+    button.addEventListener('click', () => (isOpen ? closePanel() : openPanel()));
+
+    button.addEventListener('keydown', (event) => {
+        if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
+            event.preventDefault();
+            openPanel();
+        }
+    });
+
+    searchInput.addEventListener('input', applyFilter);
+
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closePanel();
+            button.focus();
+            return;
+        }
+
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (visibleItems.length === 0) return;
+
+            activeIndex = event.key === 'ArrowDown'
+                ? (activeIndex + 1) % visibleItems.length
+                : (activeIndex - 1 + visibleItems.length) % visibleItems.length;
+            highlightActive();
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const target = visibleItems[activeIndex] || visibleItems[0];
+            if (target) choose(target.dataset.value);
+        }
+    });
+
+    select.addEventListener('change', () => {
+        syncLabel();
+        markSelected();
+    });
+
+    select.addEventListener('invalid', (event) => {
+        event.preventDefault();
+        openPanel(true);
+    });
+
+    select.closest('form')?.addEventListener('reset', () => {
+        window.setTimeout(() => {
+            syncLabel();
+            markSelected();
+        }, 0);
+    });
+
+    new MutationObserver(() => {
+        syncLabel();
+        buildItems();
+        if (isOpen) applyFilter();
+    }).observe(select, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'disabled', 'hidden'],
+    });
+
+    buildItems();
+    syncLabel();
+}
+
+function initSearchableSelects() {
+    document.querySelectorAll('select[name]').forEach((select) => {
+        if (select.dataset.searchableReady) return;
+        if (select.dataset.searchable === 'off') return;
+
+        const name = select.getAttribute('name') || '';
+        const isPersonSelect = SEARCHABLE_SELECT_NAMES.has(name) || select.hasAttribute('data-searchable');
+
+        if (isPersonSelect) enhanceSearchableSelect(select);
+    });
+
+    if (!initSearchableSelects.bound) {
+        initSearchableSelects.bound = true;
+
+        document.addEventListener('click', (event) => {
+            const target = event.target instanceof Element ? event.target : null;
+            if (target?.closest('[data-searchable-select]') || target?.closest('[data-searchable-panel]')) return;
+            searchableSelectClosers.forEach((close) => close());
+        });
+    }
+}
+
 function initApp() {
     initSidebarCollapse();
     initSidebarGroups();
@@ -1667,6 +2007,7 @@ function initApp() {
     initSessionGenderFilters();
     initExamTargetPickers();
     initMemorizationEditors();
+    initSearchableSelects();
 }
 
 if (document.readyState === 'loading') {

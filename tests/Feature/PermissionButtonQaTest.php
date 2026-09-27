@@ -176,12 +176,24 @@ class PermissionButtonQaTest extends TestCase
             ->assertOk()
             ->assertSee('تسجيل في القراءات');
 
+        // نموذج الرحلة الاختياري يخضع لنفس الصلاحية.
+        $this->actingAs($manager)
+            ->get(route('admin.quran.journey', $student))
+            ->assertOk()
+            ->assertSee('تسجيل في قراءة جديدة');
+
         $this->revoke($mosque, RoleService::ROLE_MOSQUE_MANAGER, 'quran_training.update');
 
         $this->actingAs($manager)
             ->get(route('admin.quran.programs.index', ['type' => 'readings']))
             ->assertOk()
             ->assertDontSee('تسجيل في القراءات');
+
+        $this->actingAs($manager)
+            ->get(route('admin.quran.journey', $student))
+            ->assertOk()
+            ->assertDontSee('تسجيل في قراءة جديدة')
+            ->assertSee('التسجيل في القراءات متاح لمن يملك صلاحية تعديل برامج القرآن');
     }
 
     public function test_student_index_buttons_follow_their_permissions(): void

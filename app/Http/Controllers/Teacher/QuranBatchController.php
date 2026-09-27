@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Enums\QuranListeningTestResult;
-use App\Enums\QuranMemorizationBatchStatus;
 use App\Enums\QuranTasmeeResult;
+use App\Http\Controllers\Concerns\ListsQuranBatchStudents;
+use App\Models\Classroom;
 use App\Models\QuranKhamsaReview;
 use App\Models\QuranListeningTest;
 use App\Models\QuranMemorizationBatch;
 use App\Models\QuranReviewSession;
+use App\Models\Section;
 use App\Models\Student;
 use App\Services\QuranAudioService;
 use App\Services\QuranBatchPanelService;
@@ -27,6 +29,8 @@ use Illuminate\View\View;
  */
 class QuranBatchController extends BaseTeacherController
 {
+    use ListsQuranBatchStudents;
+
     public function __construct(
         private readonly QuranMemorizationGatingService $gating,
         private readonly QuranScopeService $scope,
@@ -51,14 +55,17 @@ class QuranBatchController extends BaseTeacherController
             }
         }
 
-        $batches = QuranMemorizationBatch::query()
-            ->with(['student:id,name', 'plan:id,title,status', 'review5:id,status', 'lastTest:id,result,score,passing_percentage'])
-            ->whereIn('student_id', $studentIds)
-            ->when($request->filled('student_id'), fn ($query) => $query->where('student_id', $request->input('student_id')))
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
-            ->orderByDesc('updated_at')
-            ->paginate(20)
-            ->withQueryString();
+        [$students, $summaries] = $this->paginateBatchStudents(
+            Student::query()
+                ->with(['classroom:id,name', 'section:id,name', 'studySession:id,name,gender'])
+                ->whereIn('id', $studentIds)
+                ->search($request->string('q')->toString())
+                ->when($request->filled('classroom_id'), fn ($query) => $query->where('classroom_id', $request->input('classroom_id')))
+                ->when($request->filled('section_id'), fn ($query) => $query->where('section_id', $request->input('section_id')))
+                ->orderBy('name'),
+            $this->panel,
+            $request->string('status')->toString() ?: null,
+        );
 
         $cycle = $selected
             ? $this->panel->forStudent(
@@ -70,13 +77,19 @@ class QuranBatchController extends BaseTeacherController
             : QuranBatchPanelService::empty();
 
         return view('teacher.quran.batches.index', array_merge($cycle, [
-            'batches' => $batches,
+            'students' => $students,
+            'summaries' => $summaries,
+            'classrooms' => Classroom::query()->orderBy('name')->get(['id', 'name']),
+            'sections' => Section::query()
+                ->when($request->filled('classroom_id'), fn ($query) => $query->where('classroom_id', $request->input('classroom_id')))
+                ->with('classroom:id,name')
+                ->orderBy('name')
+                ->get(['id', 'name', 'classroom_id']),
             'selectedStudent' => $selected,
             'reciters' => $this->audio->reciters(),
             'khamsaReviewRoute' => fn (QuranKhamsaReview $review) => route('teacher.quran.khamsa.review', $review),
             'tasmeeResults' => QuranTasmeeResult::cases(),
-            'students' => $this->scope->studentsFor($teacher),
-            'statuses' => QuranMemorizationBatchStatus::cases(),
+            'statuses' => $this->batchStatusOptions(),
             'minimumPassingPercentage' => $this->settings->minimumPassingPercentage(),
         ]));
     }

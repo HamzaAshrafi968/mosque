@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
+use App\Enums\QuranReading;
 use App\Enums\QuranTasmeeResult;
 use App\Models\FaithMeetingStudent;
 use App\Models\HafizExamRevision;
 use App\Models\HafizMonthlyExam;
 use App\Models\ProgramEnrollment;
 use App\Models\Student;
+use App\Services\AuthorizationService;
 use App\Services\QuranJourneyService;
 use App\Services\QuranProgramService;
 use App\Services\QuranScopeService;
@@ -23,6 +25,7 @@ class QuranProgramController extends BaseTeacherController
         private readonly QuranScopeService $scope,
         private readonly QuranJourneyService $journeys,
         private readonly QuranProgramService $programs,
+        private readonly AuthorizationService $authorization,
     ) {}
 
     /** نظرة عامة + مؤشرات للشيخ/المعلم. */
@@ -161,6 +164,9 @@ class QuranProgramController extends BaseTeacherController
                 ->with(['supervisor:id,name', 'revisions'])
                 ->orderByDesc('month')
                 ->get(),
+            'readings' => QuranReading::cases(),
+            'enrolledReadings' => $journey['readings']->pluck('reading')->filter()->values()->all(),
+            'canEnrollReadings' => $this->authorization->can($request->user(), 'quran_training.update'),
             'monthLabel' => fn (string $m) => QuranProgramSettings::monthLabel($m),
         ]);
     }

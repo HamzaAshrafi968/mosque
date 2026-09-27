@@ -241,8 +241,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('quran/programs/{program}/cancel', [Admin\QuranListeningProgramController::class, 'cancel'])->name('quran.programs.cancel')->middleware('permission:quran_training.update');
     Route::get('quran/programs/{program}', [Admin\QuranListeningProgramController::class, 'show'])->name('quran.programs.show')->middleware('permission:quran_training.view');
 
-    // ---- مركز الإعدادات: برنامج القرآن + نقاط المكافآت + الصلاحيات ----
-    Route::get('settings', [Admin\SettingsController::class, 'index'])->name('settings.index')->middleware('permission:quran_settings.view,users.view,hourly_rates.manage,work_hours.view');
+    // ---- مركز الإعدادات: برنامج القرآن + نقاط المكافآت + إعلان أولياء الأمور + الصلاحيات ----
+    Route::get('settings', [Admin\SettingsController::class, 'index'])->name('settings.index')->middleware('permission:quran_settings.view,users.view,hourly_rates.manage,work_hours.view,portal_notice.view');
+
+    // ---- إعلان بوابة أولياء الأمور: نص ثابت يكتبه المدير ويظهر لولي الأمر ----
+    Route::get('settings/portal-notice', [Admin\PortalNoticeSettingsController::class, 'edit'])->name('settings.portal-notice.edit')->middleware('permission:portal_notice.view');
+    Route::patch('settings/portal-notice', [Admin\PortalNoticeSettingsController::class, 'update'])->name('settings.portal-notice.update')->middleware('permission:portal_notice.update');
 
     // ---- إعدادات برنامج القرآن (حد النجاح الموحّد لجميع اختبارات القرآن) ----
     Route::get('settings/quran', [Admin\QuranSettingsController::class, 'edit'])->name('settings.quran.edit')->middleware('permission:quran_settings.view');

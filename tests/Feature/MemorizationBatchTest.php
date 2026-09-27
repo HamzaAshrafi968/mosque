@@ -864,6 +864,58 @@ class MemorizationBatchTest extends TestCase
             ->assertDontSee('بانتظار استماع الطالب');
     }
 
+    public function test_center_lists_registered_students_without_batches(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session, 'طالب مسجّل جديد');
+
+        $this->assertDatabaseCount('quran_memorization_batches', 0);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.batches.index'))
+            ->assertOk()
+            ->assertSee('طالب مسجّل جديد')
+            ->assertSee('الدفعة 1')
+            ->assertSee('قيد الحفظ')
+            ->assertSee('الطلاب المسجّلون');
+
+        // العرض قراءة فقط: لا يُنشئ صفوف دفعات قبل فتح دورة الطالب.
+        $this->assertDatabaseCount('quran_memorization_batches', 0);
+    }
+
+    public function test_center_filters_students_by_name_and_current_status(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $memorized = $this->student($mosque, $session, 'أحمد المتميز');
+        $fresh = $this->student($mosque, $session, 'خالد الجديد');
+
+        $this->memorize($memorized, [1, 2]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.batches.index', ['q' => 'خالد']))
+            ->assertOk()
+            ->assertSee('خالد الجديد')
+            ->assertDontSee('أحمد المتميز');
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.batches.index', ['status' => 'pending_memorization']))
+            ->assertOk()
+            ->assertSee('خالد الجديد')
+            ->assertDontSee('أحمد المتميز');
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.batches.index', ['status' => 'pending_review_5']))
+            ->assertOk()
+            ->assertSee('أحمد المتميز')
+            ->assertDontSee('خالد الجديد');
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.batches.index', ['status' => 'completed']))
+            ->assertOk()
+            ->assertDontSee('خالد الجديد')
+            ->assertDontSee('أحمد المتميز');
+    }
+
     public function test_student_file_shows_the_memorization_cycle_and_hides_finance(): void
     {
         [$mosque, $admin, $session] = $this->mosque();

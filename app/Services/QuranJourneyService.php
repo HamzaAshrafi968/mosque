@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
+use App\Enums\QuranListeningProgramStatus;
+use App\Models\ProgramEnrollment;
 use App\Models\QuranCompletion;
+use App\Models\QuranListeningProgram;
 use App\Models\Student;
 use App\Models\Teacher;
 use Illuminate\Support\Collection;
@@ -13,7 +16,8 @@ use Illuminate\Support\Collection;
  * Computes the "Quran Journey" of a student (spec §11/§12):
  *
  *   Memorization → Quran Completed → Hafiz → Qualifying (weekly)
- *   → Qualifying completed → Ijazah (monthly) → Ijazah completed → Teacher/Sheikh
+ *   → Qualifying completed → Ijazah (monthly) → Ijazah completed
+ *   → Readings (optional advanced stage) → Teacher/Sheikh
  *
  * Stages are derived from confirmed rows only; nothing is guessed.
  */
@@ -31,9 +35,16 @@ class QuranJourneyService
 
     public const STAGE_IJAZAH = 'ijazah';
 
+    /** المرحلة المتقدمة الاختيارية: القراءات العشر بعد إتمام الإجازة. */
+    public const STAGE_READINGS = 'readings';
+
     public const STAGE_COMPLETED = 'completed';
 
     public const STAGE_TEACHER = 'teacher';
+
+    public function __construct(
+        private readonly QuranProgramBatchService $batches,
+    ) {}
 
     /** @return array<string, string> stage => Arabic label */
     public function stageLabels(): array
@@ -45,6 +56,7 @@ class QuranJourneyService
             self::STAGE_HAFIZ => 'حافظ',
             self::STAGE_QUALIFYING => 'البرنامج التأهيلي',
             self::STAGE_IJAZAH => 'برنامج الإجازة',
+            self::STAGE_READINGS => 'القراءات العشر (اختياري)',
             self::STAGE_COMPLETED => 'مكتمل',
             self::STAGE_TEACHER => 'معلم / شيخ',
         ];
@@ -53,7 +65,7 @@ class QuranJourneyService
     /**
      * The full journey payload for one student.
      *
-     * @return array{stage: string, stage_label: string, is_hafiz: bool, completion: ?array, qualifying: ?array, ijazah: ?array, exams: array<string, mixed>, timeline: Collection<int, array{date: string, label: string, done: bool}>}
+     * @return array{stage: string, stage_label: string, is_hafiz: bool, completion: ?array, qualifying: ?array, ijazah: ?array, readings: Collection<int, array<string, mixed>>, readings_eligible: bool, has_active_readings: bool, exams: array<string, mixed>, timeline: Collection<int, array{date: string, label: string, done: bool, optional?: bool}>}
      */
     public function journey(Student $student): array
     {
@@ -67,6 +79,8 @@ class QuranJourneyService
 
         $qualifying = $this->latestEnrollment($student, ProgramType::Qualifying);
         $ijazah = $this->latestEnrollment($student, ProgramType::Ijazah);
+
+        $readings = $this->readingsFor($student);
 
         $timeline = collect();
 
@@ -114,6 +128,26 @@ class QuranJourneyService
             ]);
         }
 
+        // المرحلة المتقدمة الاختيارية: القراءات العشر — تُعرض داخل الرحلة
+        // بوسم «اختياري» ولا تمنع إتمام الرحلة.
+        foreach ($readings as $row) {
+            $timeline->push([
+                'date' => $row['started_at'] ?? '—',
+                'label' => 'بدء '.$row['reading_label'].' (اختياري)',
+                'done' => true,
+                'optional' => true,
+            ]);
+
+            if ($row['status'] === ProgramEnrollmentStatus::Completed) {
+                $timeline->push([
+                    'date' => $row['completed_at'] ?? '—',
+                    'label' => 'إتمام '.$row['reading_label'].' (اختياري)',
+                    'done' => true,
+                    'optional' => true,
+                ]);
+            }
+        }
+
         $isTeacher = Teacher::where('user_id', $student->user_id)->exists();
 
         if ($isTeacher) {
@@ -124,7 +158,12 @@ class QuranJourneyService
             ]);
         }
 
-        $stage = $this->stageFor($completion, $qualifying, $ijazah, $isTeacher, $student);
+        $hasActiveReadings = $readings->contains(
+            fn (array $row) => $row['status'] === ProgramEnrollmentStatus::Active
+                && ($row['program_status'] === null || $row['program_status'] === QuranListeningProgramStatus::Active)
+        );
+
+        $stage = $this->stageFor($completion, $qualifying, $ijazah, $isTeacher, $student, $hasActiveReadings);
 
         return [
             'stage' => $stage,
@@ -139,6 +178,9 @@ class QuranJourneyService
             ] : null,
             'qualifying' => $this->enrollmentSummary($student, ProgramType::Qualifying, $qualifying),
             'ijazah' => $this->enrollmentSummary($student, ProgramType::Ijazah, $ijazah),
+            'readings' => $readings,
+            'readings_eligible' => $this->hasCompletedIjazah($student),
+            'has_active_readings' => $hasActiveReadings,
             'exams' => [
                 'latest' => $student->hafizMonthlyExams()
                     ->with('supervisor:id,name')
@@ -159,16 +201,20 @@ class QuranJourneyService
         ];
     }
 
-    private function stageFor(?QuranCompletion $completion, $qualifying, $ijazah, bool $isTeacher, Student $student): string
+    private function stageFor(?QuranCompletion $completion, $qualifying, $ijazah, bool $isTeacher, Student $student, bool $hasActiveReadings = false): string
     {
         if ($isTeacher) {
             return self::STAGE_TEACHER;
         }
 
         if ($ijazah) {
-            return $ijazah->status === ProgramEnrollmentStatus::Completed
-                ? self::STAGE_COMPLETED
-                : self::STAGE_IJAZAH;
+            if ($ijazah->status !== ProgramEnrollmentStatus::Completed) {
+                return self::STAGE_IJAZAH;
+            }
+
+            // القراءات اختيارية: مرحلة متقدمة بعد الإجازة، وعدم التسجيل فيها
+            // لا يمنع «مكتمل».
+            return $hasActiveReadings ? self::STAGE_READINGS : self::STAGE_COMPLETED;
         }
 
         if ($qualifying) {
@@ -186,6 +232,54 @@ class QuranJourneyService
         return $student->quranRecitationSessions()->exists()
             ? self::STAGE_MEMORIZING
             : self::STAGE_NEW;
+    }
+
+    /**
+     * التحاقات القراءات العشر (المرحلة المتقدمة الاختيارية) مع دورة كل قراءة
+     * وتقدّمها — بترتيب التسجيل. بلا N+1: استعلام واحد للدورات.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function readingsFor(Student $student): Collection
+    {
+        $enrollments = ProgramEnrollment::query()
+            ->where('student_id', $student->id)
+            ->where('program_type', ProgramType::Readings)
+            ->orderBy('created_at')
+            ->get();
+
+        $programs = QuranListeningProgram::query()
+            ->whereIn('enrollment_id', $enrollments->pluck('id'))
+            ->orderByRaw("case status when 'active' then 0 when 'completed' then 1 else 2 end")
+            ->orderByDesc('created_at')
+            ->get()
+            ->unique('enrollment_id')
+            ->keyBy('enrollment_id');
+
+        return $enrollments->map(function (ProgramEnrollment $enrollment) use ($programs) {
+            $program = $programs->get($enrollment->id);
+
+            return [
+                'id' => $enrollment->id,
+                'reading' => $enrollment->reading?->value,
+                'reading_label' => $enrollment->reading?->programLabel() ?? 'برنامج القراءات',
+                'status' => $enrollment->status,
+                'started_at' => $enrollment->started_at?->format('Y-m-d'),
+                'completed_at' => $enrollment->completed_at?->format('Y-m-d'),
+                'program_id' => $program?->id,
+                'program_status' => $program?->status,
+                'progress' => $program ? $this->batches->progressSummary($program) : null,
+            ];
+        })->values();
+    }
+
+    private function hasCompletedIjazah(Student $student): bool
+    {
+        return ProgramEnrollment::query()
+            ->where('student_id', $student->id)
+            ->where('program_type', ProgramType::Ijazah)
+            ->where('status', ProgramEnrollmentStatus::Completed)
+            ->exists();
     }
 
     private function latestEnrollment(Student $student, ProgramType $type)

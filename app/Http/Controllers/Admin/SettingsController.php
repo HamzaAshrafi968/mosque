@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HourlyRate;
 use App\Models\RewardPointRule;
 use App\Services\AuthorizationService;
+use App\Services\PortalNoticeSettingsService;
 use App\Services\QuranSettingsService;
 use App\Services\RewardPointSettingsService;
 use App\Services\WorkHoursSettingsService;
@@ -22,6 +23,7 @@ class SettingsController extends Controller
         private readonly QuranSettingsService $quranSettings,
         private readonly RewardPointSettingsService $rewardSettings,
         private readonly WorkHoursSettingsService $workHoursSettings,
+        private readonly PortalNoticeSettingsService $portalNotice,
         private readonly AuthorizationService $authorization,
     ) {}
 
@@ -42,6 +44,8 @@ class SettingsController extends Controller
             'automaticEnabled' => $this->rewardSettings->isEnabled(),
             'activeRules' => $activeRules,
             'canQuranSettings' => $can('quran_settings.view'),
+            'canPortalNotice' => $can('portal_notice.view'),
+            'portalNotice' => $this->portalNotice->guardianNotice(),
             'canUsers' => $can('users.view'),
             'canSessions' => $can('sessions.view'),
             'canPrograms' => $can('programs.view'),

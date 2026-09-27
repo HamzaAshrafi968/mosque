@@ -119,6 +119,12 @@ class QuranListeningProgramController extends BaseTeacherController
             $request->user(),
         );
 
+        if ($request->input('redirect_to') === 'journey') {
+            return redirect()
+                ->route('teacher.quran.students.journey', $student)
+                ->with('success', 'تم تسجيل '.$student->name.' في '.$program->displayLabel());
+        }
+
         return redirect()
             ->to($this->programUrl($program))
             ->with('success', 'تم تسجيل '.$student->name.' في '.$program->displayLabel());

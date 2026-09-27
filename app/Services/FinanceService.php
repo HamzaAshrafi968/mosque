@@ -28,7 +28,7 @@ use Illuminate\Validation\ValidationException;
  */
 class FinanceService
 {
-    public const DEFAULT_CURRENCY = 'ر.س';
+    public const DEFAULT_CURRENCY = 'ل.س';
 
     public function __construct(private readonly AuditLogger $audit) {}
 

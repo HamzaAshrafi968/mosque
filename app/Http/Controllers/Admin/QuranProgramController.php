@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\ProgramEnrollmentStatus;
 use App\Enums\ProgramType;
 use App\Enums\QuranCompletionStatus;
+use App\Enums\QuranReading;
 use App\Http\Controllers\Controller;
 use App\Models\HafizMonthlyExam;
 use App\Models\ProgramEnrollment;
 use App\Models\QuranCompletion;
 use App\Models\QuranRecitationSession;
 use App\Models\Student;
+use App\Services\AuthorizationService;
 use App\Services\QuranJourneyService;
 use App\Support\QuranProgramSettings;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,6 +23,7 @@ class QuranProgramController extends Controller
 {
     public function __construct(
         private readonly QuranJourneyService $journeys,
+        private readonly AuthorizationService $authorization,
     ) {}
 
     /** نظرة عامة على البرامج القرآنية + مؤشرات تشغيلية. */
@@ -126,6 +129,9 @@ class QuranProgramController extends Controller
             'currentMonth' => $currentMonth,
             'currentMonthWeeklyEvaluations' => $currentMonthWeeklyEvaluations,
             'exams' => $exams,
+            'readings' => QuranReading::cases(),
+            'enrolledReadings' => $journey['readings']->pluck('reading')->filter()->values()->all(),
+            'canEnrollReadings' => $this->authorization->can($request->user(), 'quran_training.update'),
             'monthLabel' => fn (string $m) => QuranProgramSettings::monthLabel($m),
         ]);
     }

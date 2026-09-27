@@ -9,6 +9,7 @@ use App\Models\QuranListeningPlan;
 use App\Models\QuranMemorizationBatch;
 use App\Models\QuranReviewSession;
 use App\Models\Student;
+use App\Models\StudentJuzMemorization;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -171,6 +172,117 @@ class QuranBatchPanelService
             'placementTestJuz' => $placementTestJuz,
             'cycleBlockedReason' => $cycleBlockedReason,
         ];
+    }
+
+    /**
+     * ملخص «الدفعة الحالية» لمجموعة طلاب لجدول المركز: قراءة فقط بلا أي كتابة،
+     * حتى يظهر كل طالب مسجّل فوراً ولو لم يبدأ حفظه بعد. تُحدَّث الصفوف فعلياً
+     * عند فتح دورة الطالب (sync).
+     *
+     * @param  Collection<int, Student>  $students
+     * @return array<string, array{batch_number: ?int, label: string, status: QuranMemorizationBatchStatus, batch: ?QuranMemorizationBatch, last_test: mixed, passed: int, completed: bool}>
+     */
+    public function summariesFor(Collection $students): array
+    {
+        $ids = $students->pluck('id')->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $memorized = StudentJuzMemorization::query()
+            ->whereIn('student_id', $ids)
+            ->get(['student_id', 'juz'])
+            ->groupBy('student_id')
+            ->map(fn (Collection $rows) => $rows->pluck('juz')->map(fn ($juz) => (int) $juz)->all());
+
+        $batches = QuranMemorizationBatch::query()
+            ->whereIn('student_id', $ids)
+            ->with('lastTest:id,result,score,passing_percentage')
+            ->get()
+            ->groupBy('student_id');
+
+        $summaries = [];
+
+        foreach ($students as $student) {
+            $summaries[$student->id] = $this->summarize(
+                $batches->get($student->id, collect())->keyBy('batch_number'),
+                $memorized->get($student->id, []),
+            );
+        }
+
+        return $summaries;
+    }
+
+    /**
+     * @param  Collection<int, QuranMemorizationBatch>  $rows
+     * @param  array<int, int>  $memorizedJuz
+     * @return array{batch_number: ?int, label: string, status: QuranMemorizationBatchStatus, batch: ?QuranMemorizationBatch, last_test: mixed, passed: int, completed: bool}
+     */
+    private function summarize(Collection $rows, array $memorizedJuz): array
+    {
+        $passed = 0;
+
+        for ($number = 1; $number <= QuranMemorizationBatch::TOTAL_BATCHES; $number++) {
+            $row = $rows->get($number);
+
+            if ($row?->isPassed()) {
+                $passed++;
+
+                continue;
+            }
+
+            $range = QuranMemorizationBatch::juzRange($number);
+            $bothMemorized = in_array($range['from'], $memorizedJuz, true)
+                && in_array($range['to'], $memorizedJuz, true);
+
+            $status = match (true) {
+                ! $bothMemorized => QuranMemorizationBatchStatus::PendingMemorization,
+                $row === null || $row->isLocked() => QuranMemorizationBatchStatus::PendingReview5,
+                default => $row->status,
+            };
+
+            return [
+                'batch_number' => $number,
+                'label' => 'الدفعة '.$number.' (الجزآن '.$range['from'].'–'.$range['to'].')',
+                'status' => $status,
+                'batch' => $row,
+                'last_test' => $this->latestTestAmong($rows, $row),
+                'passed' => $passed,
+                'completed' => false,
+            ];
+        }
+
+        return [
+            'batch_number' => null,
+            'label' => 'أكمل الحفظ',
+            'status' => QuranMemorizationBatchStatus::Passed,
+            'batch' => null,
+            'last_test' => $rows->get(QuranMemorizationBatch::TOTAL_BATCHES)?->lastTest,
+            'passed' => $passed,
+            'completed' => true,
+        ];
+    }
+
+    /**
+     * آخر اختبار مسجَّل في صفوف دفعات الطالب (الحالي ثم الأحدث السابق)،
+     * ليظهر في الجدول حتى أثناء حفظ دفعة جديدة.
+     *
+     * @param  Collection<int, QuranMemorizationBatch>  $rows
+     */
+    private function latestTestAmong(Collection $rows, ?QuranMemorizationBatch $current): mixed
+    {
+        if ($current?->lastTest) {
+            return $current->lastTest;
+        }
+
+        foreach ($rows->sortKeysDesc() as $row) {
+            if ($row->lastTest) {
+                return $row->lastTest;
+            }
+        }
+
+        return null;
     }
 
     /** @param Collection<int, array{batch_number: int, status: QuranMemorizationBatchStatus, batch: ?QuranMemorizationBatch}> $states */

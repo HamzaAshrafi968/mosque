@@ -3,13 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\QuranListeningTestResult;
-use App\Enums\QuranMemorizationBatchStatus;
 use App\Enums\QuranTasmeeResult;
+use App\Http\Controllers\Concerns\ListsQuranBatchStudents;
 use App\Http\Controllers\Controller;
+use App\Models\Classroom;
 use App\Models\QuranKhamsaReview;
 use App\Models\QuranListeningTest;
 use App\Models\QuranMemorizationBatch;
 use App\Models\QuranReviewSession;
+use App\Models\Section;
 use App\Models\Student;
 use App\Services\QuranAudioService;
 use App\Services\QuranBatchPanelService;
@@ -28,6 +30,8 @@ use Illuminate\View\View;
  */
 class QuranBatchController extends Controller
 {
+    use ListsQuranBatchStudents;
+
     public function __construct(
         private readonly QuranMemorizationGatingService $gating,
         private readonly QuranSettingsService $settings,
@@ -42,17 +46,17 @@ class QuranBatchController extends Controller
             ? Student::query()->find($request->input('student_id'))
             : null;
 
-        $batches = QuranMemorizationBatch::query()
-            ->with(['student:id,name', 'plan:id,title,status', 'review5:id,status', 'lastTest:id,result,score,passing_percentage'])
-            ->when($request->filled('student_id'), fn ($query) => $query->where('student_id', $request->input('student_id')))
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
-            ->when(config('app.current_study_session_id'), fn ($query) => $query->whereHas(
-                'student',
-                fn ($student) => $student->where('study_session_id', config('app.current_study_session_id'))
-            ))
-            ->orderByDesc('updated_at')
-            ->paginate(20)
-            ->withQueryString();
+        [$students, $summaries] = $this->paginateBatchStudents(
+            Student::query()
+                ->active()
+                ->with(['classroom:id,name', 'section:id,name', 'studySession:id,name,gender'])
+                ->search($request->string('q')->toString())
+                ->when($request->filled('classroom_id'), fn ($query) => $query->where('classroom_id', $request->input('classroom_id')))
+                ->when($request->filled('section_id'), fn ($query) => $query->where('section_id', $request->input('section_id')))
+                ->orderByStudySession(),
+            $this->panel,
+            $request->string('status')->toString() ?: null,
+        );
 
         $cycle = $selected
             ? $this->panel->forStudent(
@@ -63,13 +67,19 @@ class QuranBatchController extends Controller
             : QuranBatchPanelService::empty();
 
         return view('admin.quran.batches.index', array_merge($cycle, [
-            'batches' => $batches,
+            'students' => $students,
+            'summaries' => $summaries,
+            'classrooms' => Classroom::query()->orderBy('name')->get(['id', 'name']),
+            'sections' => Section::query()
+                ->when($request->filled('classroom_id'), fn ($query) => $query->where('classroom_id', $request->input('classroom_id')))
+                ->with('classroom:id,name')
+                ->orderBy('name')
+                ->get(['id', 'name', 'classroom_id']),
             'selectedStudent' => $selected,
             'reciters' => $this->audio->reciters(),
             'khamsaReviewRoute' => fn (QuranKhamsaReview $review) => route('admin.quran.khamsa.review', $review),
             'tasmeeResults' => QuranTasmeeResult::cases(),
-            'students' => Student::query()->active()->orderBy('name')->get(['id', 'name']),
-            'statuses' => QuranMemorizationBatchStatus::cases(),
+            'statuses' => $this->batchStatusOptions(),
             'minimumPassingPercentage' => $this->settings->minimumPassingPercentage(),
         ]));
     }

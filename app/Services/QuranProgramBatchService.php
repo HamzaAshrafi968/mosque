@@ -990,6 +990,49 @@ class QuranProgramBatchService
     }
 
     /**
+     * ملخص تقدّم خفيف (الأجزاء المجتازة والنسبة والدفعة الحالية) بلا حمولة
+     * panelData الكاملة — لبطاقات الرحلة والقوائم. Idempotent: يشتق حالات
+     * الدفعات عبر sync() قبل الحساب.
+     *
+     * @return array{passed_juz: int, total_juz: int, percentage: int, passed_batches: int, total_batches: int, current_batch: ?int, current_status: ?QuranListeningBatchStatus}
+     */
+    public function progressSummary(QuranListeningProgram $program): array
+    {
+        $states = $this->sync($program);
+        $passedBatches = 0;
+        $currentBatch = null;
+        $currentStatus = null;
+
+        foreach ($states as $state) {
+            if ($state['status'] === QuranListeningBatchStatus::Passed) {
+                $passedBatches++;
+
+                continue;
+            }
+
+            if ($currentBatch === null && $state['status'] !== QuranListeningBatchStatus::Locked) {
+                $currentBatch = $state['batch_number'];
+                $currentStatus = $state['status'];
+            }
+        }
+
+        $passedJuz = QuranListeningProgramItem::query()
+            ->where('program_id', $program->id)
+            ->where('status', QuranListeningItemStatus::Passed->value)
+            ->count();
+
+        return [
+            'passed_juz' => $passedJuz,
+            'total_juz' => QuranJuzMap::TOTAL_JUZ,
+            'percentage' => (int) round($passedJuz / QuranJuzMap::TOTAL_JUZ * 100),
+            'passed_batches' => $passedBatches,
+            'total_batches' => QuranListeningProgramBatch::TOTAL_BATCHES,
+            'current_batch' => $currentBatch,
+            'current_status' => $currentStatus,
+        ];
+    }
+
+    /**
      * بيانات صفحة دورة التأهيلي/الإجازة كاملة (المتحكمات).
      *
      * @return array<string, mixed>

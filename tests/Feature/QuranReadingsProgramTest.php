@@ -588,4 +588,101 @@ class QuranReadingsProgramTest extends TestCase
             ->assertSee('القراءات المكتملة')
             ->assertSee('الكسائي الكوفي');
     }
+
+    // ------------------------------------------------------------ الرحلة (اختياري)
+
+    public function test_journey_shows_the_optional_readings_section_and_the_gate(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+
+        // قبل الإجازة: القفل ظاهر بلا نموذج تسجيل.
+        $this->actingAs($admin)
+            ->get(route('admin.quran.journey', $student))
+            ->assertOk()
+            ->assertSee('برنامج القراءات — مرحلة متقدمة اختيارية')
+            ->assertSee('يُفتح التسجيل الاختياري في القراءات')
+            ->assertDontSee('تسجيل في قراءة جديدة');
+
+        $this->completeIjazah($student);
+
+        // بعد الإجازة: النموذج يفتح والمرحلة تبقى اختيارية.
+        $this->actingAs($admin)
+            ->get(route('admin.quran.journey', $student))
+            ->assertOk()
+            ->assertSee('تسجيل في قراءة جديدة')
+            ->assertSee('نافع المدني')
+            ->assertSee('خلف العاشر')
+            ->assertDontSee('يُفتح التسجيل الاختياري في القراءات');
+    }
+
+    public function test_journey_marks_readings_as_optional_stage_and_shows_progress(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        [, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+        $program = $this->enroll($student, QuranReading::Asim);
+
+        $this->passBatch($program->batches()->where('batch_number', 1)->firstOrFail(), $admin, $teacher);
+
+        $this->actingAs($admin)
+            ->get(route('admin.quran.journey', $student))
+            ->assertOk()
+            ->assertSee('القراءات العشر (اختياري)')
+            ->assertSee('قراءة عاصم الكوفي')
+            ->assertSee('بدء قراءة عاصم الكوفي (اختياري)')
+            ->assertSee('5/30')
+            ->assertSee('1/6');
+    }
+
+    public function test_admin_enrolls_from_the_journey_page_and_returns_to_it(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        $student = $this->student($mosque, $session);
+        $this->completeIjazah($student);
+
+        $this->actingAs($admin)
+            ->post(route('admin.quran.programs.enroll'), [
+                'student_id' => $student->id,
+                'reading' => QuranReading::Khalaf->value,
+                'redirect_to' => 'journey',
+            ])
+            ->assertRedirect(route('admin.quran.journey', $student));
+
+        $this->assertDatabaseHas('program_enrollments', [
+            'student_id' => $student->id,
+            'program_type' => ProgramType::Readings->value,
+            'reading' => QuranReading::Khalaf->value,
+        ]);
+    }
+
+    public function test_teacher_journey_shows_readings_within_scope_only(): void
+    {
+        [$mosque, , $session] = $this->mosque();
+        [$teacherUser, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+        $outsider = $this->student($mosque, $session, 'طالب خارج النطاق');
+
+        // جلسة تسميع سابقة تُدخل الطالب في نطاق الأستاذ.
+        QuranRecitationSession::create([
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'type' => 'revision',
+            'date' => now()->toDateString(),
+            'amount' => 1,
+        ]);
+
+        $this->enroll($student, QuranReading::Yaqub);
+
+        $this->actingAs($teacherUser)
+            ->get(route('teacher.quran.students.journey', $student))
+            ->assertOk()
+            ->assertSee('القراءات العشر (اختياري)')
+            ->assertSee('قراءة يعقوب الحضرمي')
+            ->assertSee('تسجيل في قراءة جديدة');
+
+        $this->actingAs($teacherUser)
+            ->get(route('teacher.quran.students.journey', $outsider))
+            ->assertForbidden();
+    }
 }

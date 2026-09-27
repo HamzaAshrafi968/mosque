@@ -51,7 +51,12 @@
                             @if($item['done']) ✓ @else ● @endif
                         </span>
                         <div class="pb-3">
-                            <div @class(['text-sm font-bold', 'text-gray-800' => $item['done'], 'text-gray-400' => !$item['done']])>{{ $item['label'] }}</div>
+                            <div @class(['text-sm font-bold', 'text-gray-800' => $item['done'], 'text-gray-400' => !$item['done']])>
+                                {{ $item['label'] }}
+                                @if($item['optional'] ?? false)
+                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 align-middle">اختياري</span>
+                                @endif
+                            </div>
                             <div class="text-xs text-gray-400">{{ $item['date'] !== '—' ? $item['date'] : '—' }}</div>
                         </div>
                     </div>
@@ -149,6 +154,82 @@
                     </div>
                 </div>
             @endif
+
+            {{-- المرحلة المتقدمة الاختيارية: القراءات العشر (بعد إتمام الإجازة) --}}
+            <div class="bg-white rounded-2xl shadow-sm border border-violet-200 overflow-hidden">
+                <div class="px-5 py-3 border-b bg-violet-50 flex justify-between items-center">
+                    <span class="font-bold text-violet-900">📖 برنامج القراءات — مرحلة متقدمة اختيارية</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">اختياري</span>
+                </div>
+
+                @if($journey['readings']->isNotEmpty())
+                    <div class="divide-y divide-gray-100">
+                        @foreach($journey['readings'] as $row)
+                            <div class="px-5 py-4 space-y-2">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div class="font-bold text-gray-800">{{ $row['reading_label'] }}</div>
+                                    <div class="flex items-center gap-2">
+                                        <span @class([
+                                            'px-2 py-0.5 rounded-full text-xs font-bold',
+                                            'bg-emerald-100 text-emerald-800' => $row['status'] === \App\Enums\ProgramEnrollmentStatus::Active,
+                                            'bg-sky-100 text-sky-800' => $row['status'] === \App\Enums\ProgramEnrollmentStatus::Completed,
+                                        ])>{{ $row['status']->label() }}</span>
+                                        @if($row['program_id'] && $can('quran_training.view'))
+                                            <a href="{{ route('teacher.quran.programs.index', ['type' => 'readings', 'program_id' => $row['program_id']]) }}" class="text-xs font-bold text-emerald-700 hover:underline">عرض الدورة ←</a>
+                                        @endif
+                                    </div>
+                                </div>
+                                @if($row['progress'])
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                                            <div class="bg-violet-600 h-2" style="width: {{ $row['progress']['percentage'] }}%"></div>
+                                        </div>
+                                        <span class="text-[11px] font-bold text-gray-500">{{ $row['progress']['passed_juz'] }}/{{ $row['progress']['total_juz'] }} جزء</span>
+                                    </div>
+                                    <div class="text-[11px] text-gray-400">
+                                        الدفعات: {{ $row['progress']['passed_batches'] }}/{{ $row['progress']['total_batches'] }}
+                                        @if($row['progress']['current_batch'])
+                                            · الدفعة الحالية {{ $row['progress']['current_batch'] }} ({{ $row['progress']['current_status']?->label() }})
+                                        @endif
+                                    </div>
+                                @endif
+                                <div class="text-[11px] text-gray-400">
+                                    بدأ {{ $row['started_at'] ?? '—' }}@if($row['completed_at']) · أُتم {{ $row['completed_at'] }}@endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                <div class="px-5 py-4 bg-gray-50/60 @if($journey['readings']->isNotEmpty()) border-t @endif">
+                    @if($journey['readings_eligible'])
+                        @if($canEnrollReadings)
+                            <form method="POST" action="{{ route('teacher.quran.programs.enroll') }}" class="flex flex-wrap items-end gap-3">
+                                @csrf
+                                <input type="hidden" name="student_id" value="{{ $student->id }}">
+                                <input type="hidden" name="redirect_to" value="journey">
+                                <div class="min-w-56 flex-1">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">تسجيل في قراءة جديدة (يمكن أكثر من قراءة)</label>
+                                    <select name="reading" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                                        @foreach($readings as $reading)
+                                            <option value="{{ $reading->value }}" @selected(old('reading') === $reading->value)>
+                                                {{ $reading->label() }}@if(in_array($reading->value, $enrolledReadings, true)) — مسجّلة مسبقاً @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('reading')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                    @error('student_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                </div>
+                                <button class="bg-violet-700 hover:bg-violet-800 text-white font-bold px-6 py-2 rounded-xl text-sm">تسجيل في القراءات</button>
+                            </form>
+                        @else
+                            <p class="text-xs text-gray-400">التسجيل في القراءات متاح لمن يملك صلاحية تعديل برامج القرآن.</p>
+                        @endif
+                    @else
+                        <p class="text-xs text-gray-500">🔒 يُفتح التسجيل الاختياري في القراءات (القراءات العشر) بعد إتمام برنامج الإجازة — المرحلة اختيارية ولا تمنع إتمام الرحلة.</p>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 

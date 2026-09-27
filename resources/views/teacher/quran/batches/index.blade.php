@@ -16,7 +16,10 @@
     $canSessionStart = $can('quran.tasmee.create') || $can('quran_review.create');
 @endphp
 @include('quran.batches.index-panel', [
-    'batches' => $batches,
+    'students' => $students,
+    'summaries' => $summaries,
+    'classrooms' => $classrooms,
+    'sections' => $sections,
     'selectedStudent' => $selectedStudent,
     'states' => $states,
     'currentBatch' => $currentBatch,
@@ -29,7 +32,6 @@
     'memorizationProgress' => $memorizationProgress,
     'reciters' => $reciters,
     'tasmeeResults' => $tasmeeResults,
-    'students' => $students,
     'statuses' => $statuses,
     'minimumPassingPercentage' => $minimumPassingPercentage,
     'indexRoute' => route('teacher.quran.batches.index'),

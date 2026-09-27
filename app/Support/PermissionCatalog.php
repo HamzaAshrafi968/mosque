@@ -160,6 +160,9 @@ final class PermissionCatalog
         // إعدادات برنامج القرآن لكل جامع
         ['quran_settings', 'view', 'مشاهدة إعدادات برنامج القرآن'],
         ['quran_settings', 'update', 'تعديل إعدادات برنامج القرآن'],
+        // إعلان بوابة أولياء الأمور (نص ثابت يكتبه مدير الجامع من الإعدادات)
+        ['portal_notice', 'view', 'مشاهدة إعلان بوابة أولياء الأمور'],
+        ['portal_notice', 'update', 'تعديل إعلان بوابة أولياء الأمور'],
         // Reward points (نقاط المكافآت)
         ['reward_points', 'view', 'مشاهدة نقاط المكافآت'],
         ['reward_points', 'create', 'منح نقاط مكافأة'],
@@ -234,6 +237,7 @@ final class PermissionCatalog
         'quran_batch.view' => 'mosque', 'quran_batch.update' => 'mosque',
         'quran_training.view' => 'mosque', 'quran_training.update' => 'mosque', 'quran_training.listen' => 'mosque', 'quran_training.test' => 'mosque', 'quran_training.enroll' => 'mosque',
         'quran_settings.view' => 'mosque', 'quran_settings.update' => 'mosque',
+        'portal_notice.view' => 'mosque', 'portal_notice.update' => 'mosque',
         'reward_points.view' => 'mosque', 'reward_points.create' => 'mosque', 'reward_points.delete' => 'mosque',
         'qualifying.view' => 'mosque', 'qualifying.create' => 'mosque', 'qualifying.update' => 'mosque', 'qualifying.complete' => 'mosque',
         'ijazah.view' => 'mosque', 'ijazah.create' => 'mosque', 'ijazah.update' => 'mosque', 'ijazah.complete' => 'mosque',
@@ -387,6 +391,7 @@ final class PermissionCatalog
             'quran_batch' => 'دفعات الحفظ',
             'quran_training' => 'برامج الاستماع (إجازة/تأهيلي/قراءات)',
             'quran_settings' => 'إعدادات برنامج القرآن',
+            'portal_notice' => 'إعلان بوابة أولياء الأمور',
             'reward_points' => 'نقاط المكافآت',
             'qualifying' => 'البرنامج التأهيلي',
             'ijazah' => 'برنامج الإجازة',
