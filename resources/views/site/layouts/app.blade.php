@@ -44,6 +44,20 @@
     @endphp
 
     <header class="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-pine-100">
+        <div class="bg-gradient-to-l from-gold-300 via-gold-400 to-gold-600 text-pine-950">
+            <div class="max-w-6xl mx-auto px-4 py-1.5 flex items-center justify-center gap-2.5 flex-wrap">
+                <span class="inline-flex items-center gap-1.5 text-[12px] sm:text-[13px] font-black">
+                    <x-icon name="gift" class="w-4 h-4 shrink-0" />
+                    شاركنا الخير — تبرع مادي أو عيني أو مساهمة معنوية
+                </span>
+                <button type="button" data-donation-open
+                    class="inline-flex items-center gap-1.5 bg-pine-900 hover:bg-pine-950 text-gold-200 text-xs font-black px-3 py-1 rounded-full transition active:scale-95">
+                    <x-icon name="heart" class="w-3.5 h-3.5 shrink-0" />
+                    تبرع الآن
+                </button>
+            </div>
+        </div>
+
         <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
             <a href="{{ route('site.home') }}" class="flex items-center gap-2.5 min-w-0">
                 <span
@@ -89,6 +103,23 @@
     <main class="flex-1">
         @yield('content')
     </main>
+
+    @include('site.partials.donation-modal')
+
+    @if (session('success'))
+        <div data-flash class="flash-toast fixed bottom-5 inset-x-4 sm:inset-x-auto sm:right-6 sm:max-w-sm z-[80] bg-white border border-emerald-200 rounded-2xl shadow-2xl overflow-hidden">
+            <div class="flex items-start gap-3 px-4 py-3.5">
+                <span class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 grid place-items-center shrink-0 mt-0.5">
+                    <x-icon name="check" class="w-5 h-5" />
+                </span>
+                <p class="text-sm font-bold text-pine-900 leading-relaxed flex-1">{{ session('success') }}</p>
+                <button type="button" data-flash-close aria-label="إغلاق" class="text-gray-400 hover:text-gray-600 transition shrink-0">
+                    <x-icon name="x" class="w-4 h-4" />
+                </button>
+            </div>
+            <span data-flash-bar class="flash-toast-bar bg-gradient-to-l from-emerald-500 to-gold-400"></span>
+        </div>
+    @endif
 
     <footer class="gradient-sidebar text-white mt-16 relative overflow-hidden">
         <div aria-hidden="true" class="absolute inset-0 sidebar-pattern opacity-70"></div>

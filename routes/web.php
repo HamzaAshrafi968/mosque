@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [Site\HomeController::class, 'index'])->name('site.home');
 Route::get('mosques', [Site\MosqueController::class, 'index'])->name('site.mosques.index');
 Route::get('mosques/{mosque:code}', [Site\MosqueController::class, 'show'])->name('site.mosques.show');
+Route::post('donations', [Site\DonationController::class, 'store'])->middleware('throttle:10,1')->name('site.donations.store');
 Route::get('sitemap.xml', [Site\SitemapController::class, 'index'])->name('site.sitemap');
 Route::get('robots.txt', [Site\RobotsController::class, 'index'])->name('site.robots');
 
@@ -193,6 +194,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('announcements', [Admin\AnnouncementController::class, 'index'])->name('announcements.index')->middleware('permission:announcements.view');
     Route::post('announcements', [Admin\AnnouncementController::class, 'store'])->name('announcements.store')->middleware('permission:announcements.create');
     Route::delete('announcements/{announcement}', [Admin\AnnouncementController::class, 'destroy'])->name('announcements.destroy')->middleware('permission:announcements.delete');
+
+    // ---- التبرعات والمساهمات: مادي/عيني/معنوي، بانتظار → مقبول/مرفوض ----
+    Route::get('donations', [Admin\DonationController::class, 'index'])->name('donations.index')->middleware('permission:donations.view');
+    Route::get('donations/create', [Admin\DonationController::class, 'create'])->name('donations.create')->middleware('permission:donations.create');
+    Route::post('donations', [Admin\DonationController::class, 'store'])->name('donations.store')->middleware('permission:donations.create');
+    Route::get('donations/{donation}/edit', [Admin\DonationController::class, 'edit'])->name('donations.edit')->middleware('permission:donations.update');
+    Route::patch('donations/{donation}', [Admin\DonationController::class, 'update'])->name('donations.update')->middleware('permission:donations.update');
+    Route::delete('donations/{donation}', [Admin\DonationController::class, 'destroy'])->name('donations.destroy')->middleware('permission:donations.delete');
+    Route::post('donations/{donation}/accept', [Admin\DonationController::class, 'accept'])->name('donations.accept')->middleware('permission:donations.approve');
+    Route::post('donations/{donation}/reject', [Admin\DonationController::class, 'reject'])->name('donations.reject')->middleware('permission:donations.approve');
 
     Route::get('quran-review', [Admin\QuranReviewController::class, 'index'])->name('quran-review.index')->middleware('permission:quran_review.view');
     Route::get('quran-review/statistics', [Admin\QuranReviewController::class, 'statistics'])->name('quran-review.statistics')->middleware('permission:quran_review.view');

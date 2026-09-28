@@ -50,6 +50,7 @@ final class AuditActionCatalog
             'tone' => 'emerald',
             'prefixes' => ['finance.', 'payroll.', 'work_slot.', 'work_hours.', 'hourly_rate.'],
         ],
+        'donations' => ['label' => 'التبرعات والمساهمات', 'icon' => 'gift', 'tone' => 'gold', 'prefixes' => ['donation.']],
         'programs' => ['label' => 'البرامج والتخصصات', 'icon' => 'qualifying', 'tone' => 'sky', 'prefixes' => ['program.']],
         'sharia' => ['label' => 'الدورات الشرعية', 'icon' => 'mosque', 'tone' => 'gold', 'prefixes' => ['sharia_course.']],
         'faith' => ['label' => 'اللقاءات الإيمانية', 'icon' => 'faith', 'tone' => 'violet', 'prefixes' => ['faith_meeting.', 'faith_meeting_template.']],
@@ -200,6 +201,12 @@ final class AuditActionCatalog
 
         'reward_points.settings.updated' => ['label' => 'تعديل إعدادات نقاط المكافآت', 'group' => 'rewards'],
 
+        'donation.created' => ['label' => 'تسجيل تبرع أو مساهمة', 'group' => 'donations'],
+        'donation.updated' => ['label' => 'تعديل تبرع أو مساهمة', 'group' => 'donations'],
+        'donation.accepted' => ['label' => 'قبول تبرع أو مساهمة', 'group' => 'donations'],
+        'donation.rejected' => ['label' => 'رفض تبرع أو مساهمة', 'group' => 'donations'],
+        'donation.deleted' => ['label' => 'حذف تبرع أو مساهمة', 'group' => 'donations'],
+
         'custom_field.created' => ['label' => 'إضافة حقل مخصص', 'group' => 'settings'],
         'custom_field.updated' => ['label' => 'تعديل حقل مخصص', 'group' => 'settings'],
         'custom_field.deleted' => ['label' => 'حذف حقل مخصص', 'group' => 'settings'],
@@ -272,6 +279,7 @@ final class AuditActionCatalog
         'faith_meeting_note' => 'ملاحظة لقاء',
         'custom_field' => 'حقل مخصص',
         'tenant_setting' => 'إعدادات الجامع',
+        'donation' => 'تبرع أو مساهمة',
         'reward_point_rule' => 'قاعدة نقاط مكافآت',
         'reward_point' => 'نقطة مكافأة',
         'quran_listening_program' => 'برنامج قرآني',

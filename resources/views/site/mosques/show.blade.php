@@ -103,6 +103,62 @@
             </div>
 
             <div class="bg-white border border-pine-100 rounded-3xl p-7">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <h2 class="text-xl font-black text-pine-950">تبرعات ومساهمات أهل الخير</h2>
+                        <div class="ornament-top mt-3 !mx-0" style="text-align: start"></div>
+                    </div>
+                    <button type="button" data-donation-open
+                        class="inline-flex items-center gap-2 bg-gradient-to-l from-pine-800 via-emerald-700 to-emerald-600 hover:from-pine-900 hover:to-emerald-700 text-white text-sm font-black px-4 py-2.5 rounded-xl transition">
+                        <x-icon name="gift" class="w-4 h-4" />
+                        شاركنا الخير
+                    </button>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2 mt-6">
+                    @forelse ($donations as $donation)
+                        <article class="rounded-2xl border border-pine-100 bg-[#f8faf9] p-4 flex flex-col gap-2.5">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                @php
+                                    $tone = match ($donation->type->value) {
+                                        'financial' => 'bg-emerald-100 text-emerald-700',
+                                        'in_kind' => 'bg-sky-100 text-sky-700',
+                                        'moral' => 'bg-violet-100 text-violet-700',
+                                        default => 'bg-gold-100 text-gold-700',
+                                    };
+                                @endphp
+                                <span class="text-[11px] font-black px-2.5 py-1 rounded-full {{ $tone }}">{{ $donation->typeLabel() }}</span>
+                                @if ($donation->amountLabel())
+                                    <span class="text-sm font-black text-pine-950" dir="ltr">{{ $donation->amountLabel() }}</span>
+                                @endif
+                            </div>
+                            <h3 class="font-black text-sm text-pine-950">{{ $donation->displayTitle() }}</h3>
+                            @if (filled($donation->description))
+                                <p class="text-xs text-gray-600 font-medium leading-relaxed">{{ \Illuminate\Support\Str::limit($donation->description, 160) }}</p>
+                            @endif
+                            <div class="mt-auto flex items-center gap-2 text-[11px] font-bold text-gray-400">
+                                <x-icon name="heart" class="w-3.5 h-3.5 text-gold-500" />
+                                {{ $donation->displayDonorName() }}
+                                @if ($donation->delivery_date)
+                                    <span aria-hidden="true">•</span>
+                                    <span>التسليم: {{ $donation->delivery_date->translatedFormat('j F Y H:i') }}</span>
+                                @endif
+                                <span aria-hidden="true">•</span>
+                                <time datetime="{{ $donation->created_at->toDateString() }}">{{ $donation->created_at->translatedFormat('j F Y') }}</time>
+                            </div>
+                        </article>
+                    @empty
+                        <div class="sm:col-span-2 text-center rounded-2xl border border-dashed border-pine-200 py-8 px-4">
+                            <span class="inline-grid place-items-center w-12 h-12 rounded-2xl bg-gold-100 text-gold-600 mx-auto">
+                                <x-icon name="gift" class="w-6 h-6" />
+                            </span>
+                            <p class="text-sm font-bold text-gray-500 mt-3">كن أول من يساهم — ماديًا أو عينيًا أو بوقتك ومهاراتك</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="bg-white border border-pine-100 rounded-3xl p-7">
                 <h2 class="text-xl font-black text-pine-950">البرامج والأنشطة</h2>
                 <div class="ornament-top mt-3 !mx-0" style="text-align: start"></div>
 

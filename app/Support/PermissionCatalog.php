@@ -163,6 +163,12 @@ final class PermissionCatalog
         // إعلان بوابة أولياء الأمور (نص ثابت يكتبه مدير الجامع من الإعدادات)
         ['portal_notice', 'view', 'مشاهدة إعلان بوابة أولياء الأمور'],
         ['portal_notice', 'update', 'تعديل إعلان بوابة أولياء الأمور'],
+        // Donations (التبرعات والمساهمات)
+        ['donations', 'view', 'مشاهدة التبرعات والمساهمات'],
+        ['donations', 'create', 'تسجيل تبرع/مساهمة'],
+        ['donations', 'update', 'تعديل تبرع/مساهمة'],
+        ['donations', 'delete', 'حذف تبرع/مساهمة'],
+        ['donations', 'approve', 'قبول ورفض التبرعات'],
         // Reward points (نقاط المكافآت)
         ['reward_points', 'view', 'مشاهدة نقاط المكافآت'],
         ['reward_points', 'create', 'منح نقاط مكافأة'],
@@ -238,6 +244,7 @@ final class PermissionCatalog
         'quran_training.view' => 'mosque', 'quran_training.update' => 'mosque', 'quran_training.listen' => 'mosque', 'quran_training.test' => 'mosque', 'quran_training.enroll' => 'mosque',
         'quran_settings.view' => 'mosque', 'quran_settings.update' => 'mosque',
         'portal_notice.view' => 'mosque', 'portal_notice.update' => 'mosque',
+        'donations.view' => 'mosque', 'donations.create' => 'mosque', 'donations.update' => 'mosque', 'donations.delete' => 'mosque', 'donations.approve' => 'mosque',
         'reward_points.view' => 'mosque', 'reward_points.create' => 'mosque', 'reward_points.delete' => 'mosque',
         'qualifying.view' => 'mosque', 'qualifying.create' => 'mosque', 'qualifying.update' => 'mosque', 'qualifying.complete' => 'mosque',
         'ijazah.view' => 'mosque', 'ijazah.create' => 'mosque', 'ijazah.update' => 'mosque', 'ijazah.complete' => 'mosque',
@@ -392,6 +399,7 @@ final class PermissionCatalog
             'quran_training' => 'برامج الاستماع (إجازة/تأهيلي/قراءات)',
             'quran_settings' => 'إعدادات برنامج القرآن',
             'portal_notice' => 'إعلان بوابة أولياء الأمور',
+            'donations' => 'التبرعات والمساهمات',
             'reward_points' => 'نقاط المكافآت',
             'qualifying' => 'البرنامج التأهيلي',
             'ijazah' => 'برنامج الإجازة',
