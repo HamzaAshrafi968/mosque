@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
@@ -19,8 +20,15 @@ return new class extends Migration
 
     public function down(): void
     {
+        try {
+            Schema::table('sharia_courses', function (Blueprint $table) {
+                $table->dropIndex(['tenant_id', 'source']);
+            });
+        } catch (QueryException) {
+            // MariaDB يبقي الفهرس لخدمة مفتاح tenant_id الأجنبي؛ يُحذف مع الجدول لاحقاً.
+        }
+
         Schema::table('sharia_courses', function (Blueprint $table) {
-            $table->dropIndex(['tenant_id', 'source']);
             $table->dropColumn('source');
         });
     }

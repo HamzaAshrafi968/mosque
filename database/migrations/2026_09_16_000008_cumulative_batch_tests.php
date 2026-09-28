@@ -92,7 +92,15 @@ return new class extends Migration
 
     private function hasPlanItemForeignKey(): bool
     {
-        return collect(DB::select("pragma foreign_key_list('quran_listening_test_items')"))
-            ->contains(fn ($foreignKey) => $foreignKey->from === 'plan_item_id');
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return collect(DB::select("pragma foreign_key_list('quran_listening_test_items')"))
+                ->contains(fn ($foreignKey) => $foreignKey->from === 'plan_item_id');
+        }
+
+        return DB::table('information_schema.key_column_usage')
+            ->where('table_schema', DB::connection()->getDatabaseName())
+            ->where('table_name', 'quran_listening_test_items')
+            ->where('column_name', 'plan_item_id')
+            ->exists();
     }
 };

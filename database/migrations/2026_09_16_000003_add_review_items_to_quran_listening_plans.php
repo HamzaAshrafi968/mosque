@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -64,9 +65,15 @@ return new class extends Migration
     public function down(): void
     {
         if (Schema::hasColumn('quran_listening_plan_items', 'type')) {
-            Schema::table('quran_listening_plan_items', function (Blueprint $table) {
-                $table->dropUnique(['plan_id', 'type', 'juz', 'khamsa']);
+            try {
+                Schema::table('quran_listening_plan_items', function (Blueprint $table) {
+                    $table->dropUnique(['plan_id', 'type', 'juz', 'khamsa']);
+                });
+            } catch (QueryException) {
+                // MariaDB يبقي الفريد لخدمة مفتاح plan_id الأجنبي؛ يُحذف مع الجدول لاحقاً.
+            }
 
+            Schema::table('quran_listening_plan_items', function (Blueprint $table) {
                 $table->dropConstrainedForeignId('khamsa_review_item_id');
                 $table->dropConstrainedForeignId('quran_review_session_id');
                 $table->dropColumn(['type', 'khamsa']);

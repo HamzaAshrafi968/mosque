@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Guardian;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\StudySession;
 use App\Models\Teacher;
@@ -332,5 +334,111 @@ class UserPermissionOverrideTest extends TestCase
         $this->actingAs($superAdmin)
             ->get(route('super-admin.mosques.users.edit', [$mosque, $superAdmin]))
             ->assertNotFound();
+    }
+
+    // ------------------------------------------------ QA: linkage & matrix UI
+
+    public function test_catalog_sync_repairs_missing_and_stale_codes(): void
+    {
+        $service = app(RoleService::class);
+        $service->ensurePermissionCatalog();
+
+        // محاكاة قاعدة قديمة: صلاحية حُذفت وأخرى بقيت بعد تعديل الكتالوج.
+        Permission::where('code', 'finance.view')->delete();
+        Permission::create(['code' => 'legacy.stale', 'resource' => 'legacy', 'action' => 'stale', 'label' => 'قديمة']);
+
+        $service->ensurePermissionCatalog();
+
+        $this->assertDatabaseHas('permissions', ['code' => 'finance.view']);
+        $this->assertDatabaseMissing('permissions', ['code' => 'legacy.stale']);
+    }
+
+    public function test_user_role_code_must_belong_to_the_mosque(): void
+    {
+        $mosque = $this->mosque();
+        [$teacher] = $this->teacher($mosque);
+
+        $other = Tenant::factory()->create();
+        $foreignRole = Role::create(['tenant_id' => $other->id, 'code' => 'foreign_special', 'name' => 'دور خارجي', 'is_system' => false]);
+
+        $this->actingAs($this->superAdmin())
+            ->patch(route('super-admin.mosques.users.update', [$mosque, $teacher]), [
+                'name' => $teacher->name,
+                'email' => $teacher->email,
+                'role_code' => $foreignRole->code,
+                'gender' => 'male',
+            ])
+            ->assertSessionHasErrors('role_code');
+    }
+
+    public function test_role_change_unlinks_stale_profiles_without_deleting_their_data(): void
+    {
+        $mosque = $this->mosque();
+        [$user, $teacherProfile] = $this->teacher($mosque);
+
+        $session = StudySession::create(['tenant_id' => $mosque->id, 'name' => 'دوام المعلم']);
+        $teacherProfile->studySessions()->attach($session->id);
+
+        $this->actingAs($this->superAdmin())
+            ->patch(route('super-admin.mosques.users.update', [$mosque, $user]), [
+                'name' => $user->name,
+                'email' => $user->email,
+                'role_code' => RoleService::ROLE_GUARDIAN,
+                'gender' => 'male',
+            ])
+            ->assertRedirect();
+
+        // سجل الأستاذ يبقى (بدواماته) لكنه مفصول عن الحساب.
+        $teacherProfile->refresh();
+        $this->assertNull($teacherProfile->user_id);
+        $this->assertTrue($teacherProfile->studySessions()->whereKey($session->id)->exists());
+
+        // ملف ولي الأمر مرتبط بالحساب الجديد.
+        $this->assertNotNull(Guardian::withoutGlobalScope('tenant')->where('user_id', $user->id)->first());
+    }
+
+    public function test_partial_user_update_without_matrix_keeps_overrides(): void
+    {
+        $mosque = $this->mosque();
+        [$teacher] = $this->teacher($mosque);
+
+        $this->setOverride($mosque, $teacher, 'finance.view', 'deny');
+        $this->assertDatabaseCount('permission_user', 1);
+
+        $this->actingAs($this->superAdmin())
+            ->patch(route('super-admin.mosques.users.update', [$mosque, $teacher]), [
+                'name' => $teacher->name,
+                'email' => $teacher->email,
+                'role_code' => RoleService::ROLE_TEACHER,
+                'gender' => 'male',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseCount('permission_user', 1);
+    }
+
+    public function test_matrix_pages_hide_central_mosque_permissions_and_offer_bulk_tools(): void
+    {
+        $mosque = $this->mosque();
+        [$teacher] = $this->teacher($mosque);
+
+        $this->actingAs($this->superAdmin())
+            ->get(route('super-admin.mosques.users.permissions', [$mosque, $teacher]))
+            ->assertOk()
+            ->assertDontSee('mosques.view')
+            ->assertDontSee('إنشاء جامع')
+            ->assertSee('ابحث عن صلاحية')
+            ->assertSee('وراثة الكل')
+            ->assertSee('منح الكل للجامع');
+
+        $teacherRole = Role::where('tenant_id', $mosque->id)->where('code', RoleService::ROLE_TEACHER)->firstOrFail();
+
+        $this->actingAs($this->superAdmin())
+            ->get(route('super-admin.mosques.roles.edit', [$mosque, $teacherRole]))
+            ->assertOk()
+            ->assertDontSee('mosques.view')
+            ->assertDontSee('إنشاء جامع')
+            ->assertSee('نسخ من دور آخر')
+            ->assertSee('منح الكل للجامع');
     }
 }

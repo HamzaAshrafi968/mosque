@@ -146,16 +146,24 @@
     ])
 
     <div class="bg-white rounded-2xl shadow overflow-hidden">
-        <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+        <button type="button" data-collapse-toggle aria-expanded="true"
+                class="w-full px-4 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2 cursor-pointer hover:bg-gray-50 transition text-right">
             <div>
                 <h2 class="font-bold text-gray-800 text-sm">الطلاب المسجّلون ({{ $students->total() }})</h2>
                 @if (config('app.current_study_session_id'))
                     <p class="text-[11px] text-gray-400 mt-1">يُعرض طلاب الدوام المحدد في الأعلى — بدّل الدوام من الأعلى أو اختر «كل الدوامات» لعرض الجميع.</p>
                 @endif
             </div>
-            <span class="text-[11px] text-gray-400">اضغط على اسم الطالب لعرض دورة دفعاته كاملة.</span>
-        </div>
-        <div class="overflow-x-auto">
+            <div class="flex items-center gap-2">
+                <span class="text-[11px] text-gray-400">اضغط على اسم الطالب لعرض دورة دفعاته كاملة.</span>
+                <span data-collapse-chevron class="w-7 h-7 rounded-lg bg-gray-50 border border-gray-200 grid place-items-center text-gray-500 transition-transform shrink-0">
+                    <x-icon name="chevron" class="w-4 h-4" />
+                </span>
+            </div>
+        </button>
+
+        <div data-collapse-panel>
+            <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-xs">
                     <tr>
@@ -230,8 +238,11 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
+
+            @if ($students->hasPages())
+                <div class="px-4 py-4 border-t border-gray-100">{{ $students->links() }}</div>
+            @endif
         </div>
     </div>
-
-    <div class="mt-4">{{ $students->links() }}</div>
 </div>

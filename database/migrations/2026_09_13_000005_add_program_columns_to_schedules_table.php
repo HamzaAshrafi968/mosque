@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -33,10 +34,15 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('schedules', function (Blueprint $table) {
-            $table->dropIndex(['tenant_id', 'program_id', 'day_of_week']);
-            $table->dropIndex(['tenant_id', 'study_session_id', 'day_of_week']);
-        });
+        // MariaDB قد يُبقي الفهارس لخدمة مفتاح tenant_id الأجنبي.
+        try {
+            Schema::table('schedules', function (Blueprint $table) {
+                $table->dropIndex(['tenant_id', 'program_id', 'day_of_week']);
+                $table->dropIndex(['tenant_id', 'study_session_id', 'day_of_week']);
+            });
+        } catch (QueryException) {
+            // تُحذف الفهارس مع حذف الجدول لاحقاً في سلسلة التراجع.
+        }
 
         if (! DB::table('schedules')->whereNull('subject_id')->exists()) {
             Schema::table('schedules', function (Blueprint $table) {

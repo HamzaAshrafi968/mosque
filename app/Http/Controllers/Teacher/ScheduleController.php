@@ -23,7 +23,7 @@ class ScheduleController extends BaseTeacherController
 
         $schedules = Schedule::query()
             ->activeOn(now())
-            ->with(['classroom:id,name', 'section:id,name', 'subject:id,name', 'program:id,name,color', 'programPeriod:id,name'])
+            ->with(['classroom:id,name', 'section:id,name', 'subject:id,name', 'program:id,name,color', 'programPeriod:id,name', 'studySession:id,name,gender'])
             ->where('teacher_id', $teacher->id)
             ->orderByStudySession()
             ->get();

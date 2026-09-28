@@ -26,25 +26,35 @@ class RoleService
     public const ROLE_STUDENT = 'student';
 
     /**
-     * Idempotent: make sure every catalog permission exists in the DB.
+     * Idempotent: keep the permissions table in exact sync with the catalog.
      *
-     * The existence probe compares counts so new catalog entries are still
-     * inserted into already-seeded databases (the per-row updateOrCreate
-     * below is incremental and safe to run whenever the counts mismatch).
+     * Syncing by code set (not counts) also repairs renames: codes missing
+     * from the DB are inserted and rows whose code left the catalog are
+     * purged (permission_role / permission_user cascade) so no stale grant
+     * survives a catalog edit.
      */
     public function ensurePermissionCatalog(): void
     {
-        $catalogCodes = PermissionCatalog::codes();
+        $catalogCodes = array_fill_keys(PermissionCatalog::codes(), true);
+        $existingCodes = Permission::pluck('code')->mapWithKeys(fn ($code) => [$code => true])->all();
 
-        if (Permission::count() === count($catalogCodes)) {
+        if ($catalogCodes === $existingCodes) {
             return;
         }
 
-        foreach (PermissionCatalog::rows() as $code => $row) {
+        foreach (array_diff_key($catalogCodes, $existingCodes) as $code => $unused) {
+            $row = PermissionCatalog::rows()[$code];
+
             Permission::updateOrCreate(
                 ['code' => $code],
                 ['resource' => $row['resource'], 'action' => $row['action'], 'label' => $row['label']]
             );
+        }
+
+        $staleCodes = array_keys(array_diff_key($existingCodes, $catalogCodes));
+
+        if ($staleCodes !== []) {
+            Permission::whereIn('code', $staleCodes)->delete();
         }
     }
 

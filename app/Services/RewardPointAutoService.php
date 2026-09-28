@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\DB;
  *   (دمج نطاق تسميع «جديد»)، وتُخصم الصفحات التي سبق مكافأتها (source_pages)،
  *   ثم كل ما يكمل عدد الصفحات المحدد في القاعدة يُمنح نقاطه.
  * - إتمام خمسة مراجعة: نقاط لكل خمسة تُنجَز (يدوياً أو آلياً عند نجاح الاختبار).
+ * - إتمام خمسة إعادة رسوب الاختبار: قاعدة مستقلة لكل خمسة إعادة تُنجَز.
  * - اجتياز اختبار دفعة الحفظ: نقاط مرة واحدة لكل اختبار ناجح.
  * - إتمام خطة الاستماع والاختبار: نقاط مرة واحدة لكل خطة تُنجَز بالكامل.
  * - حفظ الدورة الشرعية كاملاً: نقاط مرة واحدة لكل طالب عند وصوله «حفظ كامل».
@@ -111,7 +112,7 @@ class RewardPointAutoService
         });
     }
 
-    /** نقاط إتمام خمسة مراجعة (تُمنح مرة واحدة لكل خمسة). */
+    /** نقاط إتمام خمسة مراجعة (تُمنح مرة واحدة لكل خمسة، بقاعدة مستقلة لخمسات الإعادة). */
     public function awardForKhamsaItem(QuranKhamsaReviewItem $item, User $actor): void
     {
         $review = QuranKhamsaReview::withoutGlobalScope('study_session')->find($item->review_id);
@@ -120,7 +121,11 @@ class RewardPointAutoService
             return;
         }
 
-        $rule = $this->ruleFor($review->study_session_id, RewardPointRule::TYPE_KHAMSA_REVIEW);
+        $type = $review->isRetake()
+            ? RewardPointRule::TYPE_RETAKE_KHAMSA_REVIEW
+            : RewardPointRule::TYPE_KHAMSA_REVIEW;
+
+        $rule = $this->ruleFor($review->study_session_id, $type);
 
         if (! $rule?->isActive()) {
             return;
@@ -130,6 +135,8 @@ class RewardPointAutoService
             return;
         }
 
+        $isRetake = $review->isRetake();
+
         RewardPoint::create([
             'student_id' => $review->student_id,
             'awarded_by' => $actor->id,
@@ -138,8 +145,8 @@ class RewardPointAutoService
             'source_id' => $item->id,
             'points' => $rule->points,
             'type' => 'earned',
-            'reason' => 'إتمام خمسة المراجعة ('.$item->label().')',
-            'notes' => 'نقاط تلقائية من مراجعة الخمسات',
+            'reason' => ($isRetake ? 'إتمام خمسة إعادة رسوب الاختبار' : 'إتمام خمسة المراجعة').' ('.$item->label().')',
+            'notes' => $isRetake ? 'نقاط تلقائية من خمسات إعادة رسوب الاختبار' : 'نقاط تلقائية من مراجعة الخمسات',
         ]);
     }
 

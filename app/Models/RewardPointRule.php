@@ -20,6 +20,8 @@ class RewardPointRule extends Model
 
     public const TYPE_KHAMSA_REVIEW = 'khamsa_review';
 
+    public const TYPE_RETAKE_KHAMSA_REVIEW = 'retake_khamsa_review';
+
     public const TYPE_TEST_PASS = 'test_pass';
 
     public const TYPE_LISTENING_PLAN = 'listening_plan_complete';
@@ -29,6 +31,7 @@ class RewardPointRule extends Model
     public const TYPES = [
         self::TYPE_TASMEE_PAGES,
         self::TYPE_KHAMSA_REVIEW,
+        self::TYPE_RETAKE_KHAMSA_REVIEW,
         self::TYPE_TEST_PASS,
         self::TYPE_LISTENING_PLAN,
         self::TYPE_SHARIA_MEMORIZATION,
@@ -50,10 +53,17 @@ class RewardPointRule extends Model
                 'pages_placeholder' => '5',
             ],
             self::TYPE_KHAMSA_REVIEW => [
-                'title' => 'إتمام خمسة مراجعة',
-                'description' => 'تُمنح عند إنهاء الخمسة من شاشة «مراجعة 5» أو تلقائياً عند اجتياز اختبار الدفعة.',
+                'title' => 'إتمام خمسة مراجعة (ما بعد الحفظ)',
+                'description' => 'تُمنح عند إنهاء خمسة من مراجعة ما بعد الحفظ من شاشة «مراجعة 5» أو تلقائياً عند اجتياز اختبار الدفعة.',
                 'has_pages' => false,
                 'placeholder' => '2',
+                'pages_placeholder' => null,
+            ],
+            self::TYPE_RETAKE_KHAMSA_REVIEW => [
+                'title' => 'إتمام خمسة إعادة رسوب الاختبار',
+                'description' => 'تُمنح عند إنهاء خمسة من مراجعة «خمسات إعادة رسوب الاختبار» يدوياً أو تلقائياً عند اجتياز اختبار الإعادة.',
+                'has_pages' => false,
+                'placeholder' => '5',
                 'pages_placeholder' => null,
             ],
             self::TYPE_TEST_PASS => [

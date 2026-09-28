@@ -58,7 +58,7 @@ class MosqueRoleController extends Controller
 
     public function edit(Tenant $mosque, Role $role): View
     {
-        abort_unless($role->tenant_id === $mosque->id && ! $role->isGlobal(), 404);
+        $this->ensureEditableRole($mosque, $role);
 
         $granted = $role->permissions()->pluck('permission_role.scope', 'permissions.code');
 
@@ -66,12 +66,18 @@ class MosqueRoleController extends Controller
             'mosque' => $mosque,
             'role' => $role,
             'granted' => $granted,
+            'copySources' => Role::where('tenant_id', $mosque->id)
+                ->whereNotIn('code', [RoleService::ROLE_GUARDIAN, RoleService::ROLE_STUDENT])
+                ->whereKeyNot($role->id)
+                ->with('permissions:permissions.code')
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']),
         ]);
     }
 
     public function updatePermissions(Request $request, Tenant $mosque, Role $role, RoleService $roles): RedirectResponse
     {
-        abort_unless($role->tenant_id === $mosque->id && ! $role->isGlobal(), 404);
+        $this->ensureEditableRole($mosque, $role);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -106,5 +112,19 @@ class MosqueRoleController extends Controller
         $role->delete();
 
         return back()->with('success', 'تم حذف الدور');
+    }
+
+    /**
+     * أدوار البوابات (طالب/ولي أمر) تُزوَّد تلقائياً لكل جامع وتدار من النظام،
+     * فلا تظهر في القائمة ولا تُحرَّر مصفوفتها (مثلها مثل الأدوار الشاملة).
+     */
+    private function ensureEditableRole(Tenant $mosque, Role $role): void
+    {
+        abort_unless(
+            $role->tenant_id === $mosque->id
+                && ! $role->isGlobal()
+                && ! in_array($role->code, [RoleService::ROLE_GUARDIAN, RoleService::ROLE_STUDENT], true),
+            404
+        );
     }
 }

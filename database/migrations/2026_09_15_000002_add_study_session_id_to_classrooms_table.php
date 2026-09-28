@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -39,9 +40,14 @@ return new class extends Migration
     {
         // SQLite cannot drop a column that is still part of an index,
         // so the composite index must be removed before the column.
-        Schema::table('classrooms', function (Blueprint $table) {
-            $table->dropIndex(['tenant_id', 'study_session_id']);
-        });
+        // MariaDB قد يُبقي الفهرس لخدمة مفتاح tenant_id الأجنبي.
+        try {
+            Schema::table('classrooms', function (Blueprint $table) {
+                $table->dropIndex(['tenant_id', 'study_session_id']);
+            });
+        } catch (QueryException) {
+            // يُحذف الفهرس مع حذف الجدول لاحقاً في سلسلة التراجع.
+        }
 
         Schema::table('classrooms', function (Blueprint $table) {
             $table->dropConstrainedForeignId('study_session_id');

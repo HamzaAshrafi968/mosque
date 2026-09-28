@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
@@ -42,13 +43,21 @@ return new class extends Migration
     {
         if (Schema::hasColumn('quran_listening_program_items', 'quran_recitation_session_id')) {
             Schema::table('quran_listening_program_items', function (Blueprint $table) {
-                $table->dropConstrainedForeignId('quran_recitation_session_id');
+                $table->dropForeign('qlpi_recitation_session_fk');
+                $table->dropColumn('quran_recitation_session_id');
             });
         }
 
         if (Schema::hasColumn('quran_recitation_sessions', 'program_batch_id')) {
+            try {
+                Schema::table('quran_recitation_sessions', function (Blueprint $table) {
+                    $table->dropIndex(['student_id', 'program_batch_id', 'type']);
+                });
+            } catch (QueryException) {
+                // MariaDB يبقي الفهرس لخدمة مفتاح student_id الأجنبي؛ يُحذف مع الجدول لاحقاً.
+            }
+
             Schema::table('quran_recitation_sessions', function (Blueprint $table) {
-                $table->dropIndex(['student_id', 'program_batch_id', 'type']);
                 $table->dropConstrainedForeignId('program_batch_id');
             });
         }

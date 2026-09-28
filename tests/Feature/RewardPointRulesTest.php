@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\QuranKhamsaReviewType;
 use App\Enums\ShariaMemorizationStatus;
+use App\Models\QuranKhamsaReview;
+use App\Models\QuranKhamsaReviewItem;
 use App\Models\QuranMemorizationBatch;
 use App\Models\QuranRecitationSession;
 use App\Models\RewardPoint;
@@ -278,6 +281,100 @@ class RewardPointRulesTest extends TestCase
             'study_session_id' => $session->id,
         ]);
         $this->assertSame(1, RewardPoint::where('student_id', $student->id)->count());
+    }
+
+    /** @return array{0: QuranKhamsaReviewItem, 1: QuranKhamsaReview} */
+    private function khamsaItem(Student $student, Teacher $teacher, StudySession $session, User $actor, QuranKhamsaReviewType $type): array
+    {
+        $review = app(QuranKhamsaService::class)->createReview([
+            'student_id' => $student->id,
+            'teacher_id' => $teacher->id,
+            'study_session_id' => $session->id,
+            'assigned_at' => now()->toDateString(),
+            'type' => $type,
+            'items' => [['juz' => 1, 'khamsa' => 1]],
+        ], $actor);
+
+        return [$review->items()->firstOrFail(), $review];
+    }
+
+    public function test_retake_khamsa_rule_is_saved_from_settings(): void
+    {
+        [$mosque, $admin, $first, $second] = $this->mosque();
+
+        $this->actingAs($admin)
+            ->patch(route('admin.settings.rewards.update'), [
+                'rules' => [
+                    $first->id => [
+                        'retake_khamsa_review' => ['enabled' => 1, 'points' => 5],
+                    ],
+                    $second->id => [
+                        'retake_khamsa_review' => ['enabled' => 0, 'points' => 5],
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('reward_point_rules', [
+            'study_session_id' => $first->id,
+            'rule_type' => RewardPointRule::TYPE_RETAKE_KHAMSA_REVIEW,
+            'points' => 5,
+        ]);
+        $this->assertDatabaseMissing('reward_point_rules', [
+            'study_session_id' => $second->id,
+            'rule_type' => RewardPointRule::TYPE_RETAKE_KHAMSA_REVIEW,
+        ]);
+    }
+
+    public function test_retake_khamsa_uses_its_own_rule_and_not_the_regular_one(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        [, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->rule($session, RewardPointRule::TYPE_KHAMSA_REVIEW, 2);
+        $this->rule($session, RewardPointRule::TYPE_RETAKE_KHAMSA_REVIEW, 5);
+        $this->memorize($student, [1]);
+
+        [$retakeItem] = $this->khamsaItem($student, $teacher, $session, $admin, QuranKhamsaReviewType::RetakeAfterFail);
+
+        app(QuranKhamsaService::class)->completeItem($retakeItem, [], $admin);
+
+        [$regularItem] = $this->khamsaItem($student, $teacher, $session, $admin, QuranKhamsaReviewType::PostMemorization);
+
+        app(QuranKhamsaService::class)->completeItem($regularItem, [], $admin);
+
+        $this->assertDatabaseHas('reward_points', [
+            'student_id' => $student->id,
+            'points' => 5,
+            'source_type' => RewardPoint::SOURCE_KHAMSA_ITEM,
+            'source_id' => $retakeItem->id,
+            'study_session_id' => $session->id,
+        ]);
+        $this->assertDatabaseHas('reward_points', [
+            'student_id' => $student->id,
+            'points' => 2,
+            'source_type' => RewardPoint::SOURCE_KHAMSA_ITEM,
+            'source_id' => $regularItem->id,
+            'study_session_id' => $session->id,
+        ]);
+        $this->assertSame(2, RewardPoint::where('student_id', $student->id)->count());
+    }
+
+    public function test_retake_khamsa_awards_nothing_when_only_the_regular_rule_is_active(): void
+    {
+        [$mosque, $admin, $session] = $this->mosque();
+        [, $teacher] = $this->teacher($mosque, $session);
+        $student = $this->student($mosque, $session);
+
+        $this->rule($session, RewardPointRule::TYPE_KHAMSA_REVIEW, 2);
+        $this->memorize($student, [1]);
+
+        [$retakeItem] = $this->khamsaItem($student, $teacher, $session, $admin, QuranKhamsaReviewType::RetakeAfterFail);
+
+        app(QuranKhamsaService::class)->completeItem($retakeItem, [], $admin);
+
+        $this->assertSame(0, RewardPoint::where('student_id', $student->id)->count());
     }
 
     public function test_batch_test_pass_awards_points_and_fail_does_not(): void

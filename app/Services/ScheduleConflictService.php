@@ -397,7 +397,7 @@ class ScheduleConflictService
         $schedules = Schedule::query()
             ->withoutGlobalScope('study_session')
             ->whereIn('teacher_id', $teacherIds)
-            ->with(['classroom:id,name', 'section:id,name', 'subject:id,name'])
+            ->with(['classroom:id,name', 'section:id,name', 'subject:id,name', 'program:id,name,color'])
             ->orderBy('day_of_week')
             ->orderBy('starts_at')
             ->get()

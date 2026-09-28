@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -44,29 +46,42 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('students', function (Blueprint $table) {
-            $table->dropIndex('students_tenant_session_active_idx');
-        });
+        foreach ([
+            ['students', 'students_tenant_session_active_idx'],
+            ['teachers', 'teachers_tenant_session_active_idx'],
+            ['classrooms', 'classrooms_tenant_session_idx'],
+            ['quran_recitation_sessions', 'quran_sessions_tenant_type_student_idx'],
+            ['class_sessions', 'class_sessions_tenant_schedule_status_idx'],
+            ['reward_points', 'reward_points_tenant_student_created_idx'],
+            ['reward_points', 'reward_points_tenant_session_idx'],
+        ] as [$table, $index]) {
+            $this->dropIndexIfExists($table, $index);
+        }
+    }
 
-        Schema::table('teachers', function (Blueprint $table) {
-            $table->dropIndex('teachers_tenant_session_active_idx');
-        });
+    /**
+     * التراجع يجب أن يكون آمناً حتى بعد محاولة فاشلة سابقة:
+     * يُفحص وجود الفهرس أولاً، ويُتجاهل الفهرس المربوط بمفتاح أجنبي
+     * (سيُحذف تلقائياً مع حذف الجدول لاحقاً في سلسلة التراجع).
+     */
+    private function dropIndexIfExists(string $table, string $index): void
+    {
+        $exists = DB::table('information_schema.statistics')
+            ->where('table_schema', DB::connection()->getDatabaseName())
+            ->where('table_name', $table)
+            ->where('index_name', $index)
+            ->exists();
 
-        Schema::table('classrooms', function (Blueprint $table) {
-            $table->dropIndex('classrooms_tenant_session_idx');
-        });
+        if (! $exists) {
+            return;
+        }
 
-        Schema::table('quran_recitation_sessions', function (Blueprint $table) {
-            $table->dropIndex('quran_sessions_tenant_type_student_idx');
-        });
-
-        Schema::table('class_sessions', function (Blueprint $table) {
-            $table->dropIndex('class_sessions_tenant_schedule_status_idx');
-        });
-
-        Schema::table('reward_points', function (Blueprint $table) {
-            $table->dropIndex('reward_points_tenant_student_created_idx');
-            $table->dropIndex('reward_points_tenant_session_idx');
-        });
+        try {
+            Schema::table($table, function (Blueprint $table) use ($index) {
+                $table->dropIndex($index);
+            });
+        } catch (QueryException) {
+            // الفهرس مرتبط بمفتاح أجنبي، سيُحذف مع حذف الجدول.
+        }
     }
 };

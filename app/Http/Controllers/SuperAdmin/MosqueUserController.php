@@ -51,7 +51,7 @@ class MosqueUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
-            'role_code' => ['required', 'string', 'exists:roles,code'],
+            'role_code' => ['required', 'string', Rule::exists('roles', 'code')->where('tenant_id', $mosque->id)],
             'gender' => ['required', 'in:male,female'],
             'phone' => ['nullable', 'string', 'max:30'],
             'specialty' => ['nullable', 'string', 'max:255'],
@@ -115,7 +115,7 @@ class MosqueUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8'],
-            'role_code' => ['required', 'string'],
+            'role_code' => ['required', 'string', Rule::exists('roles', 'code')->where('tenant_id', $mosque->id)],
             'gender' => ['required', 'in:male,female'],
             'phone' => ['nullable', 'string', 'max:30'],
             'specialty' => ['nullable', 'string', 'max:255'],
@@ -164,12 +164,16 @@ class MosqueUserController extends Controller
             $this->syncProfiles($mosque, $user, $data['role_code'], $data, $photo);
         });
 
-        $overrides = array_filter(
-            $data['permissions'] ?? [],
-            fn ($value) => in_array($value, ['deny', 'mosque', 'class', 'section', 'own'], true)
-        );
+        // Only touch the direct overrides when the request actually carries the
+        // matrix: partial updates (no `permissions` key) keep them untouched.
+        if ($request->has('permissions')) {
+            $overrides = array_filter(
+                $data['permissions'] ?? [],
+                fn ($value) => in_array($value, ['deny', 'mosque', 'class', 'section', 'own'], true)
+            );
 
-        $roles->syncUserPermissions($user, $overrides);
+            $roles->syncUserPermissions($user, $overrides);
+        }
 
         return redirect()
             ->route('super-admin.mosques.users.index', $mosque)
@@ -182,7 +186,7 @@ class MosqueUserController extends Controller
         abort_unless(! $user->isSuperAdmin(), 403);
 
         $data = $request->validate([
-            'role_code' => ['required', 'string'],
+            'role_code' => ['required', 'string', Rule::exists('roles', 'code')->where('tenant_id', $mosque->id)],
         ]);
 
         $role = Role::where('tenant_id', $mosque->id)->where('code', $data['role_code'])->firstOrFail();
@@ -302,6 +306,10 @@ class MosqueUserController extends Controller
      * مزامنة الملف المرتبط بالدور: أستاذ/طاقم، ولي أمر، أو طالب — حتى تعمل
      * الجداول والحضور وبوابات الطالب/ولي الأمر مباشرة بعد إنشاء الحساب.
      *
+     * الملفات التي لم يعد دور المستخدم يحتاجها تُفصل عن الحساب (user_id = NULL)
+     * دون حذف بياناتها، فتبقى سجلات الأستاذ/ولي الأمر/الطالب صالحة في الجامع
+     * (جداول وروابط أبناء...) بينما يفقد الحساب صلاحيتها.
+     *
      * @param  array<string, mixed>  $data
      * @param  array<string, string|null>  $photo
      */
@@ -309,19 +317,45 @@ class MosqueUserController extends Controller
     {
         if ($this->roleHasTeacherProfile($roleCode)) {
             $this->syncTeacherProfile($mosque, $user, $data, $photo);
-
-            return;
+        } else {
+            $this->unlinkTeacherProfile($user);
         }
 
         if ($roleCode === RoleService::ROLE_GUARDIAN) {
             $this->syncGuardianProfile($mosque, $user);
-
-            return;
+        } else {
+            $this->unlinkGuardianProfile($user);
         }
 
         if ($roleCode === RoleService::ROLE_STUDENT) {
             $this->syncStudentProfile($mosque, $user, $photo);
+        } else {
+            $this->unlinkStudentProfile($user);
         }
+    }
+
+    /** فصل ملف الأستاذ عن الحساب دون حذف بيانات التدريس. */
+    private function unlinkTeacherProfile(User $user): void
+    {
+        Teacher::withoutGlobalScopes(['tenant', 'study_session'])
+            ->where('user_id', $user->id)
+            ->update(['user_id' => null]);
+    }
+
+    /** فصل ملف ولي الأمر عن الحساب دون حذف روابط الأبناء. */
+    private function unlinkGuardianProfile(User $user): void
+    {
+        Guardian::withoutGlobalScope('tenant')
+            ->where('user_id', $user->id)
+            ->update(['user_id' => null]);
+    }
+
+    /** فصل ملف الطالب عن الحساب دون حذف السجل الأكاديمي. */
+    private function unlinkStudentProfile(User $user): void
+    {
+        Student::withoutGlobalScopes(['tenant', 'study_session'])
+            ->where('user_id', $user->id)
+            ->update(['user_id' => null]);
     }
 
     /**

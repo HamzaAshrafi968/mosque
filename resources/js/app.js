@@ -1521,6 +1521,20 @@ function initQuickSlotForms() {
     });
 }
 
+function initCollapsibles() {
+    document.querySelectorAll('[data-collapse-toggle]').forEach((toggle) => {
+        const panel = toggle.nextElementSibling;
+        if (!panel || !panel.hasAttribute('data-collapse-panel')) return;
+
+        toggle.addEventListener('click', () => {
+            const expanded = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+            panel.classList.toggle('hidden', expanded);
+            toggle.querySelector('[data-collapse-chevron]')?.classList.toggle('rotate-180', !expanded);
+        });
+    });
+}
+
 function initAttendanceTrees() {
     document.querySelectorAll('[data-attendance-tree-toggle]').forEach((toggle) => {
         const panel = toggle.nextElementSibling;
@@ -1987,6 +2001,157 @@ function initSearchableSelects() {
     }
 }
 
+function initPermissionMatrices() {
+    document.querySelectorAll('[data-permission-matrix]').forEach((root) => {
+        const isUserMode = root.dataset.mode === 'user';
+        const search = root.querySelector('[data-permission-search]');
+        const counter = root.querySelector('[data-permission-counter]');
+        const rows = Array.from(root.querySelectorAll('[data-permission-row]'));
+        const groups = Array.from(root.querySelectorAll('[data-permission-group]'));
+        const selects = Array.from(root.querySelectorAll('[data-permission-select]'));
+
+        const baseSelectClass = 'border border-gray-300 rounded-lg px-2 py-1.5 text-sm w-full md:w-56';
+
+        const paintSelect = (select) => {
+            select.className = baseSelectClass;
+            const value = select.value;
+
+            if (isUserMode) {
+                if (value === 'deny') select.classList.add('bg-red-50', 'border-red-300', 'text-red-700');
+                else if (value !== 'inherit') select.classList.add('bg-amber-50', 'border-amber-300', 'text-amber-800');
+            } else if (value !== '') {
+                select.classList.add('bg-emerald-50', 'border-emerald-300', 'text-emerald-800');
+            }
+        };
+
+        const updateCounters = () => {
+            const changed = selects.filter((select) => (isUserMode ? select.value !== 'inherit' : select.value !== '')).length;
+            if (counter) counter.textContent = isUserMode ? changed + ' تجاوز مباشر' : changed + ' صلاحية ممنوحة';
+        };
+
+        const updateBadges = () => {
+            rows.forEach((row) => {
+                const select = row.querySelector('[data-permission-select]');
+                const wrap = row.querySelector('[data-permission-label-wrap]');
+                let badge = row.querySelector('[data-override-badge]');
+
+                if (isUserMode && select && select.value !== 'inherit') {
+                    if (!badge && wrap) {
+                        badge = document.createElement('span');
+                        badge.dataset.overrideBadge = '1';
+                        wrap.appendChild(badge);
+                    }
+                    if (badge) {
+                        badge.className = 'px-1.5 py-0.5 rounded-full text-[10px] font-bold ' + (select.value === 'deny' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+                        badge.textContent = 'تجاوز';
+                    }
+                } else if (badge) {
+                    badge.remove();
+                }
+            });
+        };
+
+        const syncGroupVisibility = () => {
+            groups.forEach((group) => {
+                const hasVisible = Array.from(group.querySelectorAll('[data-permission-row]')).some((row) => !row.hidden);
+                group.classList.toggle('hidden', !hasVisible);
+            });
+        };
+
+        const setValues = (valuesByCode, defaultValue) => {
+            selects.forEach((select) => {
+                const code = select.closest('[data-permission-row]')?.dataset.code;
+                const value = Object.prototype.hasOwnProperty.call(valuesByCode, code) ? valuesByCode[code] : defaultValue;
+                const option = Array.from(select.options).find((opt) => opt.value === value);
+                if (!option || option.disabled) return;
+                select.value = value;
+                paintSelect(select);
+            });
+            updateCounters();
+            updateBadges();
+        };
+
+        search?.addEventListener('input', () => {
+            const query = (search.value || '').trim().toLowerCase();
+            rows.forEach((row) => {
+                const haystack = (row.dataset.code + ' ' + row.dataset.label).toLowerCase();
+                row.hidden = query !== '' && !haystack.includes(query);
+            });
+            syncGroupVisibility();
+        });
+
+        root.querySelectorAll('[data-permission-global-action]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const action = button.dataset.permissionGlobalAction;
+                setValues({}, action === 'inherit' ? 'inherit' : (action === 'revoke' ? '' : 'mosque'));
+            });
+        });
+
+        groups.forEach((group) => {
+            const toggle = group.querySelector('[data-permission-group-toggle]');
+            const panel = group.querySelector('[data-permission-group-panel]');
+            const chevron = group.querySelector('[data-permission-group-chevron]');
+
+            toggle?.addEventListener('click', () => {
+                const collapsed = toggle.getAttribute('aria-expanded') === 'true';
+                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                panel?.classList.toggle('hidden', collapsed);
+                chevron?.classList.toggle('rotate-180', !collapsed);
+            });
+
+            group.querySelectorAll('[data-permission-group-action]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const action = button.dataset.permissionGroupAction;
+                    const target = action === 'inherit' ? 'inherit' : (action === 'revoke' ? '' : action);
+                    group.querySelectorAll('[data-permission-select]').forEach((select) => {
+                        const option = Array.from(select.options).find((opt) => opt.value === target);
+                        if (!option || option.disabled) return;
+                        select.value = target;
+                        paintSelect(select);
+                    });
+                    updateCounters();
+                    updateBadges();
+                });
+            });
+        });
+
+        selects.forEach((select) => select.addEventListener('change', () => {
+            paintSelect(select);
+            updateCounters();
+            updateBadges();
+        }));
+
+        const collapseAll = (collapsed) => {
+            groups.forEach((group) => {
+                const toggle = group.querySelector('[data-permission-group-toggle]');
+                const panel = group.querySelector('[data-permission-group-panel]');
+                const chevron = group.querySelector('[data-permission-group-chevron]');
+                if (!toggle || !panel) return;
+                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                panel.classList.toggle('hidden', collapsed);
+                chevron?.classList.toggle('rotate-180', !collapsed);
+            });
+        };
+
+        root.querySelector('[data-permission-collapse-all]')?.addEventListener('click', () => collapseAll(true));
+        root.querySelector('[data-permission-expand-all]')?.addEventListener('click', () => collapseAll(false));
+
+        const copySelect = root.querySelector('[data-permission-copy]');
+        copySelect?.addEventListener('change', () => {
+            const option = copySelect.selectedOptions[0];
+            if (!option?.value) return;
+            let grants = {};
+            try { grants = JSON.parse(option.dataset.grants || '{}'); } catch (e) { grants = {}; }
+            setValues(grants, '');
+            copySelect.value = '';
+        });
+
+        updateCounters();
+        updateBadges();
+        selects.forEach(paintSelect);
+    });
+}
+
 function initApp() {
     initSidebarCollapse();
     initSidebarGroups();
@@ -2004,9 +2169,11 @@ function initApp() {
     initExamTimers();
     initExamQuestionBuilders();
     initAttendanceTrees();
+    initCollapsibles();
     initSessionGenderFilters();
     initExamTargetPickers();
     initMemorizationEditors();
+    initPermissionMatrices();
     initSearchableSelects();
 }
 

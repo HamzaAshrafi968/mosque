@@ -28,7 +28,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('sharia_course_students', function (Blueprint $table) {
+            // MariaDB يربط الفريد بقيد course_id، فنسقط القيد أولاً ثم نعيده بعد حذف الفريد.
+            $table->dropForeign('sharia_course_students_course_id_foreign');
             $table->dropUnique(['course_id', 'student_id']);
+            $table->foreign('course_id')->references('id')->on('sharia_courses')->cascadeOnDelete();
+
             $table->dropConstrainedForeignId('student_id');
             $table->dropConstrainedForeignId('memorization_updated_by');
             $table->dropColumn(['memorization_status', 'memorization_notes', 'memorization_updated_at']);

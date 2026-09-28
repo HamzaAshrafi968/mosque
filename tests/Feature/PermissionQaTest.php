@@ -536,6 +536,27 @@ class PermissionQaTest extends TestCase
         $response->assertDontSee('إنشاء دور جديد');
     }
 
+    public function test_portal_roles_cannot_be_edited(): void
+    {
+        $mosque = $this->mosque();
+        $super = $this->superAdmin();
+
+        foreach ([RoleService::ROLE_GUARDIAN, RoleService::ROLE_STUDENT] as $code) {
+            $role = Role::where('tenant_id', $mosque->id)->where('code', $code)->firstOrFail();
+
+            $this->actingAs($super)
+                ->get(route('super-admin.mosques.roles.edit', [$mosque, $role]))
+                ->assertNotFound();
+
+            $this->actingAs($super)
+                ->patch(route('super-admin.mosques.roles.update', [$mosque, $role]), [
+                    'name' => $role->name,
+                    'permissions' => ['finance.view' => 'mosque'],
+                ])
+                ->assertNotFound();
+        }
+    }
+
     // ------------------------------------------------------------ catalog
 
     public function test_catalog_permission_codes_without_route_enforcement_are_known(): void
