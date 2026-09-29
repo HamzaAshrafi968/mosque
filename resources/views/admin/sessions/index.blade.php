@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'الدوامات')
+@section('title', 'الدوام')
 
 @section('content')
 @php
@@ -12,12 +12,12 @@
 <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
     <div class="px-4 py-4 bg-gradient-to-l from-emerald-800 to-emerald-700 text-white flex items-center justify-between flex-wrap gap-3">
         <div>
-            <h1 class="text-xl font-bold">الدوامات (الدورة الأولى / الثانية)</h1>
-            <p class="text-sm text-emerald-100 mt-1">قسّم الطلاب والأساتذة والشعب على دوامات، ثم اختر الدوام من الشريط العلوي لتظهر بياناته فقط</p>
+            <h1 class="text-xl font-bold">الدوام (الدورة الأولى / الثانية)</h1>
+            <p class="text-sm text-emerald-100 mt-1">قسّم الطلاب والأساتذة والشعب على الدوام، ثم اختر الدوام من الشريط العلوي لتظهر بياناته فقط</p>
         </div>
         <div class="flex items-center gap-2 text-sm bg-white/10 rounded-lg px-3 py-2">
             <span>تعرض حالياً:</span>
-            <span class="font-bold">{{ $currentSession?->display_name ?: 'كل الدوامات' }}</span>
+            <span class="font-bold">{{ $currentSession?->display_name ?: 'كل الدوام' }}</span>
         </div>
     </div>
     @if($unassigned['students'] > 0 || $unassigned['teachers'] > 0 || $unassigned['sections'] > 0 || $unassigned['classrooms'] > 0)
@@ -73,7 +73,7 @@
 @endif
 
 @if($sessions->isNotEmpty())
-    <h2 class="font-bold text-gray-800 mb-3">الدوامات الحالية</h2>
+    <h2 class="font-bold text-gray-800 mb-3">الدوام الحالي</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         @foreach($sessions as $session)
             <div class="bg-white rounded-xl shadow overflow-hidden @if((string) $session->id === (string) $currentSessionId) ring-2 ring-emerald-500 @endif">

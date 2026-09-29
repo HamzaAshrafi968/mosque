@@ -269,7 +269,7 @@ class AnnouncementAudienceTest extends TestCase
         ]);
 
         $globalAnnouncement = Announcement::create([
-            'title' => 'لكل الدوامات',
+            'title' => 'لكل الدوام',
             'body' => 'نص',
             'audience' => 'all',
             'published_at' => now(),

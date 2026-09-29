@@ -168,7 +168,7 @@ class ProgramController extends Controller
     }
 
     /**
-     * الجامع الحالي: مدير الجوامع داخل جامع ليس له tenant_id، فيُستمد من
+     * الجامع الحالي: مدير المساجد داخل جامع ليس له tenant_id، فيُستمد من
      * سياق الجامع الذي دخله (InitializeTenant).
      */
     private function tenantId(Request $request): string

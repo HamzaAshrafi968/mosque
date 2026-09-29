@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         $rows = [
-            ['sessions', 'view', 'مشاهدة الدوامات'],
+            ['sessions', 'view', 'مشاهدة الدوام'],
             ['sessions', 'create', 'إضافة دوام'],
             ['sessions', 'update', 'تعديل دوام'],
             ['sessions', 'delete', 'حذف دوام'],

@@ -15,12 +15,12 @@ class BaseTeacherController extends BaseApiController
 
     protected function currentTeacher(Request $request): Teacher
     {
-        $teacher = $this->teacherRepository->findByUserId($request->user()->id);
+        $user = $request->user();
 
-        if (! $teacher) {
-            abort(403, 'المعلم غير موجود');
-        }
+        $teacher = $this->teacherRepository->findByUserId($user->id);
 
-        return $teacher;
+        // يُنشأ الملف تلقائياً عند غيابه حتى لا يرى الأستاذ 403 بعد الدخول
+        // (حسابات أُنشئت من شاشة المستخدمين دون ملف أستاذ).
+        return $teacher ?? $user->ensureTeacherProfile();
     }
 }

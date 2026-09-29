@@ -110,7 +110,7 @@ class Exam extends Model
      * الامتحانات التي تستهدف الطالب:
      * - صفوف محددة (exam_classroom أو classroom_id القديم) مع احترام الشعبة، أو
      * - دوام كامل (بلا صفوف + study_session_id).
-     * (الامتحان المشترك بين الجوامع غير مدعوم — العزل بالجامع مفروض مسبقاً.)
+     * (الامتحان المشترك بين المساجد غير مدعوم — العزل بالجامع مفروض مسبقاً.)
      */
     public function scopeTargetsStudent(Builder $query, Student $student): Builder
     {

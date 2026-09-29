@@ -199,7 +199,7 @@ class AnnouncementController extends Controller
             ->when($sessionId, fn (Builder $query) => $query->where('students.study_session_id', $sessionId));
     }
 
-    /** معرّف الجامع الفعلي (يعمل أيضاً عندما يدخل مدير الجوامع إلى جامع). */
+    /** معرّف الجامع الفعلي (يعمل أيضاً عندما يدخل مدير المساجد إلى جامع). */
     private function tenantId(Request $request): ?string
     {
         return config('app.current_tenant_id') ?: $request->user()->tenant_id;

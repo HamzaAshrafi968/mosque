@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'الجوامع')
+@section('title', 'المساجد')
 
 @section('content')
 <div class="flex items-center justify-between mb-6">
-    <h2 class="text-2xl font-extrabold text-gray-800">إدارة الجوامع</h2>
+    <h2 class="text-2xl font-extrabold text-gray-800">إدارة المساجد</h2>
     <a href="{{ route('super-admin.mosques.create') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 py-2.5 rounded-xl transition">+ جامع جديد</a>
 </div>
 
@@ -60,7 +60,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">لا توجد جوامع بعد</td></tr>
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">لا توجد مساجد بعد</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -17,7 +17,7 @@ final class ProgramRules
     /** @return array<string, mixed> */
     public static function rules(?string $tenantId = null, ?Program $program = null): array
     {
-        // مدير الجوامع داخل جامع: tenant_id فارغ ويُستمد من سياق الجامع الحالي.
+        // مدير المساجد داخل جامع: tenant_id فارغ ويُستمد من سياق الجامع الحالي.
         $tenantId ??= config('app.current_tenant_id');
 
         $fieldTypes = collect(CustomFieldType::cases())->pluck('value')->all();

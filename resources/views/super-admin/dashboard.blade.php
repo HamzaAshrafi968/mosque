@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'لوحة مدير الجوامع')
+@section('title', 'لوحة مدير المساجد')
 
 @section('content')
 @php
@@ -16,7 +16,7 @@
     <div class="relative">
         <span class="inline-flex items-center gap-1.5 rounded-full border border-gold-300/30 bg-gold-400/10 px-3.5 py-1.5 text-[11px] font-bold text-gold-200 mb-4">
             <span class="pulse-dot w-1.5 h-1.5 rounded-full bg-gold-300"></span>
-            الإدارة المركزية — جميع الجوامع
+            الإدارة المركزية — جميع المساجد
         </span>
         <h1 class="text-2xl sm:text-4xl font-black leading-snug">أهلاً بك، {{ $firstName }}</h1>
         <p class="text-emerald-50/70 mt-2.5 text-sm font-medium flex items-center gap-2">
@@ -32,7 +32,7 @@
         <span class="w-11 h-11 rounded-xl grid place-items-center text-white shadow-lg bg-gradient-to-br from-gold-400 to-gold-700 group-hover:scale-110 transition-all duration-300"><x-icon name="mosque" class="w-5 h-5" /></span>
         <div class="mt-4">
             <div class="text-2xl sm:text-3xl font-black text-pine-950 tabular-nums" data-count-up data-to="{{ $totals['mosques'] }}">{{ $totals['mosques'] }}</div>
-            <div class="text-[13px] text-gray-500 font-bold mt-1">الجوامع المسجلة</div>
+            <div class="text-[13px] text-gray-500 font-bold mt-1">المساجد المسجلة</div>
         </div>
     </div>
     <div class="reveal rd-2 group relative overflow-hidden rounded-2xl bg-white p-5 border border-pine-950/[0.06] card-hover shadow-[0_1px_3px_rgba(5,32,25,0.05)]">
@@ -58,12 +58,12 @@
     </div>
 </div>
 
-{{-- ===== جدول الجوامع ===== --}}
+{{-- ===== جدول المساجد ===== --}}
 <div class="reveal rd-2 rounded-2xl bg-white border border-pine-950/[0.06] shadow-[0_1px_3px_rgba(5,32,25,0.05)] overflow-hidden">
     <div class="px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100">
         <h3 class="font-black text-pine-950 flex items-center gap-2.5">
             <span class="w-8 h-8 rounded-lg bg-gold-50 text-gold-600 grid place-items-center"><x-icon name="building" class="w-4 h-4" /></span>
-            سجل الجوامع
+            سجل المساجد
         </h3>
         <a href="{{ route('super-admin.mosques.create') }}" class="btn-shine inline-flex items-center gap-1.5 bg-gradient-to-l from-pine-700 to-emerald-600 hover:from-pine-800 hover:to-emerald-700 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-md shadow-emerald-700/20 transition-all hover:-translate-y-0.5 active:translate-y-0">
             <x-icon name="plus" class="w-4 h-4" />

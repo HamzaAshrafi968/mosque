@@ -91,12 +91,12 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">الدوام المستهدف</label>
                 <select name="study_session_id" data-announcement-session class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    <option value="">كل الدوامات</option>
+                    <option value="">كل الدوام</option>
                     @foreach($studySessions as $session)
                         <option value="{{ $session->id }}" @selected(old('study_session_id') == $session->id)>{{ $session->display_name }}</option>
                     @endforeach
                 </select>
-                <p class="text-xs text-gray-400 mt-1">اختر دوامًا ليصل الإعلان لمن فيه فقط، أو اتركه لجميع الدوامات.</p>
+                <p class="text-xs text-gray-400 mt-1">اختر دوامًا ليصل الإعلان لمن فيه فقط، أو اتركه فارغًا ليشمل الجميع.</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">الجمهور المستهدف <span class="text-red-500">*</span></label>
@@ -193,7 +193,7 @@
                         <x-icon name="clock" class="w-3.5 h-3.5" /> {{ $announcement->studySession->display_name }}
                     </span>
                 @else
-                    <span class="text-xs px-2 py-1 rounded-full border border-gray-200 text-gray-500">كل الدوامات</span>
+                    <span class="text-xs px-2 py-1 rounded-full border border-gray-200 text-gray-500">كل الدوام</span>
                 @endif
                 @if($announcement->classroom)
                     <span class="text-xs text-gray-500">{{ $announcement->classroom->name }}</span>

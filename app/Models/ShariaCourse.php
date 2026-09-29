@@ -73,7 +73,7 @@ class ShariaCourse extends Model
         return $this->status === ShariaCourseStatus::Active;
     }
 
-    /** أُنشئت من مدير الجوامع (لا من إدارة الجامع). */
+    /** أُنشئت من مدير المساجد (لا من إدارة الجامع). */
     public function isFromSuperAdmin(): bool
     {
         return $this->source === self::SOURCE_SUPER_ADMIN;

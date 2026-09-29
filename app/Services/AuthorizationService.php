@@ -53,7 +53,7 @@ class AuthorizationService
      */
     public function can(User $user, string $permission, ?Model $subject = null, ?Closure $owns = null): bool
     {
-        // مدير الجوامع holds every permission above all mosques.
+        // مدير المساجد holds every permission above all mosques.
         if ($user->isSuperAdmin() || $this->userHasRoleCode($user, RoleService::ROLE_SUPER_ADMIN)) {
             return true;
         }

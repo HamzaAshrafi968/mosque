@@ -43,7 +43,7 @@
                 @endforeach
             </select>
             <select name="study_session_id" class="rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500">
-                <option value="">كل الدوامات</option>
+                <option value="">كل الدوام</option>
                 @foreach($sessions as $session)
                     <option value="{{ $session->id }}" @selected(request('study_session_id') === $session->id)>{{ $session->display_name }}</option>
                 @endforeach

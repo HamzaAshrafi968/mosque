@@ -82,6 +82,28 @@ class User extends Authenticatable
         return $this->hasOne(Teacher::class);
     }
 
+    /**
+     * ملف الأستاذ المرتبط بالحساب: يُنشأ تلقائياً إن لم يوجد حتى تعمل صفحات
+     * الأستاذ فوراً بعد تسجيل الدخول (يشمل الحسابات القديمة المنشأة من شاشة
+     * المستخدمين قبل ربط الملفات تلقائياً).
+     */
+    public function ensureTeacherProfile(): Teacher
+    {
+        $teacher = $this->teacher()->first();
+
+        if ($teacher !== null) {
+            return $teacher;
+        }
+
+        return $this->teacher()->create([
+            'tenant_id' => $this->tenant_id,
+            'name' => $this->name,
+            'gender' => $this->gender,
+            'phone' => $this->phone,
+            'is_active' => true,
+        ]);
+    }
+
     /** Guardian profile owning this account (portal login). */
     public function guardian(): HasOne
     {
@@ -143,7 +165,7 @@ class User extends Authenticatable
         return $this->roles()->where('code', $code)->exists();
     }
 
-    /** Global (central) users such as مدير الجوامع are not bound to a single mosque. */
+    /** Global (central) users such as مدير المساجد are not bound to a single mosque. */
     public function isGlobalUser(): bool
     {
         return $this->tenant_id === null;

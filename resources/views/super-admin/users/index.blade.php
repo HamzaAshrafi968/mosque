@@ -5,7 +5,7 @@
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <div>
-        <a href="{{ route('super-admin.mosques.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← الجوامع</a>
+        <a href="{{ route('super-admin.mosques.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← المساجد</a>
         <h2 class="text-2xl font-extrabold text-gray-800 mt-1">مستخدمو {{ $mosque->name }}</h2>
     </div>
     <a href="{{ route('super-admin.mosques.roles.index', $mosque) }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl transition">الأدوار والصلاحيات</a>
@@ -52,7 +52,7 @@
         </div>
         @php $selectedSessions = old('study_session_ids', []); @endphp
         <div id="create-teacher-session">
-            <label class="block text-sm font-medium text-gray-700 mb-1">الدوامات <span class="text-gray-400 text-xs">(للمعلم)</span></label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">الدوام <span class="text-gray-400 text-xs">(للمعلم)</span></label>
             <div class="grid grid-cols-2 gap-2">
                 @foreach($studySessions as $session)
                     <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-50">

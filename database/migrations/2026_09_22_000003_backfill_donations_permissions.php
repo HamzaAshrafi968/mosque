@@ -7,7 +7,7 @@ use Illuminate\Database\Migrations\Migration;
 
 /**
  * منح صلاحيات «التبرعات والمساهمات» (donations.*) لأدوار مديري
- * الجوامع القائمة — بنفس نمط 2026_09_22_000001.
+ * المساجد القائمة — بنفس نمط 2026_09_22_000001.
  */
 return new class extends Migration
 {

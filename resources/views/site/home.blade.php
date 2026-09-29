@@ -8,11 +8,11 @@
     @php
         $mosqueCount = $mosques->count();
         $mosqueCountLabel = match (true) {
-            $mosqueCount === 0 => 'لا توجد جوامع منشورة بعد',
-            $mosqueCount === 1 => 'جامع واحد',
-            $mosqueCount === 2 => 'جامعان',
-            $mosqueCount >= 3 && $mosqueCount <= 10 => $mosqueCount.' جوامع',
-            default => $mosqueCount.' جامعاً',
+            $mosqueCount === 0 => 'لا توجد مساجد منشورة بعد',
+            $mosqueCount === 1 => 'مسجد واحد',
+            $mosqueCount === 2 => 'مسجدان',
+            $mosqueCount >= 3 && $mosqueCount <= 10 => $mosqueCount.' مساجد',
+            default => $mosqueCount.' مسجداً',
         };
     @endphp
 
@@ -40,7 +40,7 @@
             <div class="flex flex-wrap items-center justify-center gap-3 mt-9">
                 <a href="{{ route('site.mosques.index') }}"
                     class="btn-shine bg-gold-400 hover:bg-gold-300 text-pine-950 font-black px-6 py-3 rounded-2xl shadow-xl shadow-gold-950/20 transition hover:-translate-y-0.5">
-                    تصفّح الجوامع
+                    تصفّح المساجد
                 </a>
                 <a href="{{ route('login') }}"
                     class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-black px-6 py-3 rounded-2xl transition">
@@ -89,7 +89,7 @@
         </div>
     </section>
 
-    {{-- الجوامع --}}
+    {{-- المساجد --}}
     <section id="mosques" class="max-w-6xl mx-auto px-4 py-14">
         <div class="text-center">
             <h2 class="text-2xl sm:text-3xl font-black text-pine-950">{{ config('site.mosques_title') }}</h2>
@@ -97,7 +97,7 @@
         </div>
 
         @if ($mosques->isEmpty())
-            <p class="text-center text-gray-500 font-semibold mt-8">لا توجد جوامع منشورة حالياً.</p>
+            <p class="text-center text-gray-500 font-semibold mt-8">لا توجد مساجد منشورة حالياً.</p>
         @else
             <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 mt-9">
                 @foreach ($mosques->take(6) as $mosque)
@@ -109,7 +109,7 @@
                 <div class="text-center mt-9">
                     <a href="{{ route('site.mosques.index') }}"
                         class="inline-flex items-center gap-2 bg-pine-800 hover:bg-pine-900 text-white font-black px-6 py-3 rounded-2xl transition">
-                        عرض كل الجوامع
+                        عرض كل المساجد
                         <x-icon name="chevrons-left" class="w-4 h-4" />
                     </a>
                 </div>

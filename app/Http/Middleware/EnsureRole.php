@@ -18,7 +18,7 @@ class EnsureRole
             abort(403);
         }
 
-        // مدير الجوامع can operate inside any mosque (admin area) after
+        // مدير المساجد can operate inside any mosque (admin area) after
         // "entering" it from the central dashboard (web sessions only).
         if ($user->isSuperAdmin()) {
             // His own central pages (/super-admin/*) are always allowed.

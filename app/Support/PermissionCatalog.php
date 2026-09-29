@@ -15,12 +15,12 @@ final class PermissionCatalog
      */
     public const ITEMS = [
         // Mosque management
-        ['mosques', 'view', 'مشاهدة الجوامع'],
+        ['mosques', 'view', 'مشاهدة المساجد'],
         ['mosques', 'create', 'إنشاء جامع'],
         ['mosques', 'update', 'تعديل جامع'],
         ['mosques', 'delete', 'حذف جامع'],
         // Study sessions (الدوامين / الفترات)
-        ['sessions', 'view', 'مشاهدة الدوامات'],
+        ['sessions', 'view', 'مشاهدة الدوام'],
         ['sessions', 'create', 'إضافة دوام'],
         ['sessions', 'update', 'تعديل دوام'],
         ['sessions', 'delete', 'حذف دوام'],
@@ -368,14 +368,14 @@ final class PermissionCatalog
     public static function resourceLabels(): array
     {
         return [
-            'mosques' => 'إدارة الجوامع',
+            'mosques' => 'إدارة المساجد',
             'students' => 'الطلاب',
             'teachers' => 'الأساتذة',
             'parents' => 'أولياء الأمور',
             'classes' => 'الصفوف',
             'sections' => 'الشعب',
             'subjects' => 'المواد',
-            'sessions' => 'الدوامات',
+            'sessions' => 'الدوام',
             'schedule' => 'الجداول',
             'attendance' => 'الحضور',
             'exams' => 'الامتحانات',

@@ -12,7 +12,9 @@ abstract class BaseTeacherController extends Controller
 {
     protected function currentTeacher(Request $request): Teacher
     {
-        return Teacher::where('user_id', $request->user()->id)->firstOrFail();
+        // يُنشأ الملف تلقائياً عند غيابه حتى لا يتعطل تسجيل دخول الأستاذ
+        // (حسابات أُنشئت من شاشة المستخدمين دون ملف أستاذ).
+        return $request->user()->ensureTeacherProfile();
     }
 
     /**

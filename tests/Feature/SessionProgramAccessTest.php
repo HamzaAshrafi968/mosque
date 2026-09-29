@@ -254,7 +254,7 @@ class SessionProgramAccessTest extends TestCase
         $this->actingAs($manager)
             ->get(route('admin.programs.index'))
             ->assertOk()
-            ->assertSee('الدوامات:')
+            ->assertSee('الدوام:')
             ->assertSee($first->name);
     }
 

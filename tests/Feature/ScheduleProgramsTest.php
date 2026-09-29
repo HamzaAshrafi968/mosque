@@ -23,7 +23,7 @@ use Tests\TestCase;
 
 /**
  * تخصصات الجداول (schedule programs): provisioning، CRUD البرامج والفترات
- * والخصائص، ربط الحصص بالبرنامج/الفترة/الدوام، والعزل بين الجوامع.
+ * والخصائص، ربط الحصص بالبرنامج/الفترة/الدوام، والعزل بين المساجد.
  */
 class ScheduleProgramsTest extends TestCase
 {
@@ -596,25 +596,25 @@ class ScheduleProgramsTest extends TestCase
         $this->get(route('admin.programs.create'))->assertOk();
 
         $this->post(route('admin.programs.store'), [
-            'name' => 'برنامج مدير الجوامع',
+            'name' => 'برنامج مدير المساجد',
             'type' => 'custom',
             'is_active' => 1,
         ])->assertRedirect(route('admin.programs.index'))->assertSessionHasNoErrors();
 
         $program = Program::withoutGlobalScope('tenant')
             ->where('tenant_id', $mosque->id)
-            ->where('name', 'برنامج مدير الجوامع')
+            ->where('name', 'برنامج مدير المساجد')
             ->firstOrFail();
 
         $this->assertSame($mosque->id, $program->tenant_id);
 
         $this->patch(route('admin.programs.update', $program), [
-            'name' => 'برنامج مدير الجوامع المطور',
+            'name' => 'برنامج مدير المساجد المطور',
             'type' => 'custom',
             'is_active' => 1,
         ])->assertRedirect(route('admin.programs.index'))->assertSessionHasNoErrors();
 
-        $this->assertSame('برنامج مدير الجوامع المطور', $program->fresh()->name);
+        $this->assertSame('برنامج مدير المساجد المطور', $program->fresh()->name);
     }
 
     public function test_student_sourced_attribute_options_are_resolved_with_filters(): void

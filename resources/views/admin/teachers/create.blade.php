@@ -26,7 +26,7 @@
             $selectedSessions = old('study_session_ids', $currentSession ? [$currentSession] : []);
         @endphp
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">الدوامات</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">الدوام</label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 @foreach($sessions as $session)
                     <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-50">
@@ -37,7 +37,7 @@
                 @endforeach
             </div>
             <input type="hidden" name="study_session_ids[]" value="">
-            <p class="text-xs text-gray-400 mt-1">يمكنك تحديد أكثر من دوام (مثال: الأول والثالث). إن لم تحدد شيئاً يظهر الأستاذ في كل الدوامات.</p>
+            <p class="text-xs text-gray-400 mt-1">يمكنك تحديد أكثر من دوام (مثال: الأول والثالث). إن لم تحدد شيئاً يظهر الأستاذ في كل الدوام.</p>
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>

@@ -17,7 +17,7 @@
             <h1 class="text-xl font-bold">{{ $classroom->name }}</h1>
             <p class="text-sm text-emerald-100 mt-1">{{ $classroom->description ?: '—' }}</p>
             <span class="inline-flex mt-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-white/20">
-                {{ $classroom->studySession?->name ?: 'كل الدوامات (صف مشترك)' }}
+                {{ $classroom->studySession?->name ?: 'كل الدوام (صف مشترك)' }}
             </span>
         </div>
         <div class="flex items-center gap-3 text-sm">

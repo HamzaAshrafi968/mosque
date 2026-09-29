@@ -60,7 +60,7 @@
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">الدوام</label>
             <select name="study_session_id" id="filter-session" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">كل الدوامات</option>
+                <option value="">كل الدوام</option>
                 @foreach($studySessions as $session)
                     <option value="{{ $session->id }}" @selected((string) $currentSessionId === (string) $session->id)>{{ $session->display_name }}</option>
                 @endforeach

@@ -16,7 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * الإنشاء المركزي للدورات الشرعية من مدير الجوامع: اختيار الجامع والمشرفين
+ * الإنشاء المركزي للدورات الشرعية من مدير المساجد: اختيار الجامع والمشرفين
  * والطلاب (موجودين + جدد)، إشعار مدير الجامع، وربط الطلاب وحالة الحفظ.
  */
 class ShariaCourseCentralTest extends TestCase
@@ -69,7 +69,7 @@ class ShariaCourseCentralTest extends TestCase
             ->post(route('super-admin.sharia-courses.store'), [
                 'mosque_id' => $mosque->id,
                 'name' => 'دورة الفقه المركزي',
-                'description' => 'دورة أضافها مدير الجوامع',
+                'description' => 'دورة أضافها مدير المساجد',
                 'location' => 'القاعة الكبرى',
                 'start_date' => now()->toDateString(),
                 'status' => 'active',
@@ -139,12 +139,12 @@ class ShariaCourseCentralTest extends TestCase
         $this->assertSame('دورة شرعية جديدة', $manager->fresh()->notifications()->first()->data['title']);
         $this->assertSame(0, $otherManager->fresh()->notifications()->count());
 
-        // الشاشات المركزية تُعرض لمدير الجوامع.
+        // الشاشات المركزية تُعرض لمدير المساجد.
         $this->actingAs($superAdmin)
             ->get(route('super-admin.sharia-courses.index'))
             ->assertOk()
             ->assertSee('دورة الفقه المركزي')
-            ->assertSee('من مدير الجوامع');
+            ->assertSee('من مدير المساجد');
 
         $this->actingAs($superAdmin)
             ->get(route('super-admin.sharia-courses.create'))
@@ -158,7 +158,7 @@ class ShariaCourseCentralTest extends TestCase
             ->get(route('admin.sharia-courses.index'))
             ->assertOk()
             ->assertSee('دورة الفقه المركزي')
-            ->assertSee('من مدير الجوامع');
+            ->assertSee('من مدير المساجد');
 
         $this->actingAs($manager)
             ->get(route('admin.sharia-courses.show', ['course' => $course, 'tab' => 'students']))

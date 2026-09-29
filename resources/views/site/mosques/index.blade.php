@@ -1,7 +1,7 @@
 @extends('site.layouts.app')
 
-@section('title', 'الجوامع والمساجد | '.config('site.name'))
-@section('description', 'قائمة جوامع ومساجد '.config('site.name').' مع العناوين وبيانات التواصل، ولمحة عن البرامج في كل جامع.')
+@section('title', 'المساجد والمساجد | '.config('site.name'))
+@section('description', 'قائمة مساجد '.config('site.name').' مع العناوين وبيانات التواصل، ولمحة عن البرامج في كل مسجد.')
 @section('canonical', route('site.mosques.index'))
 
 @section('content')
@@ -10,7 +10,7 @@
         <div class="relative max-w-6xl mx-auto px-4 py-12 text-center">
             <h1 class="text-2xl sm:text-4xl font-black">{{ config('site.mosques_title') }}</h1>
             <p class="text-emerald-50/80 text-sm font-medium mt-3 max-w-2xl mx-auto leading-relaxed">
-                جوامع {{ config('site.name') }} وحلقاتها القرآنية — اختر الجامع لعرض بياناته وبرامجه.
+                مساجد {{ config('site.name') }} وحلقاتها القرآنية — اختر المسجد لعرض بياناته وبرامجه.
             </p>
         </div>
     </section>
@@ -21,7 +21,7 @@
                 <span class="w-14 h-14 mx-auto rounded-2xl bg-pine-50 text-pine-700 grid place-items-center">
                     <x-icon name="mosque" class="w-7 h-7" />
                 </span>
-                <p class="text-gray-500 font-semibold mt-4">لا توجد جوامع منشورة حالياً.</p>
+                <p class="text-gray-500 font-semibold mt-4">لا توجد مساجد منشورة حالياً.</p>
                 <a href="{{ route('site.home') }}" class="inline-block mt-5 text-emerald-700 font-black hover:underline">
                     العودة إلى الرئيسية
                 </a>

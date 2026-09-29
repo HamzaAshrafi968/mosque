@@ -5,7 +5,7 @@
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <div>
-        <a href="{{ route('super-admin.mosques.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← الجوامع</a>
+        <a href="{{ route('super-admin.mosques.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← المساجد</a>
         <h2 class="text-2xl font-extrabold text-gray-800 mt-1">الأدوار والصلاحيات في {{ $mosque->name }}</h2>
     </div>
     <a href="{{ route('super-admin.mosques.users.index', $mosque) }}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 py-2.5 rounded-xl transition">المستخدمون</a>

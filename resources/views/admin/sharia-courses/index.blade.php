@@ -56,7 +56,7 @@
                             <a href="{{ route('admin.sharia-courses.show', $course) }}" class="font-bold text-gray-800 hover:text-emerald-700">{{ $course->name }}</a>
                             <div class="flex items-center gap-2 mt-1">
                                 @if($course->isFromSuperAdmin())
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-800">من مدير الجوامع</span>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-800">من مدير المساجد</span>
                                 @endif
                                 @if($course->location)<span class="text-xs text-gray-400">{{ $course->location }}</span>@endif
                             </div>

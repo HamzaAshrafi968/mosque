@@ -24,7 +24,7 @@
                         <x-icon name="globe" class="w-5 h-5" />
                     </span>
                 </span>
-                <span class="text-sm sm:text-base font-extrabold leading-tight">مدير الجوامع — الإدارة المركزية</span>
+                <span class="text-sm sm:text-base font-extrabold leading-tight">مدير المساجد — الإدارة المركزية</span>
             </div>
 
             @if($currentMosque)
@@ -34,7 +34,7 @@
                 </span>
             @else
                 <span class="hidden md:inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] border border-white/10 px-3 py-1 text-[11px] font-semibold text-emerald-100/90 whitespace-nowrap">
-                    لوحة مجمّعة لكل الجوامع
+                    لوحة مجمّعة لكل المساجد
                 </span>
             @endif
 
@@ -53,7 +53,7 @@
                         <span class="shrink-0 text-gold-300">
                             <x-icon :name="$currentMosque ? 'building' : 'mosque'" class="w-4 h-4" />
                         </span>
-                        <span class="flex-1 truncate text-right sm:text-left">{{ $currentMosque?->name ?: 'كل الجوامع — تبديل الجامع' }}</span>
+                        <span class="flex-1 truncate text-right sm:text-left">{{ $currentMosque?->name ?: 'كل المساجد — تبديل الجامع' }}</span>
                         <span class="shrink-0 text-gold-200/80 transition-transform duration-200" id="mosque-switcher-caret"><x-icon name="chevron" class="w-4 h-4" /></span>
                     </button>
 
@@ -78,7 +78,7 @@
                                 class="mosque-switch-row w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-gold-50 transition rounded-lg"
                             >
                                 <span class="shrink-0 text-gold-600"><x-icon name="mosque" class="w-4 h-4" /></span>
-                                <span class="flex-1 text-right font-semibold {{ ! $currentMosqueId ? 'text-pine-800' : 'text-gray-700' }}">كل الجوامع — إدارة الجوامع</span>
+                                <span class="flex-1 text-right font-semibold {{ ! $currentMosqueId ? 'text-pine-800' : 'text-gray-700' }}">كل المساجد — إدارة المساجد</span>
                                 @if(! $currentMosqueId)
                                     <span class="text-emerald-600 text-[11px] font-bold">✓ الحالي</span>
                                 @endif

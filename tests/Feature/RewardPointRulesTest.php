@@ -508,7 +508,7 @@ class RewardPointRulesTest extends TestCase
 
     public function test_super_admin_inside_a_mosque_can_add_and_deduct_points(): void
     {
-        // Create the tenant-less مدير الجوامع before a mosque context exists,
+        // Create the tenant-less مدير المساجد before a mosque context exists,
         // otherwise the tenant trait binds it to the current mosque.
         config(['app.current_tenant_id' => null]);
         $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => User::ROLE_SUPER_ADMIN]);
@@ -760,7 +760,7 @@ class RewardPointRulesTest extends TestCase
             ->assertSee('برنامج القرآن')
             ->assertSee('نقاط المكافآت')
             ->assertSee('الحسابات والصلاحيات')
-            ->assertSee('الدوامات');
+            ->assertSee('الدوام');
     }
 
     public function test_teacher_cannot_open_the_settings_center(): void

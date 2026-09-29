@@ -108,7 +108,7 @@ class MosqueController extends Controller
         session()->forget('super_admin_mosque_id');
         session()->forget('study_session_id');
 
-        return redirect()->route('super-admin.dashboard')->with('success', 'تم العودة إلى إدارة الجوامع');
+        return redirect()->route('super-admin.dashboard')->with('success', 'تم العودة إلى إدارة المساجد');
     }
 
     /** Switch mosque context from the top header, or return to the central dashboard. */
@@ -127,7 +127,7 @@ class MosqueController extends Controller
 
         session()->forget('super_admin_mosque_id');
 
-        return redirect()->route('super-admin.dashboard')->with('success', 'تم العودة إلى إدارة الجوامع');
+        return redirect()->route('super-admin.dashboard')->with('success', 'تم العودة إلى إدارة المساجد');
     }
 
     private function validated(Request $request): array

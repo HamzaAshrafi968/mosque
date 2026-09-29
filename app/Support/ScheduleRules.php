@@ -18,7 +18,7 @@ final class ScheduleRules
     /** @return array<string, mixed> */
     public static function rules(?string $tenantId = null): array
     {
-        // مدير الجوامع داخل جامع: tenant_id فارغ ويُستمد من سياق الجامع الحالي.
+        // مدير المساجد داخل جامع: tenant_id فارغ ويُستمد من سياق الجامع الحالي.
         $tenantId ??= config('app.current_tenant_id');
 
         return [

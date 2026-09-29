@@ -9,23 +9,23 @@
 
 # 0. القرارات المعيارية المعتمدة
 
-| القرار | التفاصيل | البدائل المرفوضة |
-|---|---|---|
-| المشرفون | «المشرف» في هذا النظام = سجل `Teacher` الحالي (المعلم/الشيخ). لا فئة مستخدمين جديدة. | إنشاء كيان `Supervisor` منفصل |
-| شكل ساعات العمل | جدول أسبوعي متكرر: لكل يوم من أيام الأسبوع فترة بداية/نهاية، والإجمالي الأسبوعي محسوب لا مخزّن. | إجمالي شهري يدوي / فترات بتواريخ مطلقة |
-| طلاب الدورة الشرعية | سجل مستقل تماماً (`sharia_course_students`) منفصل عن جدول `students`. | الاختيار من طلاب المدرسة / الدمج |
-| أسابيع الإجازة | 4 تقييمات أسبوعية داخل كل شهر + يبقى `ijazah_monthly_evaluations` كملخص وقاعدة الإكمال. | استبدال الشهري بالأسابيع / عرض فقط |
-| شبكة الأشهر | تُطبَّق على اختبارات الحفاظ الشهرية (`hafiz_monthly_exams`) فقط. | تطبيقها على الإجازة أيضاً |
-| صفحات القرآن | عرض صفحة المصحف كاملة + تحديد «من صفحة → إلى صفحة» في التسميع، وتخطيط المصحف المدني 604 صفحات. | أرقام صفحات فقط بدون عرض |
-| اسم المؤسسة | «مؤسسة السفرة للعلوم والتنمية» في `APP_NAME` والواجهات. | إبقاء الاسم المختصر |
-| نطاق التسليم الحالي | ملف المواصفات هذا فقط؛ التنفيذ على المراحل المذكورة في §12. | — |
+| القرار              | التفاصيل                                                                                        | البدائل المرفوضة                       |
+| ------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------- |
+| المشرفون            | «المشرف» في هذا النظام = سجل `Teacher` الحالي (المعلم/الشيخ). لا فئة مستخدمين جديدة.            | إنشاء كيان `Supervisor` منفصل          |
+| شكل ساعات العمل     | جدول أسبوعي متكرر: لكل يوم من أيام الأسبوع فترة بداية/نهاية، والإجمالي الأسبوعي محسوب لا مخزّن. | إجمالي شهري يدوي / فترات بتواريخ مطلقة |
+| طلاب الدورة الشرعية | سجل مستقل تماماً (`sharia_course_students`) منفصل عن جدول `students`.                           | الاختيار من طلاب المدرسة / الدمج       |
+| أسابيع الإجازة      | 4 تقييمات أسبوعية داخل كل شهر + يبقى `ijazah_monthly_evaluations` كملخص وقاعدة الإكمال.         | استبدال الشهري بالأسابيع / عرض فقط     |
+| شبكة الأشهر         | تُطبَّق على اختبارات الحفاظ الشهرية (`hafiz_monthly_exams`) فقط.                                | تطبيقها على الإجازة أيضاً              |
+| صفحات القرآن        | عرض صفحة المصحف كاملة + تحديد «من صفحة → إلى صفحة» في التسميع، وتخطيط المصحف المدني 604 صفحات.  | أرقام صفحات فقط بدون عرض               |
+| اسم المؤسسة         | «مؤسسة السفرة للعلوم والتنمية» في `APP_NAME` والواجهات.                                         | إبقاء الاسم المختصر                    |
+| نطاق التسليم الحالي | ملف المواصفات هذا فقط؛ التنفيذ على المراحل المذكورة في §12.                                     | —                                      |
 
 **قواعد عامة ملزمة لكل الميزات:**
 
 - كل جدول جديد يتبع نمط المشروع: `uuid` مفتاح أساسي، `tenant_id` مع `MultiTenantTrait`، `UuidTrait`، `FlushesTenantCache` عند الحاجة.
 - كل عملية كتابة تُسجَّل في `AuditLogger` (§31 من المواصفة الأساسية).
 - كل مسار إداري محمي بـ `role:admin` + `permission:` المناسب، ومسارات المعلم بـ `role:teacher` + فحص نطاق في الـ Backend.
-- العزل بين الجوامع مفروض في قاعدة البيانات/الـ Backend، وليس بإخفاء عناصر الواجهة.
+- العزل بين المساجد مفروض في قاعدة البيانات/الـ Backend، وليس بإخفاء عناصر الواجهة.
 - أي عملية حذف/أرشفة تتطلب تأكيداً في الواجهة.
 
 ---
@@ -34,7 +34,7 @@
 
 ## 1.1 الهدف
 
-تمكين مدير الجامع (ومدير الجوامع داخل سياق الجامع) من تحديد ساعات عمل المعلمين/المشرفين يدوياً على شكل جدول أسبوعي متكرر، وعرضها للمعلم في بوابته.
+تمكين مدير الجامع (ومدير المساجد داخل سياق الجامع) من تحديد ساعات عمل المعلمين/المشرفين يدوياً على شكل جدول أسبوعي متكرر، وعرضها للمعلم في بوابته.
 
 ## 1.2 نموذج البيانات
 
@@ -82,15 +82,15 @@ label(): الأحد ... السبت
 3. `end_time` > `start_time` وإلا خطأ تحقق عربي.
 4. منع تداخل الفترات لنفس المعلم/اليوم: أي فترة جديدة تتقاطع مع فترة قائمة (نفس `teacher_id` + `day_of_week`) تُرفض مع رسالة توضح الفترة المتعارضة.
 5. حد أقصى معقول لكل فترة (مثال: 12 ساعة) لكل يوم.
-6. المعلم المستهدف يجب أن يكون ضمن نفس جامع المستخدم (`Rule::exists('teachers','id')->where('tenant_id', ...)`) — مدير الجوامع داخل سياق الجامع يمر بنفس الفحص.
+6. المعلم المستهدف يجب أن يكون ضمن نفس جامع المستخدم (`Rule::exists('teachers','id')->where('tenant_id', ...)`) — مدير المساجد داخل سياق الجامع يمر بنفس الفحص.
 7. لا يُسمح بتعديل `tenant_id` أو `teacher_id` من الطلب.
 
 ## 1.4 الصلاحيات
 
-| الكود | الوصف | افتراضي مدير الجامع | افتراضي المعلم |
-|---|---|---|---|
-| `work_hours.view` | مشاهدة ساعات العمل | `mosque` | `own` |
-| `work_hours.manage` | إدارة ساعات العمل (إضافة/تعديل/حذف) | `mosque` | — |
+| الكود               | الوصف                               | افتراضي مدير الجامع | افتراضي المعلم |
+| ------------------- | ----------------------------------- | ------------------- | -------------- |
+| `work_hours.view`   | مشاهدة ساعات العمل                  | `mosque`            | `own`          |
+| `work_hours.manage` | إدارة ساعات العمل (إضافة/تعديل/حذف) | `mosque`            | —              |
 
 - تُضاف إلى `PermissionCatalog::ITEMS` و `MOSQUE_MANAGER` و `TEACHER`.
 - المعلم يرى ساعاته فقط عبر نطاق `own` مع مسند ملكية (`$owns = fn($user, $subject) => $subject?->teacher?->user_id === $user->id`).
@@ -123,9 +123,9 @@ GET teacher/work-hours    teacher.work-hours.index
 ## 1.6 الواجهات (Front-end)
 
 - مكوّن مشترك `resources/views/components/weekly-hours-grid.blade.php`:
-  - Props: `hours` (Collection مجمّعة حسب اليوم), `editable` (bool), `teacher`.
-  - يعرض 7 بطاقات أيام، كل بطاقة فتراتها + إجمالي اليوم.
-  - حالة فراغ (empty state): «لم تُحدد ساعات عمل بعد».
+    - Props: `hours` (Collection مجمّعة حسب اليوم), `editable` (bool), `teacher`.
+    - يعرض 7 بطاقات أيام، كل بطاقة فتراتها + إجمالي اليوم.
+    - حالة فراغ (empty state): «لم تُحدد ساعات عمل بعد».
 - مكوّن `resources/views/components/work-hour-form.blade.php` (إضافة/تعديل فترة).
 - في `admin/teachers/show`: قسم جديد بعنوان «ساعات العمل» + زر «إدارة ساعات العمل».
 - تصميم RTL متسق مع Tailwind 4 والبطاقات الحالية (`rounded-2xl border border-gray-200 bg-white shadow-sm`).
@@ -135,17 +135,17 @@ GET teacher/work-hours    teacher.work-hours.index
 
 - Audit: `work_hours.created`, `work_hours.updated`, `work_hours.deleted` مع القيم قبل/بعد.
 - الاختبارات `tests/Feature/WorkHoursTest.php`:
-  - مدير الجامع ينشئ فترة لمعلم في جامعه → 302 + صف في القاعدة.
-  - معلم من جامع آخر → رفض (404/403) ولا صف.
-  - `end_time <= start_time` → خطأ تحقق.
-  - تداخل الفترات → خطأ تحقق.
-  - معلم يرى ساعاته فقط (`teacher.work-hours.index`) ولا يرى ساعات غيره.
-  - مستخدم بلا `work_hours.manage` → 403.
+    - مدير الجامع ينشئ فترة لمعلم في جامعه → 302 + صف في القاعدة.
+    - معلم من جامع آخر → رفض (404/403) ولا صف.
+    - `end_time <= start_time` → خطأ تحقق.
+    - تداخل الفترات → خطأ تحقق.
+    - معلم يرى ساعاته فقط (`teacher.work-hours.index`) ولا يرى ساعات غيره.
+    - مستخدم بلا `work_hours.manage` → 403.
 
 ## 1.8 Definition of Done
 
 - [ ] هجرة الجدول + النموذج + العلاقات.
-- [ ] إدارة كاملة (إضافة/تعديل/حذف) من مدير الجامع ومدير الجوامع داخل الجامع.
+- [ ] إدارة كاملة (إضافة/تعديل/حذف) من مدير الجامع ومدير المساجد داخل الجامع.
 - [ ] تحقق التعارض وصحة الأوقات في الـ Backend.
 - [ ] عرض في بوابة المعلم والداشبورد.
 - [ ] صلاحيات في الكتالوج + تدقيق + اختبارات خضراء.
@@ -175,16 +175,16 @@ GET teacher/work-hours    teacher.work-hours.index
 `Admin\HafizExamController` و `Teacher\HafizExamController`:
 
 - `index(Request)`: يعرض شبكة السنة.
-  - `$year = validYear($request->input('year'))` (افتراضي السنة الحالية، ورفض القيم غير الصحيحة بالعودة للسنة الحالية).
-  - `$months`: 12 عنصراً لكل شهر `YYYY-MM` مع:
-    - `label` (اسم الشهر عربي + السنة).
-    - `hafiz_count` (عدد الحفاظ).
-    - `tested`, `not_tested`, `passed`, `failed` (تجميع من `hafiz_monthly_exams` الموجودة دون إنشاء صفوف).
-    - `evaluated` (عدد الصفوف المسجلة).
-  - **مهم:** لا تستدعِ `ensureMonthlyExamRows()` لشهور السنة في شبكة العرض؛ التجميع من الصفوف الموجودة فقط. إنشاء صفوف «لم يُختبر» يتم فقط عند فتح تفاصيل الشهر.
+    - `$year = validYear($request->input('year'))` (افتراضي السنة الحالية، ورفض القيم غير الصحيحة بالعودة للسنة الحالية).
+    - `$months`: 12 عنصراً لكل شهر `YYYY-MM` مع:
+        - `label` (اسم الشهر عربي + السنة).
+        - `hafiz_count` (عدد الحفاظ).
+        - `tested`, `not_tested`, `passed`, `failed` (تجميع من `hafiz_monthly_exams` الموجودة دون إنشاء صفوف).
+        - `evaluated` (عدد الصفوف المسجلة).
+    - **مهم:** لا تستدعِ `ensureMonthlyExamRows()` لشهور السنة في شبكة العرض؛ التجميع من الصفوف الموجودة فقط. إنشاء صفوف «لم يُختبر» يتم فقط عند فتح تفاصيل الشهر.
 - `month(Request, string $month)`: يتحقق من الصيغة `YYYY-MM` ثم:
-  - `ensureMonthlyExamRows($hafizIds, $month, $user)` كما في السلوك الحالي.
-  - يعرض الجدول التفصيلي (نفس منطق `index` الحالي).
+    - `ensureMonthlyExamRows($hafizIds, $month, $user)` كما في السلوك الحالي.
+    - يعرض الجدول التفصيلي (نفس منطق `index` الحالي).
 - تبقى `show` و `grade` و `storeRevision` و `completeRevision` و `approveRevision` دون تغيير.
 
 ## 2.4 المسارات
@@ -206,14 +206,14 @@ GET teacher/quran/exams/month/{month}      teacher.quran.exams.month   → تف�
 ## 2.5 الواجهات
 
 - مكوّن جديد `resources/views/components/year-months-grid.blade.php`:
-  - Props: `year`, `months` (array), `routeName`, `extraParams` (اختياري).
-  - رأس: منتقي السنة (السنة السابقة/التالية + `<input type="number">` أو `select`).
-  - 12 بطاقة responsive (`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3`):
-    - اسم الشهر، شارة السنة.
-    - عدد الحفاظ.
-    - شارات ملونة: ناجح (أخضر)، راسب (أحمر)، مُختبر (أزرق)، لم يُختبر (رمادي).
-    - الشهر الحالي مُبرز بإطار ذهبي.
-  - حالة فراغ: «لا يوجد حفاظ مسجلون».
+    - Props: `year`, `months` (array), `routeName`, `extraParams` (اختياري).
+    - رأس: منتقي السنة (السنة السابقة/التالية + `<input type="number">` أو `select`).
+    - 12 بطاقة responsive (`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3`):
+        - اسم الشهر، شارة السنة.
+        - عدد الحفاظ.
+        - شارات ملونة: ناجح (أخضر)، راسب (أحمر)، مُختبر (أزرق)، لم يُختبر (رمادي).
+        - الشهر الحالي مُبرز بإطار ذهبي.
+    - حالة فراغ: «لا يوجد حفاظ مسجلون».
 - `admin/quran/exams/year.blade.php` (واجهة جديدة) + إعادة تسمية/هيكلة `index.blade.php` الحالي إلى `month.blade.php` مع إضافة شريط «← العودة لشبكة الأشهر» وأزرار الشهر السابق/التالي.
 - نفس المكوّن يُستخدم في `teacher/quran/exams/year.blade.php` و `month.blade.php`.
 
@@ -307,14 +307,14 @@ PATCH  teacher/quran/ijazah/weekly/{evaluation}             teacher.quran.ijazah
 ## 3.5 الواجهات
 
 - `admin/quran/ijazah/month.blade.php` + `teacher/quran/ijazah/month.blade.php`:
-  - رأس: اسم الطالب، الشهر (اسم عربي + سنة)، زر «← العودة لبرنامج الإجازة».
-  - بطاقة الملخص الشهري: نتيجة `ijazah_monthly_evaluations` إن وُجدت + عدد الأسابيع الناجحة من 4 + زر «تسجيل التقييم الشهري».
-  - 4 بطاقات أسابيع (`grid grid-cols-1 md:grid-cols-2 gap-4`):
-    - الأسبوع 1..4 + تواريخ الأسبوع (اختياري، تُحسب من الشهر إن لم تُدخل).
-    - نموذج: المقدار، المقروء، النتيجة، المشرف/المعلم (للمدير)، ملاحظات.
-    - حفظ/تعديل حسب وجود التقييم.
-    - شارة النتيجة ملونة (أخضر/أصفر/أحمر) + شارة «لم يُقيَّم» رمادية.
-  - مؤشر تقدم: `2 / 4 أسابيع`.
+    - رأس: اسم الطالب، الشهر (اسم عربي + سنة)، زر «← العودة لبرنامج الإجازة».
+    - بطاقة الملخص الشهري: نتيجة `ijazah_monthly_evaluations` إن وُجدت + عدد الأسابيع الناجحة من 4 + زر «تسجيل التقييم الشهري».
+    - 4 بطاقات أسابيع (`grid grid-cols-1 md:grid-cols-2 gap-4`):
+        - الأسبوع 1..4 + تواريخ الأسبوع (اختياري، تُحسب من الشهر إن لم تُدخل).
+        - نموذج: المقدار، المقروء، النتيجة، المشرف/المعلم (للمدير)، ملاحظات.
+        - حفظ/تعديل حسب وجود التقييم.
+        - شارة النتيجة ملونة (أخضر/أصفر/أحمر) + شارة «لم يُقيَّم» رمادية.
+    - مؤشر تقدم: `2 / 4 أسابيع`.
 - تعديل `admin/quran/ijazah/index.blade.php` و `teacher/quran/ijazah/index.blade.php`: إضافة عمود «آخر شهر / عرض الأسابيع» ورابط لصفحة الشهر.
 - تحديث `journey.blade.php` لعرض أسابيع الشهر الحالي عند برنامج الإجازة.
 
@@ -466,14 +466,14 @@ App\Enums\ShariaMemorizationStatus: not_memorized | parts_memorized | half_memor
 
 ## 4.4 الصلاحيات
 
-| الكود | الوصف | مدير الجامع | المعلم |
-|---|---|---|---|
-| `sharia_courses.view` | مشاهدة الدورات | `mosque` | `own` (دوراته فقط) |
-| `sharia_courses.create` | إنشاء دورة | `mosque` | — |
-| `sharia_courses.update` | تعديل دورة/دروس/طلاب | `mosque` | `own` (دوراته) |
-| `sharia_courses.delete` | حذف دورة | `mosque` | — |
-| `sharia_courses.attendance` | تسجيل الحضور | `mosque` | `own` (دوراته) |
-| `sharia_courses.memorization` | تحديث حالة حفظ طلاب الدورة | `mosque` | `own` (دوراته) — §4.9 |
+| الكود                         | الوصف                      | مدير الجامع | المعلم                |
+| ----------------------------- | -------------------------- | ----------- | --------------------- |
+| `sharia_courses.view`         | مشاهدة الدورات             | `mosque`    | `own` (دوراته فقط)    |
+| `sharia_courses.create`       | إنشاء دورة                 | `mosque`    | —                     |
+| `sharia_courses.update`       | تعديل دورة/دروس/طلاب       | `mosque`    | `own` (دوراته)        |
+| `sharia_courses.delete`       | حذف دورة                   | `mosque`    | —                     |
+| `sharia_courses.attendance`   | تسجيل الحضور               | `mosque`    | `own` (دوراته)        |
+| `sharia_courses.memorization` | تحديث حالة حفظ طلاب الدورة | `mosque`    | `own` (دوراته) — §4.9 |
 
 - تُضاف إلى `PermissionCatalog` وافتراضيات الأدوار.
 - المعلم لا يرى إلا الدورات التي هو أحد `supervisors` (pivot) أو التي له فيها درس/محاضرة.
@@ -504,7 +504,7 @@ DELETE admin/sharia-courses/students/{student}           admin.sharia-courses.st
 POST   admin/sharia-courses/{course}/attendance          admin.sharia-courses.attendance.store
 ```
 
-### مدير الجوامع (إنشاء مركزي — §4.9)
+### مدير المساجد (إنشاء مركزي — §4.9)
 
 ```text
 GET  super-admin/sharia-courses                          super-admin.sharia-courses.index
@@ -527,14 +527,14 @@ PATCH teacher/sharia-courses/students/{student}/memorization  teacher.sharia-cou
 - `admin/sharia-courses/index.blade.php`: بطاقات/جدول الدورات (الاسم، المشرف، التواريخ، الحالة، عدد الطلاب، عدد الدروس).
 - `admin/sharia-courses/create.blade.php` + `edit.blade.php`: بيانات الدورة + المشرف.
 - `admin/sharia-courses/show.blade.php`: تبويبات (Tabs) بدون مكتبات خارجية:
-  - **الدروس والمحاضرات**: جدول (العنوان، النوع، التاريخ، الوقت، المعلم، مرفق) + نموذج إضافة.
-  - **الطلاب**: جدول السجل المستقل (الاسم، الجوال، الجنس، الحالة) + نموذج إضافة/تعديل/أرشفة.
-  - **الحضور**: اختيار الدرس/التاريخ → جدول الطلاب مع أزرار present/absent/late/excused + ملاحظة لكل طالب + حفظ جماعي (نفس نمط `attendance-marks-form`).
-  - **التقرير**: ملخص لكل طالب (حضور/غياب/تأخر/إذن + النسبة).
+    - **الدروس والمحاضرات**: جدول (العنوان، النوع، التاريخ، الوقت، المعلم، مرفق) + نموذج إضافة.
+    - **الطلاب**: جدول السجل المستقل (الاسم، الجوال، الجنس، الحالة) + نموذج إضافة/تعديل/أرشفة.
+    - **الحضور**: اختيار الدرس/التاريخ → جدول الطلاب مع أزرار present/absent/late/excused + ملاحظة لكل طالب + حفظ جماعي (نفس نمط `attendance-marks-form`).
+    - **التقرير**: ملخص لكل طالب (حضور/غياب/تأخر/إذن + النسبة).
 - `teacher/sharia-courses/index.blade.php` + `show.blade.php` (عرض + حضور فقط).
 - روابط في القائمة الجانبية:
-  - المدير: «الدورات الشرعية» (أيقونة مناسبة مثل `quran`/`lessons`).
-  - المعلم: «الدورات الشرعية».
+    - المدير: «الدورات الشرعية» (أيقونة مناسبة مثل `quran`/`lessons`).
+    - المعلم: «الدورات الشرعية».
 
 ## 4.6 التدقيق
 
@@ -571,7 +571,7 @@ sharia_course.attendance_saved
 ### البيانات
 
 - **مشرفون متعددون**: `sharia_course_supervisor` (course_id + teacher_id + timestamps، primary مركب) مع ترحيل `supervisor_id` القديم ثم حذفه (migrations `2026_09_17_000001` / `000002`). العلاقات: `ShariaCourse::supervisors()` (BelongsToMany) و`Teacher::supervisedShariaCourses()`.
-- **مصدر الدورة**: `sharia_courses.source` = `mosque` (إدارة الجامع) أو `super_admin` (مدير الجوامع) — migration `2026_09_17_000004`، مع شارة «من مدير الجوامع» في الواجهات.
+- **مصدر الدورة**: `sharia_courses.source` = `mosque` (إدارة الجامع) أو `super_admin` (مدير المساجد) — migration `2026_09_17_000004`، مع شارة «من مدير المساجد» في الواجهات.
 - **ربط الطلاب**: `sharia_course_students.student_id` nullable FK → `students` مع `unique (course_id, student_id)` (migration `2026_09_17_000003`)؛ الطالب الموجود يُنسخ اسمه/جنسه/تاريخ ميلاده/هاتف وليه، والمضاف يدوياً يبقى بلا رابط.
 - **حالة الحفظ**: `memorization_status` + `memorization_notes` + `memorization_updated_by/at` على سجل الطالب، بقيم `ShariaMemorizationStatus`: لم يحفظ / حفظ أجزاء منه / حفظ النصف / حفظ كامل.
 
@@ -582,11 +582,11 @@ sharia_course.attendance_saved
 - `updateMemorization(ShariaCourseStudent, ?ShariaMemorizationStatus, ?string, User)`: يحفظ الحالة والملاحظات ومن حدّثها ومتى + Audit.
 - `EnsurePermission` يعامل `ShariaCourse` بمنطق «ملكية = أحد مشرفي الـpivot» لنطاق `own` (بعد حذف `supervisor_id`)، ويبقى `assertCourseAccess` حارس المعلم الفعلي.
 
-### واجهة مدير الجوامع
+### واجهة مدير المساجد
 
 - `SuperAdmin\ShariaCourseController` (index/create/options/store) مع `withoutGlobalScope('tenant')` و`tenant_id` صريح عند الإنشاء.
 - نموذج الإنشاء: اختيار الجامع (المكان) → تحميل المشرفين والطلاب عبر JSON (`options`) → تحديد مشرفين متعددين + طلاب موجودين (checkbox grid + فلتر) + إضافة طلاب جدد inline + خصائص الدورة (اسم/وصف/مكان/تواريخ/حالة).
-- عند الحفظ: إنشاء الدورة + مزامنة المشرفين + تسجيل الطلاب + إشعار كل مديري الجامع المستهدف (`role = admin`) عبر `PortalNotification` مباشرة (لا عبر `NotificationService` لتفادي فلترة نطاق الجامع الحالي لمدير الجوامع) بعنوان «دورة شرعية جديدة».
+- عند الحفظ: إنشاء الدورة + مزامنة المشرفين + تسجيل الطلاب + إشعار كل مديري الجامع المستهدف (`role = admin`) عبر `PortalNotification` مباشرة (لا عبر `NotificationService` لتفادي فلترة نطاق الجامع الحالي لمدير المساجد) بعنوان «دورة شرعية جديدة».
 - `super-admin/sharia-courses/index.blade.php` + `create.blade.php` + رابط Sidebar «الدورات الشرعية».
 
 ### واجهات الجامع
@@ -597,7 +597,7 @@ sharia_course.attendance_saved
 ### DoD التحديث
 
 - [x] pivot مشرفين + ترحيل البيانات وحذف العمود.
-- [x] إنشاء مركزي من مدير الجوامع + إشعار مدير الجامع + عزل الجامعات.
+- [x] إنشاء مركزي من مدير المساجد + إشعار مدير الجامع + عزل الجامعات.
 - [x] طلاب موجودون (ربط) + طلاب جدد (سجل مستقل) + منع التكرار.
 - [x] حالة الحفظ لكل طالب + صلاحية + Audit + واجهات admin/teacher.
 - [x] `ShariaCourseCentralTest` + تحديث `ShariaCoursesTest` و`UserPermissionOverrideTest`.
@@ -614,18 +614,18 @@ sharia_course.attendance_saved
 
 ## 5.2 نطاق التغيير
 
-| الملف | التغيير |
-|---|---|
-| `.env` | `APP_NAME="مؤسسة السفرة للعلوم والتنمية"` |
-| `.env.example` | نفس القيمة |
-| `config/app.php` | القيمة الاحتياطية `env('APP_NAME', 'مؤسسة السفرة للعلوم والتنمية')` |
-| `resources/views/layouts/app.blade.php` | عنوان الصفحة (fallback) + نص الشعار الجانبي (سطران 64 و 89) |
-| `resources/views/layouts/guest.blade.php` | عنوان الصفحة + `h1` (سطر 39) + نص `alt` + التذييل |
-| أي موضع آخر يظهر فيه «مؤسسة السفرة» | يُستبدل بالاسم الكامل |
+| الملف                                     | التغيير                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| `.env`                                    | `APP_NAME="مؤسسة السفرة للعلوم والتنمية"`                           |
+| `.env.example`                            | نفس القيمة                                                          |
+| `config/app.php`                          | القيمة الاحتياطية `env('APP_NAME', 'مؤسسة السفرة للعلوم والتنمية')` |
+| `resources/views/layouts/app.blade.php`   | عنوان الصفحة (fallback) + نص الشعار الجانبي (سطران 64 و 89)         |
+| `resources/views/layouts/guest.blade.php` | عنوان الصفحة + `h1` (سطر 39) + نص `alt` + التذييل                   |
+| أي موضع آخر يظهر فيه «مؤسسة السفرة»       | يُستبدل بالاسم الكامل                                               |
 
 - بعد التعديل: `php artisan config:clear`.
 - الشعارات (`logo-mark.png` وغيرها) تبقى دون تغيير.
-- لا تغيير على عناوين الصفحات الداخلية (مثل «لوحة إدارة الجامع»).
+- لا تغيير على عناوين الصفحات الداخلية (مثل «لوحة إدارة المسجد).
 
 ## 5.3 التحقق
 
@@ -680,10 +680,10 @@ quran_ayahs:
 
 - `QuranAyah`: إضافة `page`, `juz` إلى `$fillable` و casts (`integer`).
 - `App\Services\QuranPageService`:
-  - `ayahsForPage(int $page): Collection` — آيات الصفحة مرتبة مع `surah`.
-  - `pagesForRange(int $from, int $to): Collection` — مجموعة الصفحات مع رؤوس السور.
-  - `maxPage(): int` (604).
-  - `surahStartsOnPage(int $page): Collection` — السور التي تبدأ في الصفحة (لرسم رأس السورة والبسملة).
+    - `ayahsForPage(int $page): Collection` — آيات الصفحة مرتبة مع `surah`.
+    - `pagesForRange(int $from, int $to): Collection` — مجموعة الصفحات مع رؤوس السور.
+    - `maxPage(): int` (604).
+    - `surahStartsOnPage(int $page): Collection` — السور التي تبدأ في الصفحة (لرسم رأس السورة والبسملة).
 
 ## 6.3 تعديل التسميع
 
@@ -731,9 +731,9 @@ GET quran/pages/{page}/json       quran.pages.json        → JSON (للاستخ
 ### دمج التسميع
 
 - `admin/quran/tasmee/create.blade.php` و `teacher/quran/tasmee/create.blade.php`:
-  - حقلا «من صفحة» و «إلى صفحة» (number, 1..604) بجانب المقدار.
-  - زر «معاينة الصفحات» يفتح Modal يعرض الصفحات من `quran.pages.preview` (JS بسيط بدون مكتبات — نفس أسلوب `app.js` الحالي).
-  - عند تغيير المدى: تعبئة المقدار تلقائياً (`to - from + 1`) مع إمكانية التعديل اليدوي.
+    - حقلا «من صفحة» و «إلى صفحة» (number, 1..604) بجانب المقدار.
+    - زر «معاينة الصفحات» يفتح Modal يعرض الصفحات من `quran.pages.preview` (JS بسيط بدون مكتبات — نفس أسلوب `app.js` الحالي).
+    - عند تغيير المدى: تعبئة المقدار تلقائياً (`to - from + 1`) مع إمكانية التعديل اليدوي.
 - صفحتا `index`: عمود «الصفحات» يعرض «ص X → ص Y» أو «—».
 - صفحتا `edit`: نفس الحقول.
 - تحديث `QuranRecitationSession` (`$fillable`) و `StoreQuranReviewRequest`/طلبات الـ API إن وُجدت لهذا المسار.
@@ -775,15 +775,15 @@ sharia_courses.delete      حذف دورة شرعية
 sharia_courses.attendance  تسجيل حضور الدورات الشرعية
 ```
 
-| الكود | MOSQUE_MANAGER | TEACHER |
-|---|---|---|
-| `work_hours.view` | mosque | own |
-| `work_hours.manage` | mosque | — |
-| `sharia_courses.view` | mosque | own |
-| `sharia_courses.create` | mosque | — |
-| `sharia_courses.update` | mosque | own |
-| `sharia_courses.delete` | mosque | — |
-| `sharia_courses.attendance` | mosque | own |
+| الكود                       | MOSQUE_MANAGER | TEACHER |
+| --------------------------- | -------------- | ------- |
+| `work_hours.view`           | mosque         | own     |
+| `work_hours.manage`         | mosque         | —       |
+| `sharia_courses.view`       | mosque         | own     |
+| `sharia_courses.create`     | mosque         | —       |
+| `sharia_courses.update`     | mosque         | own     |
+| `sharia_courses.delete`     | mosque         | —       |
+| `sharia_courses.attendance` | mosque         | own     |
 
 - لا صلاحيات جديدة لصفحات القرآن (تُستخدم `quran.tasmee.view`).
 - لا صلاحيات جديدة لشبكة الأشهر أو أسابيع الإجازة (تُستخدم صلاحيات `hafiz_exams.*` و `ijazah.*` الحالية).
@@ -793,16 +793,16 @@ sharia_courses.attendance  تسجيل حضور الدورات الشرعية
 
 # 8. ملخص الهجرات
 
-| # | الهجرة | الجدول/التغيير |
-|---|---|---|
-| 1 | `create_teacher_work_hours_table` | `teacher_work_hours` |
-| 2 | `create_ijazah_weekly_evaluations_table` | `ijazah_weekly_evaluations` |
-| 3 | `create_sharia_courses_table` | `sharia_courses` |
-| 4 | `create_sharia_course_lessons_table` | `sharia_course_lessons` |
-| 5 | `create_sharia_course_students_table` | `sharia_course_students` |
-| 6 | `create_sharia_course_attendance_table` | `sharia_course_attendance` |
-| 7 | `add_page_and_juz_to_quran_ayahs_table` | `quran_ayahs.page/juz` |
-| 8 | `add_page_range_to_quran_recitation_sessions` | `quran_recitation_sessions.from_page/to_page` |
+| #   | الهجرة                                        | الجدول/التغيير                                |
+| --- | --------------------------------------------- | --------------------------------------------- |
+| 1   | `create_teacher_work_hours_table`             | `teacher_work_hours`                          |
+| 2   | `create_ijazah_weekly_evaluations_table`      | `ijazah_weekly_evaluations`                   |
+| 3   | `create_sharia_courses_table`                 | `sharia_courses`                              |
+| 4   | `create_sharia_course_lessons_table`          | `sharia_course_lessons`                       |
+| 5   | `create_sharia_course_students_table`         | `sharia_course_students`                      |
+| 6   | `create_sharia_course_attendance_table`       | `sharia_course_attendance`                    |
+| 7   | `add_page_and_juz_to_quran_ayahs_table`       | `quran_ayahs.page/juz`                        |
+| 8   | `add_page_range_to_quran_recitation_sessions` | `quran_recitation_sessions.from_page/to_page` |
 
 - كل الهجرات `down()` متوافقة مع `migrate:rollback`.
 - تُراعى قاعدة البيانات الافتراضية SQLite (لا ENUM حقيقي — قيم نصية + تحقق في الكود).
@@ -811,13 +811,13 @@ sharia_courses.attendance  تسجيل حضور الدورات الشرعية
 
 # 9. مكونات الواجهة المشتركة (Front-end)
 
-| المكوّن | الاستخدام | ملاحظات |
-|---|---|---|
-| `x-year-months-grid` | شبكة أشهر اختبارات الحفاظ | responsive، منتقي سنة، شارات حالات |
-| `x-weekly-hours-grid` | جدول ساعات العمل الأسبوعي | وضع قراءة/تحرير |
-| `x-work-hour-form` | نموذج فترة عمل | تحقق فوري + رسائل خطأ |
-| `x-quran-page` | عرض صفحة المصحف | خطوط قرآنية + ترقيم + تنقل |
-| `x-sharia-attendance-marks` | شبكة تحضير الدورة | يعاد استخدام نمط `attendance-marks-form` |
+| المكوّن                     | الاستخدام                 | ملاحظات                                  |
+| --------------------------- | ------------------------- | ---------------------------------------- |
+| `x-year-months-grid`        | شبكة أشهر اختبارات الحفاظ | responsive، منتقي سنة، شارات حالات       |
+| `x-weekly-hours-grid`       | جدول ساعات العمل الأسبوعي | وضع قراءة/تحرير                          |
+| `x-work-hour-form`          | نموذج فترة عمل            | تحقق فوري + رسائل خطأ                    |
+| `x-quran-page`              | عرض صفحة المصحف           | خطوط قرآنية + ترقيم + تنقل               |
+| `x-sharia-attendance-marks` | شبكة تحضير الدورة         | يعاد استخدام نمط `attendance-marks-form` |
 
 **قواعد UX إلزامية:**
 
@@ -834,14 +834,14 @@ sharia_courses.attendance  تسجيل حضور الدورات الشرعية
 
 # 10. مصفوفة الاختبارات (QA)
 
-| الملف | التغطية |
-|---|---|
-| `WorkHoursTest` | CRUD، تعارض الأوقات، العزل، صلاحيات، نطاق own |
-| `HafizExamMonthsTest` | شبكة 12 شهراً، تفاصيل الشهر، سنة/شهر غير صالح، العزل |
-| `IjazahWeeksTest` | 4 أسابيع، القيد الفريد، التحقق، النطاق، عدم تأثر الإكمال |
-| `ShariaCoursesTest` | CRUD، طلاب مستقلون، حضور/غياب، النسب، النطاق، Cascade |
-| `QuranPagesTest` | التخطيط (ص1/ص2/ص604)، عبر السور، المدى، المقدار، التوافق |
-| `BrandingTest` (اختياري) | `config('app.name')` = الاسم الكامل في الصفحات الرئيسية |
+| الملف                    | التغطية                                                  |
+| ------------------------ | -------------------------------------------------------- |
+| `WorkHoursTest`          | CRUD، تعارض الأوقات، العزل، صلاحيات، نطاق own            |
+| `HafizExamMonthsTest`    | شبكة 12 شهراً، تفاصيل الشهر، سنة/شهر غير صالح، العزل     |
+| `IjazahWeeksTest`        | 4 أسابيع، القيد الفريد، التحقق، النطاق، عدم تأثر الإكمال |
+| `ShariaCoursesTest`      | CRUD، طلاب مستقلون، حضور/غياب، النسب، النطاق، Cascade    |
+| `QuranPagesTest`         | التخطيط (ص1/ص2/ص604)، عبر السور، المدى، المقدار، التوافق |
+| `BrandingTest` (اختياري) | `config('app.name')` = الاسم الكامل في الصفحات الرئيسية  |
 
 - تُشغَّل عبر `composer test` أو `php artisan test --filter=...`.
 - يُمنع اعتبار الميزة مكتملة دون اختباراتها.
@@ -862,16 +862,16 @@ sharia_courses.attendance  تسجيل حضور الدورات الشرعية
 
 # 12. ترتيب التنفيذ المقترح
 
-| المرحلة | الميزة | السبب |
-|---|---|---|
-| 0 | اسم المؤسسة (§5) | تغيير مستقل سريع |
-| 1 | بيانات صفحات القرآن + أمر التعبئة (§6.2) | أساس لميزة التسميع ويحتاج تحقق بيانات |
-| 2 | تسميع الصفحات + عرض المصحف (§6.3–6.6) | يعتمد على المرحلة 1 |
-| 3 | ساعات عمل المشرفين (§1) | مستقل |
-| 4 | شبكة أشهر اختبارات الحفاظ (§2) | واجهة + متحكم |
-| 5 | أسابيع برنامج الإجازة (§3) | يعتمد على فهم برنامج الإجازة الحالي |
-| 6 | الدورة الشرعية (§4) | الأكبر حجماً |
-| 7 | التدقيق النهائي + الاختبارات الشاملة + `pint` | ضمان الجودة |
+| المرحلة | الميزة                                        | السبب                                 |
+| ------- | --------------------------------------------- | ------------------------------------- |
+| 0       | اسم المؤسسة (§5)                              | تغيير مستقل سريع                      |
+| 1       | بيانات صفحات القرآن + أمر التعبئة (§6.2)      | أساس لميزة التسميع ويحتاج تحقق بيانات |
+| 2       | تسميع الصفحات + عرض المصحف (§6.3–6.6)         | يعتمد على المرحلة 1                   |
+| 3       | ساعات عمل المشرفين (§1)                       | مستقل                                 |
+| 4       | شبكة أشهر اختبارات الحفاظ (§2)                | واجهة + متحكم                         |
+| 5       | أسابيع برنامج الإجازة (§3)                    | يعتمد على فهم برنامج الإجازة الحالي   |
+| 6       | الدورة الشرعية (§4)                           | الأكبر حجماً                          |
+| 7       | التدقيق النهائي + الاختبارات الشاملة + `pint` | ضمان الجودة                           |
 
 بعد كل مرحلة: `php artisan test` + `vendor/bin/pint --dirty` + مراجعة يدوية للواجهة.
 

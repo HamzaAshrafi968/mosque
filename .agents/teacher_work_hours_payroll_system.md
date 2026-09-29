@@ -432,7 +432,7 @@ Teacher
 | `tests/Feature/HourlyRateHistoryTest.php` | ميزة | CRUD السعر، منع التداخل، عدم تأثر المغلق |
 | `tests/Feature/PayrollPeriodTest.php` | ميزة | الاحتساب، اللقطة، الدفعات، الزائد، العكس |
 | `tests/Feature/PayrollCloseReopenTest.php` | ميزة | الإغلاق/الفتح، القفل، الصلاحية، التدقيق |
-| `tests/Feature/PayrollPermissionTest.php` | ميزة | المصفوفة، own، backfill، مدير الجوامع |
+| `tests/Feature/PayrollPermissionTest.php` | ميزة | المصفوفة، own، backfill، مدير المساجد |
 
 **أوامر:** `composer test`، `php artisan test --filter=Payroll`، `vendor/bin/pint --dirty`، `npm run build`.
 

@@ -29,7 +29,7 @@
                     'px-2 py-0.5 rounded-full text-xs font-bold',
                     'bg-teal-100 text-teal-800' => $classroom->studySession,
                     'bg-gray-100 text-gray-500' => ! $classroom->studySession,
-                ])>{{ $classroom->studySession?->name ?: 'كل الدوامات' }}</span>
+                ])>{{ $classroom->studySession?->name ?: 'كل الدوام' }}</span>
                 @if($classroom->status !== 'active')
                     <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">مؤرشف</span>
                 @endif

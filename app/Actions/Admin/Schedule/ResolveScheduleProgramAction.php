@@ -112,7 +112,7 @@ class ResolveScheduleProgramAction
     {
         if (! $this->programs->programAllowedInSession($data['program_id'] ?? null, $data['study_session_id'] ?? null)) {
             throw ValidationException::withMessages([
-                'program_id' => 'البرنامج المختار غير متاح في هذا الدوام — فعّله للدوام من صفحة الدوامات',
+                'program_id' => 'البرنامج المختار غير متاح في هذا الدوام — فعّله للدوام من صفحة الدوام',
             ]);
         }
     }

@@ -5,7 +5,7 @@
 @section('content')
 <div class="max-w-6xl mx-auto">
     <h1 class="text-2xl font-bold text-gray-800 mb-2">مركز الإعدادات</h1>
-    <p class="text-sm text-gray-500 mb-6">كل ما يخص ضبط الجامع في مكان واحد: برنامج القرآن، نقاط المكافآت، الصلاحيات، الدوامات والبرامج.</p>
+    <p class="text-sm text-gray-500 mb-6">كل ما يخص ضبط الجامع في مكان واحد: برنامج القرآن، نقاط المكافآت، الصلاحيات، الدوام والبرامج.</p>
 
     @include('admin.settings._tabs')
 
@@ -100,7 +100,7 @@
                     </span>
                 </div>
                 <h2 class="font-bold text-gray-800 mt-4">الحسابات والصلاحيات</h2>
-                <p class="text-xs text-gray-500 mt-1 leading-relaxed">إنشاء الحسابات، تحديد الأدوار، وضبط صلاحيات المعلمين ومديري الدوامات.</p>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">إنشاء الحسابات، تحديد الأدوار، وضبط صلاحيات المعلمين ومديري الدوام.</p>
             </a>
         @endif
 
@@ -112,8 +112,8 @@
                         <x-icon name="clock" class="w-6 h-6" />
                     </span>
                 </div>
-                <h2 class="font-bold text-gray-800 mt-4">الدوامات</h2>
-                <p class="text-xs text-gray-500 mt-1 leading-relaxed">دوامات الجامع (الأول/الثاني...) والبرامج المتاحة في كل دوام.</p>
+                <h2 class="font-bold text-gray-800 mt-4">الدوام</h2>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">دوام الجامع (الأول/الثاني...) والبرامج المتاحة في كل دوام.</p>
             </a>
         @endif
 

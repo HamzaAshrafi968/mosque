@@ -66,9 +66,9 @@
                 </div>
 
                 <div class="flex items-center gap-1 flex-wrap text-[11px]">
-                    <span class="font-bold text-gray-500">الدوامات:</span>
+                    <span class="font-bold text-gray-500">الدوام:</span>
                     @if($program->studySessions->isEmpty())
-                        <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">كل الدوامات</span>
+                        <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">كل الدوام</span>
                     @else
                         @foreach($program->studySessions as $session)
                             <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{{ $session->display_name }}</span>

@@ -13,7 +13,7 @@ enum RoleScope: string
     public function label(): string
     {
         return match ($this) {
-            self::Global => 'شامل (كل الجوامع)',
+            self::Global => 'شامل (كل المساجد)',
             self::Mosque => 'الجامع الخاص',
             self::ClassScope => 'صفوف محددة',
             self::Section => 'شعب محددة',

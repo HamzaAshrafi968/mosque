@@ -8,7 +8,7 @@
     $can = fn (string $permission) => $authorization->can(auth()->user(), $permission);
 @endphp
 <h1 class="text-2xl font-bold text-gray-800 mb-2">الحسابات والصلاحيات</h1>
-<p class="text-sm text-gray-500 mb-6">إنشاء الحسابات، تحديد الأدوار، وضبط صلاحيات المعلمين ومديري الدوامات.</p>
+<p class="text-sm text-gray-500 mb-6">إنشاء الحسابات، تحديد الأدوار، وضبط صلاحيات المعلمين ومديري الدوام.</p>
 
 @include('admin.settings._tabs')
 

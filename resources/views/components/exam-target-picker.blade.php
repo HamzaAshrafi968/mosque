@@ -40,7 +40,7 @@
     <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">الدوام</label>
         <select name="study_session_id" data-exam-target-session class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-            <option value="">كل الدوامات</option>
+            <option value="">كل الدوام</option>
             @foreach($studySessions as $session)
                 <option value="{{ $session->id }}" @selected((string) $oldStudySessionId === (string) $session->id)>{{ $session->display_name }}</option>
             @endforeach

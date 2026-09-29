@@ -59,10 +59,10 @@
             <div class="text-xs text-gray-500 mt-1">حصص</div>
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
-            <div class="text-xs font-bold text-gray-500 mb-2">الدوامات</div>
+            <div class="text-xs font-bold text-gray-500 mb-2">الدوام</div>
             <div class="flex items-center gap-1 flex-wrap text-[11px]">
                 @if($program->studySessions->isEmpty())
-                    <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">كل الدوامات</span>
+                    <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">كل الدوام</span>
                 @else
                     @foreach($program->studySessions as $session)
                         <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{{ $session->display_name }}</span>

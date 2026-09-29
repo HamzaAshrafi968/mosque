@@ -101,12 +101,12 @@ class PermissionButtonQaTest extends TestCase
 
         StudySession::create(['tenant_id' => $mosque->id, 'name' => 'الدوام الأول', 'is_active' => true]);
 
-        $this->actingAs($manager)->get(route('admin.dashboard'))->assertOk()->assertSee('كل الدوامات');
+        $this->actingAs($manager)->get(route('admin.dashboard'))->assertOk()->assertSee('كل الدوام');
 
         $this->revoke($mosque, RoleService::ROLE_MOSQUE_MANAGER, 'sessions.view');
 
         $this->actingAs($manager)->get(route('admin.sessions.index'))->assertForbidden();
-        $this->actingAs($manager)->get(route('admin.dashboard'))->assertOk()->assertDontSee('كل الدوامات');
+        $this->actingAs($manager)->get(route('admin.dashboard'))->assertOk()->assertDontSee('كل الدوام');
     }
 
     // --------------------------------------------------------------- people

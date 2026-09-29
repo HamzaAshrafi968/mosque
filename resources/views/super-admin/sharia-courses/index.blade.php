@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'الدورات الشرعية — مدير الجوامع')
+@section('title', 'الدورات الشرعية — مدير المساجد')
 
 @section('content')
 <div class="max-w-7xl mx-auto space-y-6">
@@ -16,7 +16,7 @@
         <div>
             <label class="block text-xs font-bold text-gray-600 mb-1">الجامع</label>
             <select name="mosque_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                <option value="">كل الجوامع</option>
+                <option value="">كل المساجد</option>
                 @foreach($mosques as $mosque)
                     <option value="{{ $mosque->id }}" @selected($mosqueId === $mosque->id)>{{ $mosque->name }}</option>
                 @endforeach
@@ -58,7 +58,7 @@
                             <div class="font-bold text-gray-800">{{ $course->name }}</div>
                             <div class="flex items-center gap-2 mt-1">
                                 @if($course->isFromSuperAdmin())
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-800">من مدير الجوامع</span>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-800">من مدير المساجد</span>
                                 @endif
                                 @if($course->location)<span class="text-xs text-gray-400">{{ $course->location }}</span>@endif
                             </div>

@@ -805,7 +805,7 @@ class QuranProgramsTest extends TestCase
 
     public function test_super_admin_inside_a_mosque_can_create_meetings_and_program_records(): void
     {
-        // Create the tenant-less مدير الجوامع before a mosque context exists,
+        // Create the tenant-less مدير المساجد before a mosque context exists,
         // otherwise the tenant trait binds it to the current mosque.
         config(['app.current_tenant_id' => null]);
         $superAdmin = User::factory()->create(['tenant_id' => null, 'role' => User::ROLE_SUPER_ADMIN]);
@@ -820,7 +820,7 @@ class QuranProgramsTest extends TestCase
 
         // Faith meeting: supervisor + explicitly selected students.
         $this->post(route('admin.faith-meetings.store'), [
-            'title' => 'لقاء مدير الجوامع',
+            'title' => 'لقاء مدير المساجد',
             'date' => now()->addDay()->toDateString(),
             'supervisor_id' => $teacher->id,
             'student_ids' => $students->pluck('id')->all(),

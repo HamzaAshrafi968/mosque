@@ -25,7 +25,7 @@
                         'bg-red-100 text-red-800' => $course->status->value === 'cancelled',
                     ])>{{ $course->status->label() }}</span>
                     @if($course->isFromSuperAdmin())
-                        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-violet-100 text-violet-800">أضيفت من مدير الجوامع</span>
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-violet-100 text-violet-800">أضيفت من مدير المساجد</span>
                     @endif
                 </div>
                 <div class="text-sm text-gray-500 mt-2 space-y-1">

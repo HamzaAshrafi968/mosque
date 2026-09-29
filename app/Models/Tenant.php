@@ -59,7 +59,7 @@ class Tenant extends Model
         return ! $this->isSuspended();
     }
 
-    /** الجوامع التي يجوز نشرها في الموقع العام. */
+    /** المساجد التي يجوز نشرها في الموقع العام. */
     public function scopePubliclyVisible(Builder $query): Builder
     {
         return $query->where(function (Builder $query) {

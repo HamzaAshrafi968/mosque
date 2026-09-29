@@ -15,7 +15,7 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * Per-user permission overrides edited by مدير الجوامع: direct grants/denials
+ * Per-user permission overrides edited by مدير المساجد: direct grants/denials
  * win over the role grants and affect only the edited user.
  */
 class UserPermissionOverrideTest extends TestCase

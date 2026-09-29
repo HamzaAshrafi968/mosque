@@ -254,6 +254,7 @@
                             request()->routeIs('admin.quran.tasmee.*') ||
                             request()->routeIs('admin.quran.index') ||
                             request()->routeIs('admin.quran.journey') ||
+                            request()->routeIs('admin.quran.programs.*') ||
                             request()->routeIs('admin.quran.completions.*') ||
                             request()->routeIs('admin.quran.hafiz.*')">
                             @if ($can('quran_batch.view'))
@@ -261,6 +262,10 @@
                             @endif
                             @if ($can('quran.tasmee.view'))
                                 <x-nav-link sub :href="route('admin.quran.index')" :active="request()->routeIs('admin.quran.index') || request()->routeIs('admin.quran.journey')" label="البرامج القرآنية" />
+                            @endif
+                            @if ($can('quran_training.view'))
+                                <x-nav-link sub :href="route('admin.quran.programs.index', ['type' => 'qualifying'])" :active="request()->routeIs('admin.quran.programs.*') && request()->query('type') === 'qualifying'" label="البرنامج التأهيلي" />
+                                <x-nav-link sub :href="route('admin.quran.programs.index', ['type' => 'ijazah'])" :active="request()->routeIs('admin.quran.programs.*') && request()->query('type') === 'ijazah'" label="برنامج الإجازة" />
                             @endif
                             @if ($can('quran.completion.view') || $can('hafiz_profile.view'))
                                 <x-nav-link sub :href="route('admin.quran.completions.index')" :active="request()->routeIs('admin.quran.completions.*') || request()->routeIs('admin.quran.hafiz.*')" label="إتمام الحفظ والحفاظ" />
@@ -294,12 +299,12 @@
                         <x-nav-link icon="settings" :href="route('admin.settings.index')" :active="request()->routeIs('admin.settings.*') || request()->routeIs('admin.users.*')" label="الإعدادات" />
                     @endif
                     @if ($can('sessions.view'))
-                        <x-nav-link icon="clock" :href="route('admin.sessions.index')" :active="request()->routeIs('admin.sessions.*')" label="الدوامات" />
+                        <x-nav-link icon="clock" :href="route('admin.sessions.index')" :active="request()->routeIs('admin.sessions.*')" label="الدوام" />
                     @endif
                     <x-nav-link icon="bell" :href="route('notifications.index')" :active="request()->routeIs('notifications.*')" label="الإشعارات" :badge="$unreadCount > 0 ? $unreadCount : null" />
                 @elseif($user->isSuperAdmin())
                     <x-nav-link icon="home" :href="route('super-admin.dashboard')" :active="request()->routeIs('super-admin.dashboard')" label="لوحة التحكم" />
-                    <x-nav-link icon="mosque" :href="route('super-admin.mosques.index')" :active="request()->routeIs('super-admin.mosques.*')" label="الجوامع" />
+                    <x-nav-link icon="mosque" :href="route('super-admin.mosques.index')" :active="request()->routeIs('super-admin.mosques.*')" label="المساجد" />
                     <x-nav-link icon="quran" :href="route('super-admin.sharia-courses.index')" :active="request()->routeIs('super-admin.sharia-courses.*')" label="الدورات الشرعية" />
                     <x-nav-link icon="bell" :href="route('notifications.index')" :active="request()->routeIs('notifications.*')" label="الإشعارات" :badge="$unreadCount > 0 ? $unreadCount : null" />
                     <div
@@ -431,7 +436,7 @@
                             @elseif($user->isAdmin())
                                 مدير الجامع
                             @elseif($user->isSuperAdmin())
-                                مدير الجوامع
+                                مدير المساجد
                             @elseif($user->isGuardian())
                                 ولي أمر
                             @elseif($user->isStudent())

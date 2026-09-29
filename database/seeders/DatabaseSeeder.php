@@ -44,12 +44,12 @@ class DatabaseSeeder extends Seeder
     {
         $roles = app(RoleService::class);
 
-        // ---- مدير الجوامع (global, above all mosques) ----
+        // ---- مدير المساجد (global, above all mosques) ----
         $roles->ensureGlobalSuperAdminRole();
 
         $superAdmin = User::create([
             'tenant_id' => null,
-            'name' => 'مدير الجوامع',
+            'name' => 'مدير المساجد',
             'email' => 'super@mosque.test',
             'password' => 'password',
             'role' => User::ROLE_SUPER_ADMIN,

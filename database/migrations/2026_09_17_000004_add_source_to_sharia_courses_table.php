@@ -6,7 +6,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * مصدر إنشاء الدورة: من إدارة الجامع (mosque) أو من مدير الجوامع (super_admin).
+ * مصدر إنشاء الدورة: من إدارة الجامع (mosque) أو من مدير المساجد (super_admin).
  */
 return new class extends Migration
 {

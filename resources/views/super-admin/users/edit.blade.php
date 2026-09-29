@@ -55,7 +55,7 @@
                 $selectedSessions = old('study_session_ids', $teacher?->studySessions->pluck('id')->all() ?? []);
             @endphp
             <div id="teacher-session-field">
-                <label class="block text-sm font-medium text-gray-700 mb-1">الدوامات <span class="text-gray-400 text-xs">(للمعلم)</span></label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">الدوام <span class="text-gray-400 text-xs">(للمعلم)</span></label>
                 <div class="grid grid-cols-2 gap-2">
                     @foreach($studySessions as $session)
                         <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-50">
@@ -86,7 +86,7 @@
                 لكل عملية: «وراثة الدور» تُبقي صلاحية الدور، و«منع صريح» يسحبها لهذا المستخدم فقط، واختيار النطاق يمنحها ويستبدل نطاق الدور.
                 استخدم البحث والإجراءات الجماعية («وراثة الكل» / «منح الكل للجامع») للتنقل السريع.
             </p>
-            <p class="text-xs text-gray-400 mt-1">الأدوار: {{ $user->roles->pluck('name')->join('، ') ?: '—' }} · صلاحيات إدارة الجوامع المركزية تُدار لمدير الجوامع فقط ولا تظهر هنا.</p>
+            <p class="text-xs text-gray-400 mt-1">الأدوار: {{ $user->roles->pluck('name')->join('، ') ?: '—' }} · صلاحيات إدارة المساجد المركزية تُدار لمدير المساجد فقط ولا تظهر هنا.</p>
         </div>
 
         @include('super-admin.users.partials.matrix')

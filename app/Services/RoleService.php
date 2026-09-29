@@ -59,7 +59,7 @@ class RoleService
     }
 
     /**
-     * Create the global "مدير الجوامع" role (above all mosques) with every
+     * Create the global "مدير المساجد" role (above all mosques) with every
      * permission granted at the global scope. Idempotent.
      */
     public function ensureGlobalSuperAdminRole(): Role
@@ -69,8 +69,8 @@ class RoleService
         $role = Role::firstOrCreate(
             ['code' => self::ROLE_SUPER_ADMIN, 'tenant_id' => null],
             [
-                'name' => 'مدير الجوامع',
-                'description' => 'صلاحيات كاملة على جميع الجوامع',
+                'name' => 'مدير المساجد',
+                'description' => 'صلاحيات كاملة على جميع المساجد',
                 'is_system' => true,
             ]
         );

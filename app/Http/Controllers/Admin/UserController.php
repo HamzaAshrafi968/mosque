@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Concerns\HandlesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Models\Teacher;
 use App\Models\User;
 use App\Services\RoleService;
 use Illuminate\Http\RedirectResponse;
@@ -37,7 +38,12 @@ class UserController extends Controller
         $data = array_merge($data, $this->resolveProfilePhoto($request));
         unset($data['remove_photo']);
 
-        User::create($data);
+        $user = User::create($data);
+
+        // ملف الأستاذ يُجهَّز فوراً حتى تعمل بوابة الأستاذ بعد أول تسجيل دخول.
+        if ($user->isTeacher()) {
+            $user->ensureTeacherProfile();
+        }
 
         return back()->with('success', 'تم إنشاء المستخدم');
     }
@@ -65,6 +71,16 @@ class UserController extends Controller
         }
 
         $user->update($data);
+
+        // مزامنة ملف الأستاذ مع الدور: يُنشأ عند التحول إلى أستاذ ويُفصل عند
+        // التحول إلى مدير (يبقى سجل الأستاذ صالحاً في الجامع دون حذف بياناته).
+        if ($user->isTeacher()) {
+            $user->ensureTeacherProfile();
+        } elseif ($roleChanged) {
+            Teacher::withoutGlobalScopes(['tenant', 'study_session'])
+                ->where('user_id', $user->id)
+                ->update(['user_id' => null]);
+        }
 
         // Keep the RBAC pivots in sync with the legacy users.role string.
         if ($roleChanged) {

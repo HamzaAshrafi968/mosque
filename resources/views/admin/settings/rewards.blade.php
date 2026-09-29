@@ -19,7 +19,7 @@
 
     @if ($sessions->isEmpty())
         <div class="bg-white rounded-2xl shadow p-10 text-center text-gray-500">
-            لا توجد دوامات بعد — أضف الدوامات من صفحة الدوامات أولاً.
+            لا يوجد دوام بعد — أضف الدوام من صفحة الدوام أولاً.
         </div>
     @else
         <form method="POST" action="{{ route('admin.settings.rewards.update') }}" class="space-y-6">
@@ -180,7 +180,7 @@
                 });
 
                 const original = button.textContent;
-                button.textContent = 'تم النسخ لكل الدوامات ✓';
+                button.textContent = 'تم النسخ لكل الدوام ✓';
                 button.classList.add('border-emerald-300', 'bg-emerald-50', 'text-emerald-800');
 
                 setTimeout(function () {

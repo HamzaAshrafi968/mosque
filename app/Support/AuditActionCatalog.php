@@ -31,7 +31,7 @@ final class AuditActionCatalog
         'guardians' => ['label' => 'أولياء الأمور', 'icon' => 'children', 'tone' => 'teal', 'prefixes' => ['guardian.']],
         'teachers' => ['label' => 'المعلمون', 'icon' => 'teachers', 'tone' => 'sky', 'prefixes' => ['teacher.']],
         'academics' => ['label' => 'الصفوف والشعب', 'icon' => 'classrooms', 'tone' => 'violet', 'prefixes' => ['class.', 'section.']],
-        'sessions' => ['label' => 'الدوامات والحصص', 'icon' => 'schedule', 'tone' => 'amber', 'prefixes' => ['session.']],
+        'sessions' => ['label' => 'الدوام والحصص', 'icon' => 'schedule', 'tone' => 'amber', 'prefixes' => ['session.']],
         'attendance' => ['label' => 'الحضور والغياب', 'icon' => 'attendance', 'tone' => 'emerald', 'prefixes' => ['attendance.']],
         'exams' => ['label' => 'الامتحانات', 'icon' => 'exam', 'tone' => 'rose', 'prefixes' => ['exam.']],
         'quran' => [
@@ -743,7 +743,7 @@ final class AuditActionCatalog
         'payment_state' => ['unpaid' => 'غير مدفوع', 'partial' => 'جزئي', 'paid' => 'مدفوع'],
         'role' => [
             'lead' => 'رئيسي', 'assistant' => 'مساعد', 'admin' => 'مدير',
-            'teacher' => 'معلم', 'super_admin' => 'مدير الجوامع',
+            'teacher' => 'معلم', 'super_admin' => 'مدير المساجد',
             'student' => 'طالب', 'guardian' => 'ولي أمر',
         ],
         'effect' => ['allow' => 'سماح', 'deny' => 'منع'],
@@ -768,7 +768,7 @@ final class AuditActionCatalog
         'note_type' => ['note' => 'ملاحظة', 'suggestion' => 'اقتراح', 'action_item' => 'إجراء'],
         'relationship' => ['father' => 'أب', 'mother' => 'أم', 'guardian' => 'ولي أمر', 'other' => 'أخرى'],
         'source' => [
-            'super_admin' => 'مدير الجوامع', 'admin' => 'الإدارة',
+            'super_admin' => 'مدير المساجد', 'admin' => 'الإدارة',
             'system' => 'النظام', 'manual' => 'يدوي',
         ],
         'source_type' => [
@@ -807,7 +807,7 @@ final class AuditActionCatalog
         'allow' => 'سماح', 'deny' => 'منع',
         'global' => 'عام', 'mosque' => 'جامع', 'own' => 'خاص',
         'student' => 'طالب', 'teacher' => 'معلم', 'guardian' => 'ولي أمر',
-        'admin' => 'مدير', 'super_admin' => 'مدير الجوامع',
+        'admin' => 'مدير', 'super_admin' => 'مدير المساجد',
         'new' => 'جديد', 'revision' => 'مراجعة',
         'exam' => 'امتحان', 'quiz' => 'اختبار قصير',
         'onsite' => 'حضوري', 'online' => 'عن بعد', 'hybrid' => 'مدمج',

@@ -151,7 +151,7 @@
             <div>
                 <h2 class="font-bold text-gray-800 text-sm">الطلاب المسجّلون ({{ $students->total() }})</h2>
                 @if (config('app.current_study_session_id'))
-                    <p class="text-[11px] text-gray-400 mt-1">يُعرض طلاب الدوام المحدد في الأعلى — بدّل الدوام من الأعلى أو اختر «كل الدوامات» لعرض الجميع.</p>
+                    <p class="text-[11px] text-gray-400 mt-1">يُعرض طلاب الدوام المحدد في الأعلى — بدّل الدوام من الأعلى أو اختر «كل الدوام» لعرض الجميع.</p>
                 @endif
             </div>
             <div class="flex items-center gap-2">

@@ -50,7 +50,7 @@
 
         <div class="flex items-center gap-2 pt-1 text-[13px] text-center text-gray-400 font-medium justify-center">
             <x-icon name="info" class="w-4 h-4 shrink-0 text-gold-500" />
-            <span>التسجيل متاح فقط من خلال مدير الجوامع الرئيسي</span>
+            <span>التسجيل متاح فقط من خلال مدير المساجد الرئيسي</span>
         </div>
     </form>
 @endsection

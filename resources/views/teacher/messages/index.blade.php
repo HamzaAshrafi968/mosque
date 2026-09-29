@@ -5,7 +5,7 @@
 @php
     $roleLabel = fn ($user) => match ($user?->role) {
         'admin' => 'الإدارة',
-        'super_admin' => 'مدير الجوامع',
+        'super_admin' => 'مدير المساجد',
         'guardian' => 'ولي أمر',
         'student' => 'طالب',
         default => 'معلم',

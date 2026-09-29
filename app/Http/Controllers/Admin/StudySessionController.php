@@ -133,7 +133,7 @@ class StudySessionController extends Controller
         if ($sessionId === null || $sessionId === '') {
             $request->session()->forget('study_session_id');
 
-            return back()->with('success', 'أنت الآن تعرض: كل الدوامات');
+            return back()->with('success', 'أنت الآن تعرض: كل الدوام');
         }
 
         $session = StudySession::find($sessionId);

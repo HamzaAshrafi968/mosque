@@ -7,7 +7,7 @@ use Illuminate\Database\Migrations\Migration;
 
 /**
  * منح صلاحيتي «إعلان بوابة أولياء الأمور» (portal_notice.view/update)
- * لأدوار مديري الجوامع القائمة — بنفس نمط 2026_09_21_000006.
+ * لأدوار مديري المساجد القائمة — بنفس نمط 2026_09_21_000006.
  */
 return new class extends Migration
 {

@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'دورة شرعية جديدة — مدير الجوامع')
+@section('title', 'دورة شرعية جديدة — مدير المساجد')
 
 @section('content')
 <div class="max-w-5xl mx-auto space-y-6">
     <a href="{{ route('super-admin.sharia-courses.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800">← الدورات الشرعية</a>
     <div>
         <h2 class="text-2xl font-extrabold text-gray-800">إنشاء دورة شرعية وربطها بجامع</h2>
-        <p class="text-sm text-gray-500 mt-1">حدّد الجامع (المكان) والمشرفين والطلاب، وسيصل إشعار لمدير الجامع بأن الدورة أُضيفت من مدير الجوامع.</p>
+        <p class="text-sm text-gray-500 mt-1">حدّد الجامع (المكان) والمشرفين والطلاب، وسيصل إشعار لمدير الجامع بأن الدورة أُضيفت من مدير المساجد.</p>
     </div>
 
     <form method="POST" action="{{ route('super-admin.sharia-courses.store') }}" class="space-y-5">

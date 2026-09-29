@@ -30,7 +30,7 @@ class InitializeTenant
 
         $tenantId = $user->tenant_id;
 
-        // مدير الجوامع: uses the mosque they entered from the central dashboard.
+        // مدير المساجد: uses the mosque they entered from the central dashboard.
         if ($user->isSuperAdmin()) {
             $contextId = $request->session()->get('super_admin_mosque_id');
             $contextValid = $contextId && Tenant::where('id', $contextId)->exists();
@@ -46,7 +46,7 @@ class InitializeTenant
         config(['app.current_tenant_id' => $tenantId]);
 
         // الدوام النشط (first/second shift): only mosque managers (and the
-        // مدير الجوامع while inside a mosque) can pick one; portal users
+        // مدير المساجد while inside a mosque) can pick one; portal users
         // always see everything regardless of a leftover browser choice.
         $managesMosque = $user->isAdmin() || $user->isSuperAdmin();
 

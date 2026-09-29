@@ -22,7 +22,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
- * إنشاء الدورات الشرعية مركزياً من مدير الجوامع وربطها بجامع محدد،
+ * إنشاء الدورات الشرعية مركزياً من مدير المساجد وربطها بجامع محدد،
  * مع إشعار مدير الجامع المستهدف (وأرشفتها في شاشات إدارة الجامع).
  */
 class ShariaCourseController extends Controller
@@ -209,7 +209,7 @@ class ShariaCourseController extends Controller
         foreach ($managers as $manager) {
             $manager->notify(new PortalNotification(
                 'دورة شرعية جديدة',
-                'أضاف مدير الجوامع دورة «'.$course->name.'» إلى جامعكم',
+                'أضاف مدير المساجد دورة «'.$course->name.'» إلى جامعكم',
                 $url,
             ));
         }

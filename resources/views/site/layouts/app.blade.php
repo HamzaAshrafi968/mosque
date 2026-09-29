@@ -77,7 +77,7 @@
                 <a href="{{ route('site.home') }}"
                     class="px-3 py-2 rounded-xl hover:bg-pine-50 transition {{ request()->routeIs('site.home') ? 'text-emerald-700' : '' }}">الرئيسية</a>
                 <a href="{{ route('site.mosques.index') }}"
-                    class="px-3 py-2 rounded-xl hover:bg-pine-50 transition {{ request()->routeIs('site.mosques.*') ? 'text-emerald-700' : '' }}">الجوامع</a>
+                    class="px-3 py-2 rounded-xl hover:bg-pine-50 transition {{ request()->routeIs('site.mosques.*') ? 'text-emerald-700' : '' }}">المساجد</a>
                 <a href="{{ route('site.home') }}#programs"
                     class="px-3 py-2 rounded-xl hover:bg-pine-50 transition">البرامج</a>
                 <a href="{{ route('site.home') }}#contact"
@@ -93,7 +93,7 @@
         <nav class="md:hidden border-t border-pine-100 bg-white/95">
             <div class="max-w-6xl mx-auto px-4 py-2 flex items-center gap-1 overflow-x-auto text-[13px] font-bold text-pine-800">
                 <a href="{{ route('site.home') }}" class="px-3 py-1.5 rounded-lg hover:bg-pine-50 whitespace-nowrap">الرئيسية</a>
-                <a href="{{ route('site.mosques.index') }}" class="px-3 py-1.5 rounded-lg hover:bg-pine-50 whitespace-nowrap">الجوامع</a>
+                <a href="{{ route('site.mosques.index') }}" class="px-3 py-1.5 rounded-lg hover:bg-pine-50 whitespace-nowrap">المساجد</a>
                 <a href="{{ route('site.home') }}#programs" class="px-3 py-1.5 rounded-lg hover:bg-pine-50 whitespace-nowrap">البرامج</a>
                 <a href="{{ route('site.home') }}#contact" class="px-3 py-1.5 rounded-lg hover:bg-pine-50 whitespace-nowrap">تواصل معنا</a>
             </div>
@@ -142,7 +142,7 @@
                 <h3 class="font-black text-gold-200 mb-4">روابط سريعة</h3>
                 <ul class="space-y-2.5 text-sm font-semibold text-emerald-50/85">
                     <li><a href="{{ route('site.home') }}" class="hover:text-gold-200 transition">الرئيسية</a></li>
-                    <li><a href="{{ route('site.mosques.index') }}" class="hover:text-gold-200 transition">الجوامع</a></li>
+                    <li><a href="{{ route('site.mosques.index') }}" class="hover:text-gold-200 transition">المساجد</a></li>
                     <li><a href="{{ route('site.home') }}#programs" class="hover:text-gold-200 transition">البرامج</a></li>
                     <li><a href="{{ route('login') }}" class="hover:text-gold-200 transition">دخول النظام</a></li>
                 </ul>

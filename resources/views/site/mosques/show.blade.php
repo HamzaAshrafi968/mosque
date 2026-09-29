@@ -23,7 +23,7 @@
             <nav class="text-xs font-bold text-emerald-100/70 flex items-center gap-2 flex-wrap" aria-label="مسار التنقل">
                 <a href="{{ route('site.home') }}" class="hover:text-gold-200 transition">الرئيسية</a>
                 <span aria-hidden="true">/</span>
-                <a href="{{ route('site.mosques.index') }}" class="hover:text-gold-200 transition">الجوامع</a>
+                <a href="{{ route('site.mosques.index') }}" class="hover:text-gold-200 transition">المساجد</a>
                 <span aria-hidden="true">/</span>
                 <span class="text-gold-200">{{ $mosque->name }}</span>
             </nav>
@@ -96,7 +96,7 @@
                     </div>
                 @else
                     <p class="text-gray-500 font-semibold mt-5">
-                        {{ $mosque->name }} أحد جوامع {{ config('site.name') }}، يضم حلقات تحفيظ القرآن الكريم والبرامج
+                        {{ $mosque->name }} أحد مساجد {{ config('site.name') }}، يضم حلقات تحفيظ القرآن الكريم والبرامج
                         التعليمية التابعة للمؤسسة.
                     </p>
                 @endif
@@ -229,7 +229,7 @@
 
             <a href="{{ route('site.mosques.index') }}"
                 class="block text-center text-emerald-700 font-black text-sm hover:underline">
-                ← كل الجوامع
+                ← كل المساجد
             </a>
         </aside>
     </section>
