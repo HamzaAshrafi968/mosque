@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Guardian;
+use App\Models\Student;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -19,7 +22,7 @@ class AvatarSmokeTest extends TestCase
 
     private function admin()
     {
-        return \App\Models\User::where('email', 'admin@mosque.test')->firstOrFail();
+        return User::where('email', 'admin@mosque.test')->firstOrFail();
     }
 
     public function test_admin_avatar_pages_render(): void
@@ -34,7 +37,7 @@ class AvatarSmokeTest extends TestCase
         $this->get(route('admin.parents.create'))->assertOk();
         $this->get(route('admin.students.create'))->assertOk();
 
-        $student = \App\Models\Student::first();
+        $student = Student::first();
         $this->get(route('admin.students.show', $student))->assertOk();
         $this->get(route('admin.students.edit', $student))->assertOk();
     }
@@ -43,7 +46,7 @@ class AvatarSmokeTest extends TestCase
     {
         Storage::fake('public');
 
-        $student = \App\Models\Student::first();
+        $student = Student::first();
 
         $this->actingAs($this->admin())
             ->patch(route('admin.students.update', $student), [
@@ -82,5 +85,95 @@ class AvatarSmokeTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertNotNull($admin->fresh()->photo);
+    }
+
+    public function test_teacher_user_photo_syncs_to_teacher_profile(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->post(route('admin.users.store'), [
+                'name' => 'أستاذ جديد',
+                'email' => 'newteacher@mosque.test',
+                'password' => 'password123',
+                'role' => 'teacher',
+                'gender' => 'male',
+                'photo' => UploadedFile::fake()->image('teacher.jpg'),
+            ])
+            ->assertSessionHas('success');
+
+        $user = User::where('email', 'newteacher@mosque.test')->firstOrFail();
+        $teacher = $user->teacher()->firstOrFail();
+
+        $this->assertNotNull($user->photo);
+        $this->assertSame($user->photo, $teacher->photo);
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $user), [
+                'name' => 'أستاذ جديد',
+                'email' => 'newteacher@mosque.test',
+                'role' => 'teacher',
+                'photo' => UploadedFile::fake()->image('teacher2.jpg'),
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame($user->fresh()->photo, $teacher->fresh()->photo);
+    }
+
+    public function test_student_portal_account_created_later_inherits_photo(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.students.store'), [
+                'name' => 'طالب بالصورة',
+                'gender' => 'male',
+                'photo' => UploadedFile::fake()->image('student.jpg'),
+            ])
+            ->assertSessionHas('success');
+
+        $student = Student::where('name', 'طالب بالصورة')->firstOrFail();
+        $this->assertNotNull($student->photo);
+        $this->assertNull($student->user_id);
+
+        $this->actingAs($this->admin())
+            ->patch(route('admin.students.update', $student), [
+                'name' => 'طالب بالصورة',
+                'gender' => 'male',
+                'portal_account_present' => '1',
+                'portal_email' => 'late.student@mosque.test',
+                'portal_password' => 'password123',
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame($student->photo, $student->fresh()->user->photo);
+    }
+
+    public function test_guardian_portal_account_created_later_inherits_photo(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.parents.store'), [
+                'name' => 'ولي أمر بالصورة',
+                'photo' => UploadedFile::fake()->image('guardian.jpg'),
+            ])
+            ->assertSessionHas('success');
+
+        $guardian = Guardian::where('name', 'ولي أمر بالصورة')->firstOrFail();
+        $this->assertNotNull($guardian->photo);
+        $this->assertNull($guardian->user_id);
+
+        $this->actingAs($this->admin())
+            ->patch(route('admin.parents.update', $guardian), [
+                'name' => 'ولي أمر بالصورة',
+                'email' => 'late.guardian@mosque.test',
+                'password' => 'password123',
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame($guardian->photo, $guardian->fresh()->user->photo);
     }
 }

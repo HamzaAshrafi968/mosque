@@ -40,9 +40,12 @@ class UserController extends Controller
 
         $user = User::create($data);
 
-        // ملف الأستاذ يُجهَّز فوراً حتى تعمل بوابة الأستاذ بعد أول تسجيل دخول.
+        // ملف الأستاذ يُجهَّز فوراً حتى تعمل بوابة الأستاذ بعد أول تسجيل دخول،
+        // ومعه الصورة الشخصية حتى تظهر في قائمة المعلمين.
         if ($user->isTeacher()) {
-            $user->ensureTeacherProfile();
+            $user->ensureTeacherProfile()->update([
+                'photo' => $data['photo'] ?? null,
+            ]);
         }
 
         return back()->with('success', 'تم إنشاء المستخدم');
@@ -75,7 +78,19 @@ class UserController extends Controller
         // مزامنة ملف الأستاذ مع الدور: يُنشأ عند التحول إلى أستاذ ويُفصل عند
         // التحول إلى مدير (يبقى سجل الأستاذ صالحاً في الجامع دون حذف بياناته).
         if ($user->isTeacher()) {
-            $user->ensureTeacherProfile();
+            $profile = $user->ensureTeacherProfile();
+
+            $sync = [
+                'name' => $user->name,
+                'gender' => $user->gender,
+                'phone' => $user->phone,
+            ];
+
+            if (array_key_exists('photo', $data)) {
+                $sync['photo'] = $data['photo'];
+            }
+
+            $profile->update($sync);
         } elseif ($roleChanged) {
             Teacher::withoutGlobalScopes(['tenant', 'study_session'])
                 ->where('user_id', $user->id)

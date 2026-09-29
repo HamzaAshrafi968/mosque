@@ -498,6 +498,7 @@ class StudentController extends Controller
             'password' => $password,
             'role' => User::ROLE_STUDENT,
             'gender' => $student->gender,
+            'photo' => $student->photo,
         ]);
 
         $student->update(['user_id' => $user->id]);

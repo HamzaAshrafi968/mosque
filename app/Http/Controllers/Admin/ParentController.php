@@ -247,7 +247,7 @@ class ParentController extends Controller
             'password' => $password,
             'role' => User::ROLE_GUARDIAN,
             'phone' => $data['phone'] ?? null,
-            'photo' => $photo['photo'] ?? null,
+            'photo' => $photo['photo'] ?? $guardian->photo,
         ]);
 
         $guardian->update(['user_id' => $user->id]);
