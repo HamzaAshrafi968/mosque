@@ -254,7 +254,6 @@
                             request()->routeIs('admin.quran.tasmee.*') ||
                             request()->routeIs('admin.quran.index') ||
                             request()->routeIs('admin.quran.journey') ||
-                            request()->routeIs('admin.quran.programs.*') ||
                             request()->routeIs('admin.quran.completions.*') ||
                             request()->routeIs('admin.quran.hafiz.*')">
                             @if ($can('quran_batch.view'))
@@ -263,20 +262,21 @@
                             @if ($can('quran.tasmee.view'))
                                 <x-nav-link sub :href="route('admin.quran.index')" :active="request()->routeIs('admin.quran.index') || request()->routeIs('admin.quran.journey')" label="البرامج القرآنية" />
                             @endif
-                            @if ($can('quran_training.view'))
-                                <x-nav-link sub :href="route('admin.quran.programs.index', ['type' => 'qualifying'])" :active="request()->routeIs('admin.quran.programs.*') && request()->query('type') === 'qualifying'" label="البرنامج التأهيلي" />
-                                <x-nav-link sub :href="route('admin.quran.programs.index', ['type' => 'ijazah'])" :active="request()->routeIs('admin.quran.programs.*') && request()->query('type') === 'ijazah'" label="برنامج الإجازة" />
-                            @endif
                             @if ($can('quran.completion.view') || $can('hafiz_profile.view'))
                                 <x-nav-link sub :href="route('admin.quran.completions.index')" :active="request()->routeIs('admin.quran.completions.*') || request()->routeIs('admin.quran.hafiz.*')" label="إتمام الحفظ والحفاظ" />
                             @endif
                         </x-nav-group>
                     @endif
 
-                    @if ($can('hafiz_exams.view') || $can('sharia_courses.view') || $can('faith_meetings.view'))
-                        <x-nav-group icon="qualifying" label="البرامج والدورات" :active="request()->routeIs('admin.quran.exams.*') ||
+                    @if ($can('quran_training.view') || $can('hafiz_exams.view') || $can('sharia_courses.view') || $can('faith_meetings.view'))
+                        <x-nav-group icon="qualifying" label="البرامج والدورات" :active="request()->routeIs('admin.quran.programs.*') ||
+                            request()->routeIs('admin.quran.exams.*') ||
                             request()->routeIs('admin.sharia-courses.*') ||
                             request()->routeIs('admin.faith-meetings.*')">
+                            @if ($can('quran_training.view'))
+                                <x-nav-link sub :href="route('admin.quran.programs.index', ['type' => 'qualifying'])" :active="request()->routeIs('admin.quran.programs.*') && request()->query('type') === 'qualifying'" label="البرنامج التأهيلي" />
+                                <x-nav-link sub :href="route('admin.quran.programs.index', ['type' => 'ijazah'])" :active="request()->routeIs('admin.quran.programs.*') && request()->query('type') === 'ijazah'" label="برنامج الإجازة" />
+                            @endif
                             @if ($can('hafiz_exams.view'))
                                 <x-nav-link sub :href="route('admin.quran.exams.index')" :active="request()->routeIs('admin.quran.exams.*')" label="اختبارات الحفاظ" />
                             @endif
@@ -391,10 +391,15 @@
                         </x-nav-group>
                     @endif
 
-                    @if ($can('hafiz_exams.view') || $can('faith_meetings.view') || $can('sharia_courses.view'))
-                        <x-nav-group icon="qualifying" label="البرامج والدورات" :active="request()->routeIs('teacher.quran.exams.*') ||
+                    @if ($can('quran_training.view') || $can('hafiz_exams.view') || $can('faith_meetings.view') || $can('sharia_courses.view'))
+                        <x-nav-group icon="qualifying" label="البرامج والدورات" :active="request()->routeIs('teacher.quran.programs.*') ||
+                            request()->routeIs('teacher.quran.exams.*') ||
                             request()->routeIs('teacher.quran.faith-meetings.*') ||
                             request()->routeIs('teacher.sharia-courses.*')">
+                            @if ($can('quran_training.view'))
+                                <x-nav-link sub :href="route('teacher.quran.programs.index', ['type' => 'qualifying'])" :active="request()->routeIs('teacher.quran.programs.*') && request()->query('type') === 'qualifying'" label="البرنامج التأهيلي" />
+                                <x-nav-link sub :href="route('teacher.quran.programs.index', ['type' => 'ijazah'])" :active="request()->routeIs('teacher.quran.programs.*') && request()->query('type') === 'ijazah'" label="برنامج الإجازة" />
+                            @endif
                             @if ($can('hafiz_exams.view'))
                                 <x-nav-link sub :href="route('teacher.quran.exams.index')" :active="request()->routeIs('teacher.quran.exams.*')" label="اختبارات الحفاظ" />
                             @endif

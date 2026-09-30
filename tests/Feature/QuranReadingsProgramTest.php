@@ -359,6 +359,10 @@ class QuranReadingsProgramTest extends TestCase
             'amount' => 1,
         ]);
 
+        // قيّد الأستاذ إلى نطاقه الخاص لتغطية مسار العزل (الافتراضي نطاق الجامع).
+        $updatePermission = Permission::where('code', 'quran_training.update')->firstOrFail();
+        $teacherUser->permissions()->attach($updatePermission->id, ['effect' => 'allow', 'scope' => 'own']);
+
         $this->completeIjazah($student);
 
         $this->actingAs($teacherUser)

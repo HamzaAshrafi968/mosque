@@ -7,6 +7,7 @@ use App\Enums\ProgramType;
 use App\Enums\QuranListeningBatchStatus;
 use App\Enums\QuranListeningItemStatus;
 use App\Models\Classroom;
+use App\Models\Permission;
 use App\Models\ProgramEnrollment;
 use App\Models\QuranListeningProgram;
 use App\Models\QuranListeningProgramBatch;
@@ -467,6 +468,10 @@ class QuranProgramPartialListeningTest extends TestCase
 
         $first = $this->batch($program, 1);
         $item = $first->items()->where('juz', 1)->firstOrFail();
+
+        // قيّد الأستاذ إلى نطاقه الخاص لتغطية مسار العزل (الافتراضي نطاق الجامع).
+        $listenPermission = Permission::where('code', 'quran_training.listen')->firstOrFail();
+        $teacherUser->permissions()->attach($listenPermission->id, ['effect' => 'allow', 'scope' => 'own']);
 
         // أستاذ خارج نطاق الطالب.
         $this->actingAs($teacherUser)

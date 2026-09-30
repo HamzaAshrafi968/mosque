@@ -7,6 +7,7 @@ use App\Enums\ProgramType;
 use App\Enums\QuranListeningBatchStatus;
 use App\Enums\QuranListeningItemStatus;
 use App\Models\Classroom;
+use App\Models\Permission;
 use App\Models\ProgramEnrollment;
 use App\Models\QuranListeningProgram;
 use App\Models\QuranListeningProgramBatch;
@@ -280,7 +281,7 @@ class QuranListeningProgramTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.quran.programs.index'))
             ->assertOk()
-            ->assertSee('برامج الاستماع')
+            ->assertDontSee('برامج الاستماع')
             ->assertSee('البرنامج التأهيلي')
             ->assertSee('برنامج الإجازة')
             ->assertDontSee('البرنامج التدريبي');
@@ -339,7 +340,16 @@ class QuranListeningProgramTest extends TestCase
         $program = $this->programFor($student, ProgramType::Qualifying);
         $item = $this->batch($program, 1)->items()->firstOrFail();
 
-        // الأستاذ بلا شعب → خارج النطاق.
+        // بنطاق الجامع (الافتراضي) يرى الأستاذ برامج الجامع كلها مثل المدير.
+        $this->actingAs($teacherUser)
+            ->get(route('teacher.quran.programs.index', ['type' => 'qualifying']))
+            ->assertOk()
+            ->assertSee($student->name);
+
+        // تقييد الأستاذ إلى نطاقه الخاص (بلا شعب) يعيد العزل.
+        $viewPermission = Permission::where('code', 'quran_training.view')->firstOrFail();
+        $teacherUser->permissions()->attach($viewPermission->id, ['effect' => 'allow', 'scope' => 'own']);
+
         $this->actingAs($teacherUser)
             ->get(route('teacher.quran.programs.index', ['student_id' => $student->id]))
             ->assertForbidden();

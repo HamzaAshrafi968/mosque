@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'برامج الاستماع')
+@section('title', $selectedType->label())
 
 @section('content')
     <div class="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800">برامج الاستماع</h1>
+            <h1 class="text-2xl font-bold text-gray-800">{{ $selectedType->label() }}</h1>
             <p class="text-sm text-gray-500 mt-1">
                 دورة الدفعات: تسميع 5 أجزاء مع الأخطاء ← اختبار تراكمي من الجزء 1 ← الدفعة التالية. مع «وين موصل» و«شو مسمع».
             </p>
@@ -63,24 +63,6 @@
                 </div>
             @endif
         @endif
-
-        {{-- تصفية بالطالب --}}
-        <div class="bg-white rounded-2xl shadow p-5">
-            <form method="GET" action="{{ route('teacher.quran.programs.index') }}" class="flex flex-wrap items-end gap-3">
-                <input type="hidden" name="type" value="{{ $selectedType->value }}">
-                <div class="min-w-56 flex-1">
-                    <label class="block text-xs font-bold text-gray-500 mb-1">تصفية بالطالب</label>
-                    <select name="student_id" onchange="this.form.submit()"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        <option value="">كل طلابي</option>
-                        @foreach ($students as $student)
-                            <option value="{{ $student->id }}" @selected($selectedStudent?->id === $student->id)>{{ $student->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <button class="bg-gray-800 hover:bg-gray-900 text-white font-bold px-5 py-2 rounded-xl text-sm">عرض</button>
-            </form>
-        </div>
 
         {{-- قائمة البرامج --}}
         <div class="bg-white rounded-2xl shadow overflow-hidden">

@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'برامج الاستماع')
+@section('title', $selectedType->label())
 
 @section('content')
     <div class="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800">برامج الاستماع</h1>
+            <h1 class="text-2xl font-bold text-gray-800">{{ $selectedType->label() }}</h1>
             <p class="text-sm text-gray-500 mt-1">
                 دورة الدفعات: تسميع 5 أجزاء مع الأخطاء ← اختبار تراكمي من الجزء 1 ← الدفعة التالية. مع «وين موصل» و«شو مسمع».
             </p>

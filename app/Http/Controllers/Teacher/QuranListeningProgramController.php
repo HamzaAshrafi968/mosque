@@ -23,9 +23,12 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
- * «برامج الاستماع» — مركز الأستاذ (الإجازة/التأهيلي) لطلابه ضمن نطاقه.
+ * «برامج الاستماع» — مركز الأستاذ (الإجازة/التأهيلي/القراءات).
  *
  * دورة دفعات 5 أجزاء + اختبار تراكمي من الجزء 1 + إعادة الراسب فقط.
+ * النطاق مربوط بمصفوفة الصلاحيات: منح الجامع (الافتراضي) يعرض كل طلاب
+ * الجامع مثل صفحة المدير، وتقييد الأستاذ إلى نطاقه الخاص يفعّل عزل
+ * QuranScopeService.
  */
 class QuranListeningProgramController extends BaseTeacherController
 {
@@ -41,7 +44,8 @@ class QuranListeningProgramController extends BaseTeacherController
     public function index(Request $request): View
     {
         $teacher = $this->currentTeacher($request);
-        $studentIds = $this->scope->studentIdsFor($teacher);
+        $mosqueWide = $this->mosqueWide('quran_training.view');
+        $studentIds = $mosqueWide ? null : $this->scope->studentIdsFor($teacher);
 
         $type = ProgramType::tryFrom((string) $request->input('type', ProgramType::Qualifying->value))
             ?? ProgramType::Qualifying;
@@ -51,14 +55,14 @@ class QuranListeningProgramController extends BaseTeacherController
         if ($request->filled('student_id')) {
             $selectedStudent = Student::query()->find($request->input('student_id'));
 
-            if ($selectedStudent) {
+            if ($selectedStudent && ! $mosqueWide) {
                 $this->scope->assertCanManageStudent($teacher, $selectedStudent);
             }
         }
 
         $programs = QuranListeningProgram::query()
             ->with(['student:id,name', 'enrollment:id,program_type,status'])
-            ->whereIn('student_id', $studentIds)
+            ->when($studentIds !== null, fn ($query) => $query->whereIn('student_id', $studentIds))
             ->when($selectedStudent, fn ($query) => $query->where('student_id', $selectedStudent->id))
             ->when($request->filled('type'), fn ($query) => $query->where('type', $type))
             ->orderByDesc('updated_at')
@@ -74,7 +78,7 @@ class QuranListeningProgramController extends BaseTeacherController
         if ($request->filled('program_id')) {
             $selected = QuranListeningProgram::query()->find($request->input('program_id'));
 
-            if ($selected) {
+            if ($selected && ! $mosqueWide) {
                 $this->assertCanManageProgram($selected);
             }
         } elseif ($selectedStudent) {
@@ -82,7 +86,9 @@ class QuranListeningProgramController extends BaseTeacherController
                 ?? $studentPrograms->first(fn (QuranListeningProgram $program) => $program->type === $type);
         }
 
-        $students = $this->scope->studentsFor($teacher);
+        $students = $mosqueWide
+            ? Student::query()->active()->orderBy('name')->get(['id', 'name'])
+            : $this->scope->studentsFor($teacher);
         $eligibleIds = $this->programEnrollments->completedIjazahStudentIds($students->pluck('id'));
         $eligibleStudents = $students->whereIn('id', $eligibleIds)->values();
 
@@ -111,7 +117,9 @@ class QuranListeningProgramController extends BaseTeacherController
 
         $student = Student::query()->findOrFail($data['student_id']);
 
-        $this->scope->assertCanManageStudent($this->currentTeacher($request), $student);
+        if (! $this->mosqueWide('quran_training.update')) {
+            $this->scope->assertCanManageStudent($this->currentTeacher($request), $student);
+        }
 
         $program = $this->programs->enrollReadings(
             $student,
@@ -235,7 +243,7 @@ class QuranListeningProgramController extends BaseTeacherController
 
     public function test(Request $request, QuranListeningProgramBatch $batch): RedirectResponse
     {
-        $this->assertCanManageStudentId($batch->student_id);
+        $this->assertCanManageBatchStudent($batch->student_id, 'quran_training.test');
 
         $data = $request->validate([
             'results' => ['required', 'array', 'min:1'],
@@ -264,7 +272,7 @@ class QuranListeningProgramController extends BaseTeacherController
     /** الاختبار المباشر للأجزاء المحفوظة مسبقاً (التأهيلي/الإجازة). */
     public function placementTest(Request $request, QuranListeningProgramBatch $batch): RedirectResponse
     {
-        $this->assertCanManageStudentId($batch->student_id);
+        $this->assertCanManageBatchStudent($batch->student_id, 'quran_training.test');
 
         $data = $request->validate([
             'results' => ['required', 'array', 'min:1'],
@@ -284,7 +292,7 @@ class QuranListeningProgramController extends BaseTeacherController
 
     public function cancel(Request $request, QuranListeningProgram $program): RedirectResponse
     {
-        $this->assertCanManageProgram($program);
+        $this->assertCanManageProgram($program, 'quran_training.update');
 
         $this->programs->cancelProgram($program, $request->user());
 
@@ -301,14 +309,31 @@ class QuranListeningProgramController extends BaseTeacherController
         return $this->batches->panelData($program);
     }
 
-    private function assertCanManageProgram(QuranListeningProgram $program): void
+    private function assertCanManageProgram(QuranListeningProgram $program, string $permission = 'quran_training.view'): void
     {
+        if ($this->mosqueWide($permission)) {
+            return;
+        }
+
         $this->assertCanManageStudentId($program->student_id);
     }
 
     private function assertCanManageItem(QuranListeningProgramItem $item): void
     {
+        if ($this->mosqueWide('quran_training.listen')) {
+            return;
+        }
+
         $this->assertCanManageStudentId($item->program()->first()?->student_id);
+    }
+
+    private function assertCanManageBatchStudent(?string $studentId, string $permission): void
+    {
+        if ($this->mosqueWide($permission)) {
+            return;
+        }
+
+        $this->assertCanManageStudentId($studentId);
     }
 
     private function assertCanManageStudentId(?string $studentId): void
@@ -324,6 +349,26 @@ class QuranListeningProgramController extends BaseTeacherController
         }
 
         $this->scope->assertCanManageStudent($this->currentTeacher(request()), $student);
+    }
+
+    /**
+     * هل يملك المستخدم الصلاحية بنطاق الجامع (وليس النطاق الخاص)؟
+     *
+     * الصفحات مربوطة بمصفوفة الصلاحيات: منح «mosque» يعرض كل طلاب
+     * الجامع مثل صفحة المدير، وتقييد أستاذ إلى «own» يعيد نطاقه الخاص.
+     */
+    private function mosqueWide(string $permission): bool
+    {
+        $user = request()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return array_intersect(
+            ['mosque', 'global'],
+            $this->authorization->scopesFor($user, $permission),
+        ) !== [];
     }
 
     /** @return array<string, callable|null> */
